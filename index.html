@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RewardKidz">
 <meta name="theme-color" content="#09031c">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <title>RewardKidz 🦄 — Validation PWA</title>
 <style>
@@ -200,7 +200,7 @@ html,body{min-height:100svh;background:var(--bg);font-family:var(--px);color:#ff
 
   <!-- Header -->
   <div class="hdr">
-    <div class="hdr-title">🦄 REWARDKIDZ</div>
+    <div class="hdr-title">🦄 RewardKidz</div>
     <div class="hdr-sub">VALIDATION PWA · LOT 1</div>
   </div>
 
@@ -497,7 +497,7 @@ async function checkServiceWorker() {
     return;
   }
   try {
-    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
     await navigator.serviceWorker.ready;
     const state = reg.installing ? 'installation' : reg.waiting ? 'en attente' : reg.active ? 'actif' : 'inconnu';
     setCheck('sw', 'ok', `Service Worker ${state} · scope : ${reg.scope}`);
@@ -511,7 +511,7 @@ async function checkServiceWorker() {
 // ══════════════════════════════════
 async function checkManifest() {
   try {
-    const res  = await fetch('/manifest.json');
+    const res  = await fetch('./manifest.json');
     const data = await res.json();
     if (data.name && data.display === 'standalone') {
       setCheck('manifest', 'ok', `"${data.name}" · display: ${data.display} · ${data.icons?.length || 0} icône(s)`);
@@ -684,8 +684,8 @@ async function sendTestNotif() {
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification('RewardKidz 🦄', {
       body:    "Papa t'a offert +5 💎 ! Bravo !",
-      icon:    '/icon-192.png',
-      badge:   '/icon-192.png',
+      icon:    './icon-192.png',
+      badge:   './icon-192.png',
       vibrate: [200, 100, 200],
       tag:     'rk-test',
     });

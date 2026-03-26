@@ -2,12 +2,15 @@
 // Stratégie : Cache First pour les assets, Network First pour les données
 
 const CACHE_NAME = 'RewardKidz-v1';
+
+// Chemins relatifs — compatibles GitHub Pages sous-répertoire
+const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/icon-192.png',
+  BASE + '/icon-512.png',
 ];
 
 // ── Installation : mise en cache des assets ──────────────────
@@ -87,7 +90,7 @@ self.addEventListener('fetch', event => {
           })
           .catch(() => {
             // Offline + pas en cache → page offline générique
-            return caches.match('/index.html');
+            return caches.match(BASE + '/index.html');
           });
       })
   );
@@ -97,7 +100,7 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   console.log('[SW] Push reçu');
 
-  let data = { title: 'RewardKidz 🦄', body: 'Tu as un nouveau message !', icon: '/icon-192.png' };
+  let data = { title: 'RewardKidz 🦄', body: 'Tu as un nouveau message !', icon: BASE + '/icon-192.png' };
 
   try {
     data = event.data ? { ...data, ...event.data.json() } : data;
@@ -108,9 +111,9 @@ self.addEventListener('push', event => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body:  data.body,
-      icon:  data.icon  || '/icon-192.png',
-      badge: '/icon-192.png',
-      data:  data.url   || '/',
+      icon:  data.icon  || BASE + '/icon-192.png',
+      badge: BASE + '/icon-192.png',
+      data:  data.url   || BASE + '/',
       vibrate: [200, 100, 200],
       tag: 'RewardKidz-notif',
       renotify: true,
@@ -121,7 +124,7 @@ self.addEventListener('push', event => {
 // Tap sur notification → ouvre la PWA
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = event.notification.data || '/';
+  const url = event.notification.data || BASE + '/';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(windowClients => {
