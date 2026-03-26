@@ -1,9 +1,9 @@
-# RewardKids — PWA Validation · Lot 0
+# RewardKidz — PWA Validation · Lot 0
 
 ## Fichiers inclus
 
 ```
-rewardkids-pwa/
+RewardKidz-pwa/
 ├── index.html      ← Page de validation avec checklist automatique
 ├── manifest.json   ← Config PWA (nom, icônes, display standalone)
 ├── sw.js           ← Service Worker (cache + offline + notifs)
@@ -16,7 +16,7 @@ rewardkids-pwa/
 
 ## 1. Générer les icônes (obligatoire)
 
-Créer 2 images PNG carrées avec le logo RewardKids (emoji 🦄 sur fond #09031c) :
+Créer 2 images PNG carrées avec le logo RewardKidz (emoji 🦄 sur fond #09031c) :
 - `icon-192.png` → 192×192 px
 - `icon-512.png` → 512×512 px
 
@@ -33,8 +33,8 @@ Sélectionner l'emoji 🦄, télécharger et renommer les fichiers.
 # 1. Créer un repo GitHub
 git init
 git add .
-git commit -m "RewardKids PWA validation"
-git remote add origin https://github.com/TON_USER/rewardkids.git
+git commit -m "RewardKidz PWA validation"
+git remote add origin https://github.com/TON_USER/RewardKidz.git
 git push -u origin main
 
 # 2. Sur Cloudflare Pages
@@ -44,18 +44,18 @@ git push -u origin main
 #    → Build output directory : /
 #    → Deploy !
 
-# URL générée : https://rewardkids.pages.dev
+# URL générée : https://RewardKidz.pages.dev
 ```
 
 ### Option B — GitHub + GitHub Pages
 
 ```bash
 git init && git add . && git commit -m "init"
-git remote add origin https://github.com/TON_USER/rewardkids.git
+git remote add origin https://github.com/TON_USER/RewardKidz.git
 git push -u origin main
 
 # Sur GitHub : Settings → Pages → Branch: main → / (root) → Save
-# URL : https://TON_USER.github.io/rewardkids
+# URL : https://TON_USER.github.io/RewardKidz
 ```
 
 ### Option C — Sans compte (test local rapide)

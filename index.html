@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="RewardKids">
+<meta name="apple-mobile-web-app-title" content="RewardKidz">
 <meta name="theme-color" content="#09031c">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<title>RewardKids 🦄 — Validation PWA</title>
+<title>RewardKidz 🦄 — Validation PWA</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -200,14 +200,14 @@ html,body{min-height:100svh;background:var(--bg);font-family:var(--px);color:#ff
 
   <!-- Header -->
   <div class="hdr">
-    <div class="hdr-title">🦄 REWARDKIDS</div>
+    <div class="hdr-title">🦄 REWARDKIDZ</div>
     <div class="hdr-sub">VALIDATION PWA · LOT 1</div>
   </div>
 
   <!-- Install banner (Chrome/Android) -->
   <div class="install-banner" id="installBanner">
     <div class="ib-title">⬇️ INSTALLER L'APPLICATION</div>
-    <div class="ib-msg">Clique pour ajouter RewardKids à ton écran d'accueil</div>
+    <div class="ib-msg">Clique pour ajouter RewardKidz à ton écran d'accueil</div>
     <button class="ib-btn" id="installBtn">INSTALLER MAINTENANT</button>
   </div>
 
@@ -564,7 +564,7 @@ async function checkCache() {
     return;
   }
   try {
-    const cache = await caches.open('rewardkids-v1');
+    const cache = await caches.open('RewardKidz-v1');
     const keys  = await cache.keys();
     if (keys.length > 0) {
       setCheck('cached', 'ok', `${keys.length} ressource(s) en cache — offline possible`);
@@ -682,7 +682,7 @@ async function sendTestNotif() {
   try {
     // Via Service Worker (simule un vrai push)
     const reg = await navigator.serviceWorker.ready;
-    await reg.showNotification('RewardKids 🦄', {
+    await reg.showNotification('RewardKidz 🦄', {
       body:    "Papa t'a offert +5 💎 ! Bravo !",
       icon:    '/icon-192.png',
       badge:   '/icon-192.png',

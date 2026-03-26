@@ -1,7 +1,7 @@
-// RewardKids — Service Worker v1.0
+// RewardKidz — Service Worker v1.0
 // Stratégie : Cache First pour les assets, Network First pour les données
 
-const CACHE_NAME = 'rewardkids-v1';
+const CACHE_NAME = 'RewardKidz-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -97,7 +97,7 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   console.log('[SW] Push reçu');
 
-  let data = { title: 'RewardKids 🦄', body: 'Tu as un nouveau message !', icon: '/icon-192.png' };
+  let data = { title: 'RewardKidz 🦄', body: 'Tu as un nouveau message !', icon: '/icon-192.png' };
 
   try {
     data = event.data ? { ...data, ...event.data.json() } : data;
@@ -112,7 +112,7 @@ self.addEventListener('push', event => {
       badge: '/icon-192.png',
       data:  data.url   || '/',
       vibrate: [200, 100, 200],
-      tag: 'rewardkids-notif',
+      tag: 'RewardKidz-notif',
       renotify: true,
     })
   );
