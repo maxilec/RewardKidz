@@ -396,6 +396,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 </head>
 <body>
 
+<!-- Bannière hors-ligne -->
+<div id="offlineBanner" style="
+  display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);
+  width:min(430px,100vw);z-index:250;
+  background:#f5923e;color:#fff;
+  padding:calc(env(safe-area-inset-top)+10px) 16px 10px;
+  font-family:'Baloo 2',cursive;font-size:12px;font-weight:800;
+  text-align:center;letter-spacing:.03em;
+  box-shadow:0 2px 12px rgba(245,146,62,.4);
+">
+  📡 Mode hors-ligne — lecture seule
+</div>
+
 <!-- Toast -->
 <div class="toast-wrap">
   <div class="toast" id="toast">
@@ -581,8 +594,20 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <button class="ni" onclick="nav('scStats',this)"><div class="ni-ico">📊</div><div class="ni-lbl">Stats</div></button>
 </nav>
 
-<script>
+<script type="module">
 'use strict';
+
+// ── Imports Firebase ──
+import {
+  initDemoFamily,
+  ensureDailyReset, listenScore, setScore, setScoreState,
+  listenEconomy, addCurrency,
+  listenMissions, ensureDailyMissions, completeMission,
+  getAvatar, setAvatar,
+  getShopItems, createPurchaseRequest,
+  getProfile, updateProfile,
+} from './db.js';
+
 // ── Anti-zoom ──
 (function(){
   document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
@@ -594,33 +619,146 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 // ── Constantes ──
 const SK='rk_app_v1';
 const SC=[null,'#f05252','#f05252','#f5923e','#f5923e','#f5c842','#f5c842','#3dba6e','#4a90d9','#8b6fd4','#f472b6'];
-const POOL=[
-  {id:'m01',ico:'🛏️',title:'Faire son lit',stars:2,marbles:5},
-  {id:'m02',ico:'📚',title:'Lire 20 minutes',stars:3,marbles:8},
-  {id:'m03',ico:'🍽️',title:"Aider à mettre la table",stars:1,marbles:3},
-  {id:'m04',ico:'🧹',title:'Ranger sa chambre',stars:2,marbles:6},
-  {id:'m05',ico:'🦷',title:'Se brosser les dents',stars:1,marbles:2},
-  {id:'m06',ico:'🥦',title:'Manger ses légumes',stars:2,marbles:5},
-  {id:'m07',ico:'🎒',title:'Préparer son sac',stars:1,marbles:3},
-  {id:'m08',ico:'✏️',title:'Faire ses devoirs',stars:3,marbles:10},
-  {id:'m09',ico:'🙏',title:"Dire s'il te plaît & merci",stars:1,marbles:2},
-  {id:'m10',ico:'🐾',title:"S'occuper de l'animal",stars:2,marbles:4},
-];
 const STARTERS=[{id:'s0',ico:'🧒',lbl:'Garçon'},{id:'s1',ico:'👧',lbl:'Fille'},{id:'s2',ico:'🧑',lbl:'Alex'},{id:'s3',ico:'🦊',lbl:'Renard'}];
-const SHOP_REAL=[
-  {id:'r1',ico:'🍦',name:'Glace',cost:10,cur:'s'},
-  {id:'r2',ico:'🎬',name:'Cinéma',cost:30,cur:'m'},
-  {id:'r3',ico:'🎮',name:'1h Jeu Vidéo',cost:20,cur:'s'},
-  {id:'r4',ico:'🍕',name:'Pizza Party',cost:25,cur:'m'},
-  {id:'r5',ico:'📚',name:'Livre Surprise',cost:15,cur:'s'},
-  {id:'r6',ico:'🌟',name:'Soirée Pyjama',cost:40,cur:'m'},
-];
-const SHOP_APP=[
-  {id:'a1',ico:'🌈',name:'Rainbow',cost:20,cur:'m'},
-  {id:'a2',ico:'👑',name:'Couronne',cost:30,cur:'m'},
-  {id:'a3',ico:'🌸',name:'Fleurs',cost:15,cur:'m'},
-  {id:'a4',ico:'🚀',name:'Espace',cost:25,cur:'m'},
-];
+
+// ── État local (cache offline) ──
+const DEF={playerName:'',score:8,scoreState:'normal',stars:0,marbles:0,
+  history:[7,8,6,9,5,8,8],missions:[],missionDate:'',
+  equipped:{skin:'s0',hat:'h0',bg:'b0',acc:'ac0'},
+  unlockedItems:[],purchaseReqs:[]};
+let S={};
+function load(){try{const r=localStorage.getItem(SK);if(r)return{...DEF,...JSON.parse(r)};}catch(e){}return{...DEF};}
+function save(){try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}}
+
+// ── Connexion réseau ──
+let isOnline = navigator.onLine;
+let unsubScore, unsubEcon, unsubMissions;
+
+function setOnlineStatus(online){
+  isOnline = online;
+  const banner = document.getElementById('offlineBanner');
+  if(banner) banner.style.display = online ? 'none' : 'flex';
+  // Bloquer les actions d'écriture hors ligne
+  document.querySelectorAll('.write-action').forEach(el=>{
+    el.style.opacity   = online ? '' : '0.4';
+    el.style.pointerEvents = online ? '' : 'none';
+  });
+}
+
+window.addEventListener('online',  ()=>setOnlineStatus(true));
+window.addEventListener('offline', ()=>setOnlineStatus(false));
+
+// ── Utils ──
+function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function scCol(v){return SC[Math.round(v)]||'#4a90d9';}
+
+// ── Onboarding ──
+let selAv=STARTERS[0].id;
+function renderOb(){
+  document.getElementById('obAvatars').innerHTML=STARTERS.map(a=>`
+    <div class="ob-av ${a.id===selAv?'sel':''}" onclick="selAvatar('${a.id}')">
+      <div class="ob-av-ico">${a.ico}</div><div class="ob-av-lbl">${a.lbl}</div>
+    </div>`).join('');
+}
+window.selAvatar = function(id){selAv=id;renderOb();checkOb();}
+function checkOb(){document.getElementById('obBtn').disabled=document.getElementById('obName').value.trim().length<2;}
+window.finishOnboarding = async function(){
+  const name=document.getElementById('obName').value.trim();
+  if(name.length<2)return;
+  const av=STARTERS.find(a=>a.id===selAv);
+  S.playerName=name;
+  S.equipped.skin=av?av.id:'s0';
+  save();
+  // Mettre à jour le profil Firestore
+  if(isOnline){
+    await updateProfile({displayName:name}).catch(()=>{});
+    await setAvatar({skin:S.equipped.skin}).catch(()=>{});
+  }
+  document.getElementById('screenOnboarding').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  document.getElementById('bnav').style.display='';
+  bootApp();
+};
+
+// ── Modal nom ──
+window.openNameModal = function(){
+  const modal=document.getElementById('nameModal');
+  const input=document.getElementById('nmInput');
+  input.value=S.playerName||'';
+  input.style.cssText+='user-select:auto!important;-webkit-user-select:auto!important';
+  modal.classList.add('show');
+  setTimeout(()=>input.focus(),100);
+};
+window.closeNameModal = function(){document.getElementById('nameModal').classList.remove('show');};
+window.saveName = async function(){
+  const val=document.getElementById('nmInput').value.trim();
+  if(val.length<2){showToast('Prénom trop court','Minimum 2 caractères 😊','✏️');return;}
+  S.playerName=val;save();
+  document.getElementById('profileName').textContent=val;
+  if(isOnline) await updateProfile({displayName:val}).catch(()=>{});
+  window.closeNameModal();
+  showToast('Prénom modifié !',`Bonjour ${val} 👋`,'✅');
+};
+
+// ── Score ──
+function updateScoreUI(value, state){
+  S.score=value; S.scoreState=state; save();
+  const col=scCol(value);
+  document.documentElement.style.setProperty('--sc',col);
+  const el=document.getElementById('scoreNum');
+  el.textContent=value; el.style.color=col;
+  el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
+  const fill=document.getElementById('gaugeFill');
+  fill.style.width=(value*10)+'%';
+  fill.style.background=`linear-gradient(90deg,${col}88,${col})`;
+  const ring=document.getElementById('blobRing');
+  ring.style.borderColor=col; ring.style.boxShadow=`0 0 18px ${col}66`;
+  const badge=document.getElementById('scoreState');
+  badge.className=`score-state ${state}`;
+  badge.textContent=state==='validated'?'✓ Journée validée':state==='pause'?'⏸ Pause':'⚡ En cours';
+  const disp=document.getElementById('demoScoreDisp');
+  if(disp) disp.textContent=value;
+}
+
+// ── Économie ──
+function updateCurUI(stars, marbles){
+  S.stars=stars; S.marbles=marbles; save();
+  ['starsVal','shopStars'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=stars;});
+  ['marblesVal','shopMarbles'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=marbles;});
+}
+
+// ── Missions ──
+function renderMissions(items){
+  const list=document.getElementById('missionsList');
+  const card=document.getElementById('missionsCard');
+  if(!items||!items.length){card.style.display='none';return;}
+  card.style.display='';
+  list.innerHTML=items.map((m,i)=>`
+    <div class="mission-item ${m.done?'done':''}" onclick="onMissionTap(${i})">
+      <div class="m-check">${m.done?'✓':''}</div>
+      <div class="m-ico">${m.ico}</div>
+      <div class="m-body">
+        <div class="m-title">${m.title}</div>
+        <div class="m-rewards">
+          <span class="rtag s">⭐ +${m.stars}</span>
+          <span class="rtag m">🔵 +${m.marbles}</span>
+        </div>
+      </div>
+    </div>`).join('');
+  S.missions=items; S.missionDate=today(); save();
+}
+
+window.onMissionTap = async function(i){
+  if(!isOnline){showToast('Hors ligne','Impossible de cocher en mode hors ligne 📡','⚠️');return;}
+  const m=S.missions[i];
+  if(!m||m.done) return;
+  try{
+    await completeMission(i);
+    showToast('🎉 Mission accomplie !',`+${m.stars} ⭐  +${m.marbles} 🔵`,'🏆');
+  }catch(e){showToast('Erreur',e.message,'❌');}
+};
+
+// ── Avatar ──
 const AV_CATS=[
   {key:'skin',lbl:'🧒 Personnage',items:[
     {id:'s0',ico:'🧒',lbl:'Garçon',owned:true},
@@ -639,7 +777,6 @@ const AV_CATS=[
     {id:'h3',ico:'👑',lbl:'Couronne',owned:false,cost:30},
     {id:'h4',ico:'🌸',lbl:'Fleurs',owned:false,cost:15},
     {id:'h5',ico:'⭐',lbl:'Étoile',owned:false,cost:20},
-    {id:'h6',ico:'🎓',lbl:'Diplôme',owned:false,cost:25},
   ]},
   {key:'bg',lbl:'🌌 Fond',items:[
     {id:'b0',ico:'☁️',lbl:'Ciel',owned:true},
@@ -647,7 +784,6 @@ const AV_CATS=[
     {id:'b2',ico:'🌈',lbl:'Rainbow',owned:false,cost:20},
     {id:'b3',ico:'🌙',lbl:'Nuit',owned:false,cost:15},
     {id:'b4',ico:'🏖️',lbl:'Plage',owned:false,cost:20},
-    {id:'b5',ico:'🚀',lbl:'Espace',owned:false,cost:25},
   ]},
   {key:'acc',lbl:'✨ Accessoire',items:[
     {id:'ac0',ico:'✨',lbl:'Aucun',owned:true},
@@ -655,146 +791,19 @@ const AV_CATS=[
     {id:'ac2',ico:'🎵',lbl:'Musique',owned:false,cost:10},
     {id:'ac3',ico:'🦋',lbl:'Papillon',owned:false,cost:20},
     {id:'ac4',ico:'🔮',lbl:'Cristal',owned:false,cost:25},
-    {id:'ac5',ico:'🎸',lbl:'Guitare',owned:false,cost:30},
   ]},
 ];
-
-// ── État ──
-const DEF={playerName:'',score:8,scoreState:'normal',stars:0,marbles:0,
-  history:[7,8,6,9,5,8,8],missions:[],missionDate:'',
-  equipped:{skin:'s0',hat:'h0',bg:'b0',acc:'ac0'},
-  unlockedItems:[],purchaseReqs:[]};
-let S={};
-function load(){try{const r=localStorage.getItem(SK);if(r)return{...DEF,...JSON.parse(r)};}catch(e){}return{...DEF};}
-function save(){try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}}
-
-// ── Onboarding ──
-let selAv=STARTERS[0].id;
-function renderOb(){
-  document.getElementById('obAvatars').innerHTML=STARTERS.map(a=>`
-    <div class="ob-av ${a.id===selAv?'sel':''}" onclick="selAvatar('${a.id}')">
-      <div class="ob-av-ico">${a.ico}</div><div class="ob-av-lbl">${a.lbl}</div>
-    </div>`).join('');
-}
-function selAvatar(id){selAv=id;renderOb();checkOb();}
-function checkOb(){document.getElementById('obBtn').disabled=document.getElementById('obName').value.trim().length<2;}
-function finishOnboarding(){
-  const name=document.getElementById('obName').value.trim();
-  if(name.length<2)return;
-  const av=STARTERS.find(a=>a.id===selAv);
-  S.playerName=name;
-  S.equipped.skin=av?av.id:'s0';
-  save();
-  document.getElementById('screenOnboarding').classList.add('hidden');
-  document.getElementById('appShell').classList.remove('hidden');
-  document.getElementById('bnav').style.display='';
-  bootApp();
-}
-
-// ── Utils ──
-function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function scCol(v){return SC[Math.round(v)]||'#4a90d9';}
-
-// ── Modal nom ──
-function openNameModal(){
-  const modal=document.getElementById('nameModal');
-  const input=document.getElementById('nmInput');
-  input.value=S.playerName||'';
-  input.style.cssText+='user-select:auto!important;-webkit-user-select:auto!important';
-  modal.classList.add('show');
-  setTimeout(()=>input.focus(),100);
-}
-function closeNameModal(){
-  document.getElementById('nameModal').classList.remove('show');
-}
-function saveName(){
-  const val=document.getElementById('nmInput').value.trim();
-  if(val.length<2){showToast('Prénom trop court','Minimum 2 caractères 😊','✏️');return;}
-  S.playerName=val;save();
-  document.getElementById('profileName').textContent=val;
-  closeNameModal();
-  showToast('Prénom modifié !',`Bonjour ${val} 👋`,'✅');
-}
-
-// ── Missions (lecture seule — validation par le parent au Lot 4) ──
-function ensureMissions(){
-  const t=today();
-  if(S.missionDate===t&&S.missions.length>0)return;
-  const pool=[...POOL];
-  const picked=[];
-  while(picked.length<3&&pool.length>0){
-    const i=Math.floor(Math.random()*pool.length);
-    picked.push({...pool.splice(i,1)[0],done:false});
-  }
-  S.missions=picked;S.missionDate=t;save();
-}
-function renderMissions(){
-  const list=document.getElementById('missionsList');
-  const card=document.getElementById('missionsCard');
-  if(!S.missions||!S.missions.length){card.style.display='none';return;}
-  card.style.display='';
-  list.innerHTML=S.missions.map((m,i)=>`
-    <div class="mission-item ${m.done?'done':''}" onclick="toggleM(${i})">
-      <div class="m-check">${m.done?'✓':''}</div>
-      <div class="m-ico">${m.ico}</div>
-      <div class="m-body">
-        <div class="m-title">${m.title}</div>
-        <div class="m-rewards">
-          <span class="rtag s">⭐ +${m.stars}</span>
-          <span class="rtag m">🔵 +${m.marbles}</span>
-        </div>
-      </div>
-    </div>`).join('');
-}
-function toggleM(i){
-  const m=S.missions[i];
-  if(m.done)return;
-  m.done=true;S.stars+=m.stars;S.marbles+=m.marbles;
-  S.history[6]=S.score;save();
-  renderMissions();updateCur();
-  showToast('🎉 Mission accomplie !',`+${m.stars} ⭐  +${m.marbles} 🔵`,'🏆');
-}
-
-// ── Score ──
-function updateScore(){
-  const s=S.score,col=scCol(s);
-  document.documentElement.style.setProperty('--sc',col);
-  const el=document.getElementById('scoreNum');
-  el.textContent=s;el.style.color=col;
-  el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
-  const fill=document.getElementById('gaugeFill');
-  fill.style.width=(s*10)+'%';
-  fill.style.background=`linear-gradient(90deg,${col}88,${col})`;
-  const ring=document.getElementById('blobRing');
-  ring.style.borderColor=col;ring.style.boxShadow=`0 0 18px ${col}66`;
-  const badge=document.getElementById('scoreState');
-  badge.className=`score-state ${S.scoreState}`;
-  badge.textContent=S.scoreState==='validated'?'✓ Journée validée':S.scoreState==='pause'?'⏸ Pause':'⚡ En cours';
-}
-
-// ── Currencies ──
-function updateCur(){
-  ['starsVal','shopStars'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=S.stars;});
-  ['marblesVal','shopMarbles'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=S.marbles;});
-}
-
-// ── Avatar ──
-function getIco(){
-  const cat=AV_CATS.find(c=>c.key==='skin');
-  return cat?.items.find(i=>i.id===S.equipped.skin)?.ico||'🧒';
-}
+let curCat='skin';
+function getIco(){const cat=AV_CATS.find(c=>c.key==='skin');return cat?.items.find(i=>i.id===S.equipped.skin)?.ico||'🧒';}
 function updateAvatar(){
   const ico=getIco();
-  ['blobAvatarIco','avBigIco','profileAva'].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.textContent=ico;
-  });
+  ['blobAvatarIco','avBigIco','profileAva'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=ico;});
 }
-let curCat='skin';
 function renderAvCats(){
   document.getElementById('avCats').innerHTML=AV_CATS.map(c=>`
     <button class="acat ${c.key===curCat?'active':''}" onclick="switchCat('${c.key}')">${c.lbl}</button>`).join('');
 }
-function switchCat(k){curCat=k;renderAvCats();renderAvItems();}
+window.switchCat=function(k){curCat=k;renderAvCats();renderAvItems();};
 function renderAvItems(){
   const cat=AV_CATS.find(c=>c.key===curCat);if(!cat)return;
   cat.items.forEach(item=>{if(S.unlockedItems.includes(item.id))item.owned=true;});
@@ -809,48 +818,67 @@ function renderAvItems(){
     </div>`;
   }).join('');
 }
-function equipItem(id){
+window.equipItem = async function(id){
   let found,fc;
   for(const cat of AV_CATS){const it=cat.items.find(i=>i.id===id);if(it){found=it;fc=cat;break;}}
   if(!found)return;
   if(!found.owned){
+    if(!isOnline){showToast('Hors ligne','Impossible d\'acheter sans connexion 📡','⚠️');return;}
     if(S.marbles<(found.cost||0)){showToast('Pas assez de billes !',`Il te faut ${found.cost} 🔵`,'😢');return;}
-    S.marbles-=found.cost;found.owned=true;S.unlockedItems.push(id);updateCur();
+    try{
+      await addCurrency(-found.cost,'marbles',`Avatar: ${found.lbl}`);
+      found.owned=true;S.unlockedItems.push(id);
+    }catch(e){showToast('Erreur',e.message,'❌');return;}
   }
-  S.equipped[fc.key]=id;save();updateAvatar();renderAvItems();
+  S.equipped[fc.key]=id;save();
+  if(isOnline) await setAvatar({[fc.key]:id}).catch(()=>{});
+  updateAvatar();renderAvItems();
   showToast('Look mis à jour !',`${found.ico} ${found.lbl} équipé !`,'✨');
-}
+};
 
 // ── Shop ──
 let curShopTab='real';
-function shopTab(btn,tab){
+let shopItems=[];
+window.shopTab=function(btn,tab){
   document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');curShopTab=tab;renderShop();
+};
+async function loadShopItems(){
+  if(isOnline){
+    try{shopItems=await getShopItems();}catch(e){shopItems=[];}
+  }
 }
 function renderShop(){
-  const items=curShopTab==='real'?SHOP_REAL:SHOP_APP;
-  updateCur();
-  document.getElementById('shopGrid').innerHTML=items.map(item=>{
-    const pending=S.purchaseReqs.includes(item.id);
-    return `<div class="shop-item" onclick="reqBuy('${item.id}')">
-      <div class="si-ico">${item.ico}</div>
-      <div class="si-name">${item.name}</div>
-      ${pending?`<div class="si-pending">⏳ En attente</div>`
-        :`<div class="si-cost ${item.cur}">${item.cur==='s'?'⭐':'🔵'} ${item.cost}</div>`}
-    </div>`;
-  }).join('');
+  const items=shopItems.filter(i=>i.category===(curShopTab==='real'?'real':'app'));
+  document.getElementById('shopGrid').innerHTML=items.length
+    ? items.map(item=>{
+        const byCost=item.costStars>0?`⭐ ${item.costStars}`:item.costMarbles>0?`🔵 ${item.costMarbles}`:'Gratuit';
+        const cur=item.costStars>0?'s':'m';
+        const pending=S.purchaseReqs.includes(item.id);
+        return `<div class="shop-item write-action" onclick="reqBuy('${item.id}')">
+          <div class="si-ico">${item.ico}</div>
+          <div class="si-name">${item.name}</div>
+          ${pending?`<div class="si-pending">⏳ En attente</div>`
+            :`<div class="si-cost ${cur}">${byCost}</div>`}
+        </div>`;
+      }).join('')
+    : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:12px;font-weight:700;color:var(--text2);">
+        ${isOnline?'Boutique vide':'Boutique indisponible hors ligne 📡'}
+       </div>`;
 }
-function reqBuy(id){
-  const all=[...SHOP_REAL,...SHOP_APP];
-  const item=all.find(i=>i.id===id);if(!item)return;
+window.reqBuy = async function(id){
+  if(!isOnline){showToast('Hors ligne','Impossible de commander sans connexion 📡','⚠️');return;}
+  const item=shopItems.find(i=>i.id===id);if(!item)return;
   if(S.purchaseReqs.includes(id)){showToast('Déjà demandé !','Papa/maman va valider 😊','⏳');return;}
-  const bal=item.cur==='s'?S.stars:S.marbles;
-  if(bal<item.cost){
-    showToast('Pas assez !',`Il te faut ${item.cost} ${item.cur==='s'?'⭐':'🔵'} — encore ${item.cost-bal} à gagner !`,'😅');return;
+  try{
+    await createPurchaseRequest(id);
+    S.purchaseReqs.push(id);save();
+    renderShop();
+    showToast('Demande envoyée !',`${item.ico} ${item.name} — Papa/maman va valider !`,'📨');
+  }catch(e){
+    showToast('Impossible',e.message==='Solde insuffisant'?`Pas assez de jetons !`:e.message,'😅');
   }
-  S.purchaseReqs.push(id);save();renderShop();
-  showToast('Demande envoyée !',`${item.ico} ${item.name} — Papa/maman va valider !`,'📨');
-}
+};
 
 // ── Stats ──
 function renderStats(){
@@ -877,42 +905,37 @@ function renderStats(){
     </div>`).join('');
 }
 
-// ── Contrôles démo (panneau Stats — remplacé par Firebase au Lot 3) ──
-function demoScore(delta){
-  S.score=Math.max(1,Math.min(10,S.score+delta));
-  S.history[6]=S.score;
-  save();updateScore();
-  const el=document.getElementById('demoScoreDisp');
-  if(el)el.textContent=S.score;
-}
-function setState(st){
-  S.scoreState=st;save();updateScore();
-  showToast(
-    st==='validated'?'Journée validée ✓':st==='pause'?'Journée en pause ⏸':'Journée en cours ⚡',
-    st==='validated'?'Score final enregistré !':st==='pause'?'Pas de score aujourd\'hui':'Le compteur tourne !',
-    st==='validated'?'🏆':st==='pause'?'⏸':'⚡'
-  );
-}
-function refreshMissions(){
-  S.missionDate=''; // Force le re-tirage
-  ensureMissions();
-  renderMissions();
-  nav('scHome');
-  showToast('Nouvelles missions !','3 défis du jour tirés au sort 🎲','🎯');
-}
+// ── Panneau simulation ──
+window.demoScore=async function(delta){
+  if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
+  const nv=Math.max(1,Math.min(10,S.score+delta));
+  await setScore(nv).catch(()=>{});
+};
+window.setState=async function(st){
+  if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
+  await setScoreState(st).catch(()=>{});
+};
+window.refreshMissions=async function(){
+  if(!isOnline){showToast('Hors ligne','Impossible sans connexion 📡','⚠️');return;}
+  // Forcer le re-tirage en vidant la date
+  const {setDoc,doc,serverTimestamp:st}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const {db:_db,DEMO_FAMILY_ID:fid,DEMO_CHILD_ID:cid}=await import('./firebase.js');
+  await setDoc(doc(_db,'families',fid,'missions',cid),{date:'',items:[],updatedAt:st()});
+  await ensureDailyMissions();
+};
 
 // ── Nav ──
-function nav(sid,btn){
+window.nav=function(sid,btn){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(sid)?.classList.add('active');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   if(btn)btn.classList.add('active');
   else{const m={scHome:0,scShop:1,scAvatar:2,scStats:3};document.querySelectorAll('.ni')[m[sid]??0]?.classList.add('active');}
-  if(sid==='scShop'){renderShop();}
+  if(sid==='scShop'){loadShopItems().then(renderShop);}
   if(sid==='scAvatar'){renderAvCats();renderAvItems();}
   if(sid==='scStats')renderStats();
   window.scrollTo(0,0);
-}
+};
 
 // ── Toast ──
 let tt;
@@ -952,15 +975,46 @@ function setupLayout(){
   }
 }
 
-// ── Boot ──
-function bootApp(){
+// ── Boot app (Firebase branché) ──
+async function bootApp(){
   document.getElementById('profileName').textContent=S.playerName||'Joueur';
-  S.history[6]=S.score;
-  updateScore();updateCur();updateAvatar();
-  ensureMissions();renderMissions();
+  updateAvatar();
   setupLayout();
   window.addEventListener('resize',()=>setTimeout(setupLayout,150));
   window.addEventListener('orientationchange',()=>setTimeout(setupLayout,300));
+
+  if(isOnline){
+    try{
+      // Initialiser la famille démo si besoin
+      await initDemoFamily();
+      // Reset quotidien
+      await ensureDailyReset();
+      // Missions du jour
+      await ensureDailyMissions();
+      // Charger la boutique
+      await loadShopItems();
+    }catch(e){
+      console.warn('[Boot] Erreur Firebase, mode offline activé',e);
+    }
+  }
+
+  // Listeners temps réel
+  unsubScore = listenScore(data=>{
+    if(data) updateScoreUI(data.value, data.state);
+  });
+  unsubEcon = listenEconomy(data=>{
+    if(data) updateCurUI(data.stars, data.marbles);
+  });
+  unsubMissions = listenMissions(data=>{
+    if(data?.items) renderMissions(data.items);
+  });
+
+  // Fallback localStorage si pas de données Firebase
+  updateScoreUI(S.score, S.scoreState);
+  updateCurUI(S.stars, S.marbles);
+  if(S.missions?.length) renderMissions(S.missions);
+
+  setOnlineStatus(isOnline);
 }
 
 // ── Init ──
@@ -985,5 +1039,9 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
 }
 </script>
+
+
+</script>
 </body>
 </html>
+

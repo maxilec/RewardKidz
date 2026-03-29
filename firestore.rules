@@ -1,0 +1,102 @@
+// ═══════════════════════════════════════════════════════════
+// RewardKidz — firestore.rules
+// Règles de sécurité Firestore
+// ─────────────────────────────────────────────────────────
+// PHASE DÉMO (1 famille) : règles ouvertes pour valider
+// PHASE PROD (Lot 0-SEC) : règles strictes par famille
+// ═══════════════════════════════════════════════════════════
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── PHASE DÉMO ──────────────────────────────────────────
+    // Accès complet sur la famille de démo uniquement
+    // À REMPLACER par les règles strictes au Lot 0-SEC
+
+    match /families/famille_demo/{document=**} {
+      allow read, write: if true;
+    }
+
+    // ── TOUTES LES AUTRES FAMILLES ──────────────────────────
+    // Bloquées par défaut — seront ouvertes avec l'auth au Lot 0-SEC
+    match /families/{familyId}/{document=**} {
+      allow read, write: if false;
+    }
+
+    // ── RÈGLES PRODUCTION (commentées — Lot 0-SEC) ──────────
+    // Décommenter et remplacer les règles ci-dessus quand
+    // Firebase Auth sera configuré
+
+    /*
+    // Helpers
+    function isFamilyMember(familyId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+    }
+
+    function isParent(familyId) {
+      return isFamilyMember(familyId) &&
+        get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid))
+          .data.role == 'parent';
+    }
+
+    function isThisChild(familyId, childId) {
+      return isFamilyMember(familyId) && request.auth.uid == childId;
+    }
+
+    // Profils — lecture famille, écriture parent
+    match /families/{familyId}/members/{userId} {
+      allow read:  if isFamilyMember(familyId);
+      allow write: if isParent(familyId);
+    }
+
+    // Scores — lecture famille, écriture parent uniquement
+    match /families/{familyId}/scores/{userId} {
+      allow read:  if isFamilyMember(familyId);
+      allow write: if isParent(familyId);
+    }
+
+    // Économie — lecture enfant (les siennes), écriture parent
+    match /families/{familyId}/economy/{userId} {
+      allow read:  if isThisChild(familyId, userId) || isParent(familyId);
+      allow write: if isParent(familyId);
+    }
+
+    // Missions — lecture famille, écriture: parent (créer) + enfant (cocher)
+    match /families/{familyId}/missions/{userId} {
+      allow read:  if isFamilyMember(familyId);
+      // Parent peut tout faire, enfant peut seulement marquer done=true
+      allow write: if isParent(familyId) ||
+        (isThisChild(familyId, userId) &&
+         request.resource.data.keys().hasOnly(['items', 'updatedAt']));
+    }
+
+    // Avatars — lecture famille, écriture: l'enfant lui-même ou parent
+    match /families/{familyId}/avatars/{userId} {
+      allow read:  if isFamilyMember(familyId);
+      allow write: if isThisChild(familyId, userId) || isParent(familyId);
+    }
+
+    // Catalogue missions — lecture famille, écriture parent
+    match /families/{familyId}/missionCatalog/{missionId} {
+      allow read:  if isFamilyMember(familyId);
+      allow write: if isParent(familyId);
+    }
+
+    // Boutique — lecture famille, écriture parent
+    match /families/{familyId}/shop/{itemId} {
+      allow read:  if isFamilyMember(familyId);
+      allow write: if isParent(familyId);
+    }
+
+    // Demandes d'achat — lecture parent, création enfant, validation parent
+    match /families/{familyId}/shop/{itemId}/purchaseRequests/{reqId} {
+      allow read:   if isFamilyMember(familyId);
+      allow create: if isFamilyMember(familyId) && !isParent(familyId);
+      allow update: if isParent(familyId);
+      allow delete: if isParent(familyId);
+    }
+    */
+  }
+}
