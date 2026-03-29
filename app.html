@@ -22,7 +22,7 @@ body{touch-action:manipulation;overscroll-behavior:none;-webkit-overflow-scrolli
 input,select,textarea{font-size:16px!important;touch-action:manipulation;
   -webkit-user-select:auto!important;user-select:auto!important;}
 button{touch-action:manipulation;font-size:16px;cursor:pointer;}
-button,.ni,.mission-item,.shop-item,.av-item,.acat,.ob-av{min-height:44px;}
+button,.ni,.shop-item,.av-item,.acat,.ob-av{min-height:44px;}
 
 /* ══ VARIABLES ══════════════════════════════════════════════ */
 :root{
@@ -104,6 +104,31 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   background:linear-gradient(135deg,var(--blue),var(--purple));
   display:grid;place-items:center;font-size:18px;flex-shrink:0;}
 .profile-name{font-weight:800;font-size:13px;color:var(--text);}
+.profile-edit{font-size:12px;color:var(--text3);margin-left:2px;}
+
+/* Modal édition nom */
+.name-modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:400;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.name-modal-overlay.show{opacity:1;pointer-events:auto;}
+.name-modal{background:var(--white);border-radius:var(--r);box-shadow:var(--cs);
+  padding:24px 20px;width:100%;max-width:320px;
+  transform:translateY(16px);transition:transform .3s cubic-bezier(.175,.885,.32,1.275);}
+.name-modal-overlay.show .name-modal{transform:translateY(0);}
+.nm-title{font-family:var(--ft);font-size:18px;font-weight:800;margin-bottom:14px;}
+.nm-input{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;
+  font-family:var(--ft);font-size:18px;font-weight:800;color:var(--text);
+  background:var(--sky);outline:none;transition:border-color .2s;margin-bottom:14px;display:block;}
+.nm-input:focus{border-color:var(--blue);}
+.nm-btns{display:flex;gap:10px;}
+.nm-cancel{flex:1;padding:12px;border:2px solid var(--border);border-radius:12px;
+  background:var(--white);font-family:var(--ft);font-size:14px;font-weight:800;color:var(--text2);}
+.nm-save{flex:1;padding:12px;border:none;border-radius:12px;
+  background:var(--blue);font-family:var(--ft);font-size:14px;font-weight:800;color:var(--white);
+  box-shadow:0 4px 12px rgba(74,144,217,.3);}
 
 /* ══ CURRENCIES ══════════════════════════════════════════════ */
 .currencies{display:flex;gap:10px;padding:12px 20px 0;}
@@ -144,15 +169,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 /* ══ SCORE ═══════════════════════════════════════════════════ */
 .score-zone{padding:12px 20px 0;text-align:center;}
-.score-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;}
+.score-row{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;}
 .score-num{font-family:var(--ft);font-size:72px;font-weight:800;line-height:1;
   color:var(--sc);transition:color .6s;}
 .score-num.bump{animation:numBump .4s cubic-bezier(.175,.885,.32,1.275);}
 @keyframes numBump{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
-.score-meta{display:flex;flex-direction:column;justify-content:center;gap:5px;padding-top:10px;}
-.score-denom{font-family:var(--ft);font-size:20px;font-weight:800;color:var(--text3);}
-.score-state{font-size:11px;font-weight:800;letter-spacing:.04em;
-  padding:3px 10px;border-radius:var(--pill);display:inline-flex;align-items:center;gap:4px;}
+.score-denom{font-family:var(--ft);font-size:22px;font-weight:800;color:var(--text3);
+  align-self:flex-end;padding-bottom:10px;}
+.score-state-row{display:flex;justify-content:center;margin-bottom:10px;}
+.score-state{font-size:12px;font-weight:800;letter-spacing:.04em;
+  padding:4px 14px;border-radius:var(--pill);display:inline-flex;align-items:center;gap:5px;}
 .score-state.normal   {background:rgba(74,144,217,.1);color:var(--blue);}
 .score-state.validated{background:#fef9c3;color:#b45309;}
 .score-state.pause    {background:#fff7ed;color:#c2410c;}
@@ -183,8 +209,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ══ MISSIONS ════════════════════════════════════════════════ */
 .missions-list{display:flex;flex-direction:column;gap:8px;}
 .mission-item{display:flex;align-items:center;gap:12px;padding:12px 14px;
-  background:var(--sky);border-radius:14px;border:2px solid transparent;
-  cursor:pointer;transition:.2s;}
+  background:var(--sky);border-radius:14px;border:2px solid transparent;}
 .mission-item.done{background:var(--mint);border-color:rgba(61,186,110,.25);}
 .mission-item:active{transform:scale(.98);}
 .m-check{width:26px;height:26px;border-radius:8px;border:2.5px solid var(--text3);
@@ -322,6 +347,21 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .t-title{font-family:var(--ft);font-size:14px;font-weight:800;color:var(--text);}
 .t-msg{font-size:12px;font-weight:600;color:var(--text2);margin-top:2px;line-height:1.4;}
 
+/* ══ DEMO BUTTONS (panneau simulation) ══════════════════════ */
+.demo-btn{
+  padding:10px 16px;border:2px solid var(--border);border-radius:12px;
+  background:var(--white);font-family:var(--ft);font-size:13px;font-weight:800;
+  color:var(--text2);transition:.15s;}
+.demo-btn:active{transform:scale(.97);}
+.demo-btn.minus{color:var(--red);border-color:rgba(240,82,82,.3);}
+.demo-btn.plus {color:var(--green);border-color:rgba(61,186,110,.3);}
+.demo-btn.full {width:100%;color:var(--blue);border-color:rgba(74,144,217,.3);text-align:center;}
+.state-btn{
+  padding:7px 12px;border:2px solid var(--border);border-radius:var(--pill);
+  background:var(--white);font-family:var(--fb);font-size:12px;font-weight:800;
+  color:var(--text2);transition:.15s;}
+.state-btn:active{transform:scale(.97);}
+
 /* ══ TABLET LANDSCAPE ════════════════════════════════════════ */
 @media(min-width:768px) and (orientation:landscape){
   #appShell{max-width:100%;flex-direction:row;padding-bottom:0;}
@@ -392,10 +432,24 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="app-title">Aventuriers</div>
         <div class="app-title"><span>de la Journée</span></div>
       </div>
-      <div class="profile-chip" onclick="nav('scStats')">
+      <div class="profile-chip" onclick="openNameModal()">
         <div class="profile-ava" id="profileAva">🧒</div>
         <div>
           <div class="profile-name" id="profileName">—</div>
+        </div>
+        <div class="profile-edit">✏️</div>
+      </div>
+    </div>
+
+    <!-- Modal édition nom -->
+    <div class="name-modal-overlay" id="nameModal">
+      <div class="name-modal">
+        <div class="nm-title">Changer de prénom ✏️</div>
+        <input class="nm-input" id="nmInput" type="text" maxlength="20"
+          autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Ton prénom…">
+        <div class="nm-btns">
+          <button class="nm-cancel" onclick="closeNameModal()">Annuler</button>
+          <button class="nm-save" onclick="saveName()">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -418,10 +472,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <div class="score-zone">
       <div class="score-row">
         <div class="score-num" id="scoreNum">8</div>
-        <div class="score-meta">
-          <div class="score-denom">/10</div>
-          <div class="score-state normal" id="scoreState">⚡ En cours</div>
-        </div>
+        <div class="score-denom">/10</div>
+      </div>
+      <div class="score-state-row">
+        <div class="score-state normal" id="scoreState">⚡ En cours</div>
       </div>
       <div class="gauge-track">
         <div class="gauge-fill" id="gaugeFill" style="width:80%"></div>
@@ -482,6 +536,39 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="card-title"><span class="card-title-ico">📅</span>7 Derniers Jours</div>
         <div class="hist-bars" id="histBars"></div>
       </div>
+
+      <!-- Panneau de test / démo — sera retiré au Lot 3 (données depuis Firebase) -->
+      <div class="card" style="margin-top:14px;">
+        <div class="card-title"><span class="card-title-ico">🔧</span>Simulation (démo)</div>
+
+        <!-- Score manuel -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:800;color:var(--text2);margin-bottom:8px;">Score du jour</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="demo-btn minus" onclick="demoScore(-1)">− 1</button>
+            <div style="flex:1;text-align:center;font-family:var(--ft);font-size:20px;font-weight:800;color:var(--sc);"
+                 id="demoScoreDisp">8</div>
+            <button class="demo-btn plus" onclick="demoScore(+1)">+ 1</button>
+          </div>
+        </div>
+
+        <!-- État journée -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:800;color:var(--text2);margin-bottom:8px;">État de la journée</div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;">
+            <button class="state-btn" onclick="setState('normal')">⚡ En cours</button>
+            <button class="state-btn" onclick="setState('validated')">✓ Validée</button>
+            <button class="state-btn" onclick="setState('pause')">⏸ Pause</button>
+          </div>
+        </div>
+
+        <!-- Missions -->
+        <div>
+          <div style="font-size:11px;font-weight:800;color:var(--text2);margin-bottom:8px;">Missions</div>
+          <button class="demo-btn full" onclick="refreshMissions()">🎲 Nouvelles missions aléatoires</button>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -608,7 +695,28 @@ function finishOnboarding(){
 function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function scCol(v){return SC[Math.round(v)]||'#4a90d9';}
 
-// ── Missions ──
+// ── Modal nom ──
+function openNameModal(){
+  const modal=document.getElementById('nameModal');
+  const input=document.getElementById('nmInput');
+  input.value=S.playerName||'';
+  input.style.cssText+='user-select:auto!important;-webkit-user-select:auto!important';
+  modal.classList.add('show');
+  setTimeout(()=>input.focus(),100);
+}
+function closeNameModal(){
+  document.getElementById('nameModal').classList.remove('show');
+}
+function saveName(){
+  const val=document.getElementById('nmInput').value.trim();
+  if(val.length<2){showToast('Prénom trop court','Minimum 2 caractères 😊','✏️');return;}
+  S.playerName=val;save();
+  document.getElementById('profileName').textContent=val;
+  closeNameModal();
+  showToast('Prénom modifié !',`Bonjour ${val} 👋`,'✅');
+}
+
+// ── Missions (lecture seule — validation par le parent au Lot 4) ──
 function ensureMissions(){
   const t=today();
   if(S.missionDate===t&&S.missions.length>0)return;
@@ -767,6 +875,30 @@ function renderStats(){
       <div class="hb-wrap"><div class="hb-fill" style="height:${v*10}%;background:${scCol(v)};"></div></div>
       <div class="hb-val">${v}</div><div class="hb-day">${days[i]||'?'}</div>
     </div>`).join('');
+}
+
+// ── Contrôles démo (panneau Stats — remplacé par Firebase au Lot 3) ──
+function demoScore(delta){
+  S.score=Math.max(1,Math.min(10,S.score+delta));
+  S.history[6]=S.score;
+  save();updateScore();
+  const el=document.getElementById('demoScoreDisp');
+  if(el)el.textContent=S.score;
+}
+function setState(st){
+  S.scoreState=st;save();updateScore();
+  showToast(
+    st==='validated'?'Journée validée ✓':st==='pause'?'Journée en pause ⏸':'Journée en cours ⚡',
+    st==='validated'?'Score final enregistré !':st==='pause'?'Pas de score aujourd\'hui':'Le compteur tourne !',
+    st==='validated'?'🏆':st==='pause'?'⏸':'⚡'
+  );
+}
+function refreshMissions(){
+  S.missionDate=''; // Force le re-tirage
+  ensureMissions();
+  renderMissions();
+  nav('scHome');
+  showToast('Nouvelles missions !','3 défis du jour tirés au sort 🎲','🎯');
 }
 
 // ── Nav ──
