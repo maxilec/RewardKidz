@@ -418,3 +418,10 @@ export async function getMissionCatalog(fid = DEMO_FAMILY_ID) {
   const snap = await getDocs(collection(db, 'families', fid, 'missionCatalog'));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
+
+// ── Force reset missions (pour le panneau de test) ──────────
+export async function forceDailyMissionsReset(fid = DEMO_FAMILY_ID, uid = DEMO_CHILD_ID) {
+  const { setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  await setDoc(missRef(fid, uid), { date: '', items: [], updatedAt: serverTimestamp() });
+  await ensureDailyMissions(fid, uid);
+}
