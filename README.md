@@ -1,133 +1,92 @@
-# RewardKidz — PWA Validation · Lot 0
+# RewardKidz — PWA familiale de récompenses
 
-## Fichiers inclus
+Application PWA installable sur iPhone/iPad et Android.  
+Hébergée sur GitHub Pages — 100% gratuite, sans serveur.
+
+---
+
+## Structure du projet
 
 ```
-RewardKidz-pwa/
-├── index.html      ← Page de validation avec checklist automatique
-├── manifest.json   ← Config PWA (nom, icônes, display standalone)
-├── sw.js           ← Service Worker (cache + offline + notifs)
-├── icon-192.png    ← À générer (voir ci-dessous)
-├── icon-512.png    ← À générer (voir ci-dessous)
-└── README.md       ← Ce fichier
+RewardKidz/
+├── app.html            ← PWA enfant (écran principal)
+├── index.html          ← Redirige vers app.html
+├── reader.html         ← Lecteur data.txt / history.txt (Lot 1)
+├── firebase.js         ← Config Firebase (à personnaliser)
+├── db.js               ← Fonctions Firestore
+├── firestore.rules     ← Règles de sécurité Firestore
+├── sw.js               ← Service Worker (cache + offline)
+├── manifest.json       ← Config PWA
+├── icon-192.png        ← Icône app
+└── icon-512.png        ← Icône app (grande)
 ```
 
 ---
 
-## 1. Générer les icônes (obligatoire)
+## Installation et configuration
 
-Créer 2 images PNG carrées avec le logo RewardKidz (emoji 🦄 sur fond #09031c) :
-- `icon-192.png` → 192×192 px
-- `icon-512.png` → 512×512 px
+### 1. Configurer Firebase
 
-**Option rapide :** utiliser https://favicon.io/emoji-favicons/  
-Sélectionner l'emoji 🦄, télécharger et renommer les fichiers.
+Ouvrir `firebase.js` et remplacer les 3 placeholders :
 
----
+```javascript
+apiKey:            'PLACEHOLDER_API_KEY',      // ← ta clé
+messagingSenderId: 'PLACEHOLDER_SENDER_ID',    // ← ton ID
+appId:             'PLACEHOLDER_APP_ID',        // ← ton ID
+```
 
-## 2. Déploiement selon ta situation
+Les valeurs sont disponibles dans :
+**console.firebase.google.com → RewardKidz → Paramètres → Vos applications**
 
-### Option A — GitHub + Cloudflare Pages (recommandé)
+> ℹ️ Ces valeurs peuvent être committées sur GitHub.
+> La clé `apiKey` Firebase n'est pas un secret — elle est visible
+> dans le navigateur de toute façon. La sécurité repose sur les
+> règles Firestore (`firestore.rules`), pas sur le secret des clés.
+> Référence : https://firebase.google.com/docs/projects/api-keys
+
+### 2. Déployer les règles Firestore
+
+Dans la console Firebase :
+**Firestore Database → Règles → coller le contenu de `firestore.rules` → Publier**
+
+### 3. Déployer sur GitHub Pages
 
 ```bash
-# 1. Créer un repo GitHub
-git init
 git add .
-git commit -m "RewardKidz PWA validation"
-git remote add origin https://github.com/TON_USER/RewardKidz.git
-git push -u origin main
-
-# 2. Sur Cloudflare Pages
-#    → dash.cloudflare.com → Pages → Create a project
-#    → Connect to Git → sélectionner le repo
-#    → Build command : (vide)
-#    → Build output directory : /
-#    → Deploy !
-
-# URL générée : https://RewardKidz.pages.dev
+git commit -m "config Firebase"
+git push
 ```
 
-### Option B — GitHub + GitHub Pages
-
-```bash
-git init && git add . && git commit -m "init"
-git remote add origin https://github.com/TON_USER/RewardKidz.git
-git push -u origin main
-
-# Sur GitHub : Settings → Pages → Branch: main → / (root) → Save
-# URL : https://TON_USER.github.io/RewardKidz
-```
-
-### Option C — Sans compte (test local rapide)
-
-```bash
-# Installer un serveur local HTTPS (obligatoire pour SW sur certains navigateurs)
-npx serve .
-
-# Ou avec Python
-python3 -m http.server 8080
-
-# Ouvrir http://localhost:8080
-# Note : Service Worker + Notifications fonctionnent sur localhost sans HTTPS
-```
+L'app sera accessible sur :
+`https://maxilec.github.io/RewardKidz/app.html`
 
 ---
 
-## 3. Checklist de validation
+## Utilisation
 
-Une fois déployé, ouvrir l'URL sur **iPhone (iOS 16.4+)** dans Safari.
+### Premier lancement
+L'écran d'onboarding propose de saisir un prénom et choisir un avatar.  
+Les données sont créées automatiquement dans Firestore.
 
-### Étape 1 — Dans Safari
-- [ ] Page se charge correctement
-- [ ] Checklist affiche ✅ HTTPS, ✅ Service Worker, ✅ Manifest
+### Mode hors-ligne
+L'app affiche les dernières données connues avec une bannière orange.  
+Les actions d'écriture (cocher missions, boutique) sont bloquées.
 
-### Étape 2 — Installation
-- [ ] Appuyer sur ⬆️ Partager → "Sur l'écran d'accueil" → Ajouter
-- [ ] Ouvrir l'app depuis l'écran d'accueil
-- [ ] Vérifier : pas de barre Safari → ✅ Standalone
-
-### Étape 3 — Offline
-- [ ] Activer le mode avion ✈️
-- [ ] Recharger la page
-- [ ] La page doit s'afficher → ✅ Offline OK
-
-### Étape 4 — Persistance
-- [ ] Fermer l'app complètement
-- [ ] Rouvrir depuis l'écran d'accueil
-- [ ] "Sessions enregistrées" doit passer à 2 → ✅ localStorage OK
-
-### Étape 5 — Notifications (iOS 16.4+ requis)
-- [ ] Appuyer "Demander la permission notifications"
-- [ ] Accepter dans le popup iOS
-- [ ] Appuyer "Envoyer une notification test"
-- [ ] Notification reçue → ✅ Push OK
+### Panneau de simulation (onglet Stats)
+Permet de tester le score, l'état de la journée et les missions  
+sans attendre l'interface parent (disponible au Lot 4).
 
 ---
 
-## 4. Résultats attendus
+## Lots du projet
 
-| Résultat | Signification |
-|---|---|
-| 7–8 checks ✅ | PWA prête → passer au Lot 1 (lecteur data.txt) |
-| 5–6 checks ✅ | Fondations OK, notifications à déboguer → acceptable |
-| < 5 checks ✅ | Problème HTTPS ou navigateur → investiguer avant de continuer |
-
----
-
-## 5. Problèmes courants
-
-**Service Worker ne s'enregistre pas**
-→ Vérifier que l'URL est bien en HTTPS (ou localhost)
-→ Vérifier que `sw.js` est à la racine du domaine (pas dans un sous-dossier)
-
-**"Ajouter à l'écran d'accueil" absent sur iOS**
-→ Doit être dans Safari (pas Chrome iOS)
-→ Le lien doit être en HTTPS
-
-**Notifications refusées sur iOS**
-→ L'app doit être en mode standalone (installée)
-→ iOS < 16.4 : non supporté
-
-**Page blanche après mode avion**
-→ Le Service Worker n'a pas encore mis le cache en place
-→ Visiter la page en ligne d'abord, attendre quelques secondes, puis tester offline
+| Lot | Statut | Description |
+|---|---|---|
+| 0 | ✅ Validé | Infrastructure PWA |
+| 1 | ✅ Validé | Lecteur data.txt / history.txt |
+| 2 | ✅ Livré | PWA enfant complète |
+| 3 | 🟡 En cours | Firebase Firestore |
+| 0-SEC | ⏳ | Sécurité multi-famille |
+| 4 | ⏳ | Vue parent admin |
+| 5 | ⏳ | Widget Scriptable v2 |
+| 6 | ⏳ | Notifications push |
