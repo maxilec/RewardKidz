@@ -597,16 +597,39 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script type="module">
 'use strict';
 
-// ── Imports Firebase ──
-import {
-  initDemoFamily,
-  ensureDailyReset, listenScore, setScore, setScoreState,
-  listenEconomy, addCurrency,
-  listenMissions, ensureDailyMissions, completeMission,
-  getAvatar, setAvatar,
-  getShopItems, createPurchaseRequest,
-  getProfile, updateProfile,
-} from './db.js';
+// ── Imports Firebase avec fallback gracieux ──────────────────
+// Si firebase.config.js est absent (ex: déploiement GitHub Pages
+// sans GitHub Secrets configurés), l'app fonctionne en mode local.
+let initDemoFamily, ensureDailyReset, listenScore, setScore,
+    setScoreState, listenEconomy, addCurrency, listenMissions,
+    ensureDailyMissions, completeMission, getAvatar, setAvatar,
+    getShopItems, createPurchaseRequest, getProfile, updateProfile;
+
+let firebaseAvailable = false;
+
+try {
+  const db = await import('./db.js');
+  initDemoFamily      = db.initDemoFamily;
+  ensureDailyReset    = db.ensureDailyReset;
+  listenScore         = db.listenScore;
+  setScore            = db.setScore;
+  setScoreState       = db.setScoreState;
+  listenEconomy       = db.listenEconomy;
+  addCurrency         = db.addCurrency;
+  listenMissions      = db.listenMissions;
+  ensureDailyMissions = db.ensureDailyMissions;
+  completeMission     = db.completeMission;
+  getAvatar           = db.getAvatar;
+  setAvatar           = db.setAvatar;
+  getShopItems        = db.getShopItems;
+  createPurchaseRequest = db.createPurchaseRequest;
+  getProfile          = db.getProfile;
+  updateProfile       = db.updateProfile;
+  firebaseAvailable   = true;
+  console.log('[App] ✅ Firebase chargé');
+} catch(e) {
+  console.warn('[App] ⚠️ Firebase indisponible — mode localStorage uniquement', e.message);
+}
 
 // ── Anti-zoom ──
 (function(){
@@ -670,7 +693,7 @@ window.finishOnboarding = async function(){
   S.equipped.skin=av?av.id:'s0';
   save();
   // Mettre à jour le profil Firestore
-  if(isOnline){
+  if(isOnline && firebaseAvailable){
     await updateProfile({displayName:name}).catch(()=>{});
     await setAvatar({skin:S.equipped.skin}).catch(()=>{});
   }
@@ -695,7 +718,7 @@ window.saveName = async function(){
   if(val.length<2){showToast('Prénom trop court','Minimum 2 caractères 😊','✏️');return;}
   S.playerName=val;save();
   document.getElementById('profileName').textContent=val;
-  if(isOnline) await updateProfile({displayName:val}).catch(()=>{});
+  if(isOnline && firebaseAvailable) await updateProfile({displayName:val}).catch(()=>{});
   window.closeNameModal();
   showToast('Prénom modifié !',`Bonjour ${val} 👋`,'✅');
 };
@@ -727,14 +750,15 @@ function updateCurUI(stars, marbles){
   ['marblesVal','shopMarbles'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=marbles;});
 }
 
-// ── Missions ──
+// ── Missions — lecture seule côté enfant ──
+// Le parent valide les missions au Lot 4
 function renderMissions(items){
   const list=document.getElementById('missionsList');
   const card=document.getElementById('missionsCard');
   if(!items||!items.length){card.style.display='none';return;}
   card.style.display='';
-  list.innerHTML=items.map((m,i)=>`
-    <div class="mission-item ${m.done?'done':''}" onclick="onMissionTap(${i})">
+  list.innerHTML=items.map((m)=>`
+    <div class="mission-item ${m.done?'done':''}">
       <div class="m-check">${m.done?'✓':''}</div>
       <div class="m-ico">${m.ico}</div>
       <div class="m-body">
@@ -744,19 +768,12 @@ function renderMissions(items){
           <span class="rtag m">🔵 +${m.marbles}</span>
         </div>
       </div>
+      <div style="font-size:9px;font-weight:800;color:var(--text3);flex-shrink:0;">
+        ${m.done?'✅':'⏳'}
+      </div>
     </div>`).join('');
   S.missions=items; S.missionDate=today(); save();
 }
-
-window.onMissionTap = async function(i){
-  if(!isOnline){showToast('Hors ligne','Impossible de cocher en mode hors ligne 📡','⚠️');return;}
-  const m=S.missions[i];
-  if(!m||m.done) return;
-  try{
-    await completeMission(i);
-    showToast('🎉 Mission accomplie !',`+${m.stars} ⭐  +${m.marbles} 🔵`,'🏆');
-  }catch(e){showToast('Erreur',e.message,'❌');}
-};
 
 // ── Avatar ──
 const AV_CATS=[
@@ -831,7 +848,7 @@ window.equipItem = async function(id){
     }catch(e){showToast('Erreur',e.message,'❌');return;}
   }
   S.equipped[fc.key]=id;save();
-  if(isOnline) await setAvatar({[fc.key]:id}).catch(()=>{});
+  if(isOnline && firebaseAvailable) await setAvatar({[fc.key]:id}).catch(()=>{});
   updateAvatar();renderAvItems();
   showToast('Look mis à jour !',`${found.ico} ${found.lbl} équipé !`,'✨');
 };
@@ -907,12 +924,12 @@ function renderStats(){
 
 // ── Panneau simulation ──
 window.demoScore=async function(delta){
-  if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
+  if(!isOnline||!firebaseAvailable){showToast('Firebase indisponible','Modification impossible 📡','⚠️');return;}
   const nv=Math.max(1,Math.min(10,S.score+delta));
   await setScore(nv).catch(()=>{});
 };
 window.setState=async function(st){
-  if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
+  if(!isOnline||!firebaseAvailable){showToast('Firebase indisponible','Modification impossible 📡','⚠️');return;}
   await setScoreState(st).catch(()=>{});
 };
 window.refreshMissions=async function(){
@@ -983,7 +1000,7 @@ async function bootApp(){
   window.addEventListener('resize',()=>setTimeout(setupLayout,150));
   window.addEventListener('orientationchange',()=>setTimeout(setupLayout,300));
 
-  if(isOnline){
+  if(isOnline && firebaseAvailable){
     try{
       // Initialiser la famille démo si besoin
       await initDemoFamily();
@@ -998,16 +1015,18 @@ async function bootApp(){
     }
   }
 
-  // Listeners temps réel
-  unsubScore = listenScore(data=>{
-    if(data) updateScoreUI(data.value, data.state);
-  });
-  unsubEcon = listenEconomy(data=>{
-    if(data) updateCurUI(data.stars, data.marbles);
-  });
-  unsubMissions = listenMissions(data=>{
-    if(data?.items) renderMissions(data.items);
-  });
+  // Listeners temps réel — seulement si Firebase disponible
+  if(firebaseAvailable){
+    unsubScore = listenScore(data=>{
+      if(data) updateScoreUI(data.value, data.state);
+    });
+    unsubEcon = listenEconomy(data=>{
+      if(data) updateCurUI(data.stars, data.marbles);
+    });
+    unsubMissions = listenMissions(data=>{
+      if(data?.items) renderMissions(data.items);
+    });
+  }
 
   // Fallback localStorage si pas de données Firebase
   updateScoreUI(S.score, S.scoreState);
@@ -1038,9 +1057,6 @@ if(!S.playerName||!S.playerName.trim()){
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
 }
-</script>
-
-
 </script>
 </body>
 </html>
