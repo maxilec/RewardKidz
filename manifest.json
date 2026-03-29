@@ -2,11 +2,11 @@
   "name": "RewardKidz",
   "short_name": "RewardKidz",
   "description": "Le système de récompenses familial",
-  "start_url": "./",
+  "start_url": "./app.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#09031c",
-  "theme_color": "#09031c",
+  "background_color": "#e8f4fd",
+  "theme_color": "#e8f4fd",
   "lang": "fr",
   "icons": [
     {
@@ -25,10 +25,9 @@
   "shortcuts": [
     {
       "name": "Score du jour",
-      "url": "./",
+      "url": "./app.html",
       "description": "Voir le score en cours"
     }
   ],
-  "categories": ["lifestyle", "education"],
-  "screenshots": []
+  "categories": ["lifestyle", "education"]
 }

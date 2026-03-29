@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
   BASE + '/',
   BASE + '/index.html',
   BASE + '/reader.html',
+  BASE + '/app.html',
   BASE + '/manifest.json',
   BASE + '/icon-192.png',
   BASE + '/icon-512.png',
