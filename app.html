@@ -597,159 +597,168 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script type="module">
 'use strict';
 
-// ════════════════════════════════════════════════════════
-// ARCHITECTURE : UI d'abord, Firebase ensuite
-// ────────────────────────────────────────────────────────
-// L'UI s'initialise de façon 100% synchrone.
-// Firebase se charge en arrière-plan via initFirebase().
-// Si Firebase échoue (config absente, réseau HS), l'app
-// fonctionne en mode localStorage uniquement.
-// ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// ARCHITECTURE : UI synchrone, Firebase asynchrone
+// ────────────────────────────────────────────────────────────
+// 1. L'UI démarre immédiatement depuis localStorage (synchrone)
+// 2. Firebase se charge en arrière-plan
+// 3. Les listeners Firebase remplacent les données localStorage
+//    dès qu'ils sont disponibles
+// 4. Si Firebase échoue → app fonctionne en mode lecture seule
+// ════════════════════════════════════════════════════════════
 
-// ── Fonctions Firebase (injectées après chargement) ──
+// ── Firebase — chargé dynamiquement ──────────────────────────
 let FB = {};
 let firebaseAvailable = false;
+let unsubScore = null;
+let unsubEcon  = null;
+let unsubMiss  = null;
 
 async function initFirebase() {
   try {
-    const db = await import('./db.js');
-    FB = db;
+    FB = await import('./db.js');
     firebaseAvailable = true;
     console.log('[App] ✅ Firebase chargé');
-    // Maintenant qu'on a Firebase, brancher les listeners
-    if (appBooted) connectFirebase();
+    if (appBooted) await connectFirebase();
   } catch(e) {
     console.warn('[App] ⚠️ Mode localStorage — Firebase indisponible:', e.message);
   }
 }
 
-// ── Anti-zoom ──
+// ── Anti-zoom ──────────────────────────────────────────────
 (function(){
-  document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
+  document.addEventListener('touchstart', e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
   let lt=0;
-  document.addEventListener('touchend',e=>{const n=Date.now();if(n-lt<=300)e.preventDefault();lt=n;},{passive:false});
-  document.addEventListener('wheel',e=>{if(e.ctrlKey||e.metaKey)e.preventDefault();},{passive:false});
+  document.addEventListener('touchend', e=>{const n=Date.now();if(n-lt<=300)e.preventDefault();lt=n;},{passive:false});
+  document.addEventListener('wheel', e=>{if(e.ctrlKey||e.metaKey)e.preventDefault();},{passive:false});
 })();
 
-// ── Constantes ──
-const SK='rk_app_v1';
-const SC=[null,'#f05252','#f05252','#f5923e','#f5923e','#f5c842','#f5c842','#3dba6e','#4a90d9','#8b6fd4','#f472b6'];
-const STARTERS=[{id:'s0',ico:'🧒',lbl:'Garçon'},{id:'s1',ico:'👧',lbl:'Fille'},{id:'s2',ico:'🧑',lbl:'Alex'},{id:'s3',ico:'🦊',lbl:'Renard'}];
+// ── Constantes ─────────────────────────────────────────────
+const SK = 'rk_app_v1';
+const SC = [null,'#f05252','#f05252','#f5923e','#f5923e','#f5c842','#f5c842','#3dba6e','#4a90d9','#8b6fd4','#f472b6'];
+const STARTERS = [
+  {id:'s0',ico:'🧒',lbl:'Garçon'},
+  {id:'s1',ico:'👧',lbl:'Fille'},
+  {id:'s2',ico:'🧑',lbl:'Alex'},
+  {id:'s3',ico:'🦊',lbl:'Renard'},
+];
 
-// ── État local (cache offline) ──
-const DEF={playerName:'',score:8,scoreState:'normal',stars:0,marbles:0,
-  history:[7,8,6,9,5,8,8],missions:[],missionDate:'',
+// ── État local (cache offline) ──────────────────────────────
+const DEF = {
+  playerName:'', score:8, scoreState:'normal',
+  stars:0, marbles:0,
+  history:[7,8,6,9,5,8,8],
+  missions:[], missionDate:'',
   equipped:{skin:'s0',hat:'h0',bg:'b0',acc:'ac0'},
-  unlockedItems:[],purchaseReqs:[]};
-let S={};
-function load(){try{const r=localStorage.getItem(SK);if(r)return{...DEF,...JSON.parse(r)};}catch(e){}return{...DEF};}
-function save(){try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}}
+  unlockedItems:[], purchaseReqs:[],
+};
+let S = {};
+function load(){ try{ const r=localStorage.getItem(SK); if(r) return {...DEF,...JSON.parse(r)}; }catch(e){} return {...DEF}; }
+function save(){ try{ localStorage.setItem(SK, JSON.stringify(S)); }catch(e){} }
 
-// ── Connexion réseau ──
+// ── Réseau ─────────────────────────────────────────────────
 let isOnline = navigator.onLine;
-let unsubScore, unsubEcon, unsubMissions;
 
-function setOnlineStatus(online){
+function setOnlineStatus(online) {
   isOnline = online;
-  const banner = document.getElementById('offlineBanner');
-  if(banner) banner.style.display = online ? 'none' : 'flex';
-  // Bloquer les actions d'écriture hors ligne
-  document.querySelectorAll('.write-action').forEach(el=>{
-    el.style.opacity   = online ? '' : '0.4';
+  const b = document.getElementById('offlineBanner');
+  if(b) b.style.display = online ? 'none' : 'flex';
+  document.querySelectorAll('.write-action').forEach(el => {
+    el.style.opacity      = online ? '' : '0.4';
     el.style.pointerEvents = online ? '' : 'none';
   });
 }
+window.addEventListener('online',  () => setOnlineStatus(true));
+window.addEventListener('offline', () => setOnlineStatus(false));
 
-window.addEventListener('online',  ()=>setOnlineStatus(true));
-window.addEventListener('offline', ()=>setOnlineStatus(false));
+// ── Utils ───────────────────────────────────────────────────
+function today(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function scCol(v){ return SC[Math.round(v)]||'#4a90d9'; }
 
-// ── Utils ──
-function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function scCol(v){return SC[Math.round(v)]||'#4a90d9';}
+// ── Onboarding ──────────────────────────────────────────────
+let selAv = STARTERS[0].id;
 
-// ── Onboarding ──
-let selAv=STARTERS[0].id;
-function renderOb(){
-  document.getElementById('obAvatars').innerHTML=STARTERS.map(a=>`
+function renderOb() {
+  document.getElementById('obAvatars').innerHTML = STARTERS.map(a => `
     <div class="ob-av ${a.id===selAv?'sel':''}" onclick="selAvatar('${a.id}')">
-      <div class="ob-av-ico">${a.ico}</div><div class="ob-av-lbl">${a.lbl}</div>
+      <div class="ob-av-ico">${a.ico}</div>
+      <div class="ob-av-lbl">${a.lbl}</div>
     </div>`).join('');
 }
-window.selAvatar = function(id){selAv=id;renderOb();checkOb();}
-function checkOb(){document.getElementById('obBtn').disabled=document.getElementById('obName').value.trim().length<2;}
-window.finishOnboarding = async function(){
-  const name=document.getElementById('obName').value.trim();
-  if(name.length<2)return;
-  const av=STARTERS.find(a=>a.id===selAv);
-  S.playerName=name;
-  S.equipped.skin=av?av.id:'s0';
+window.selAvatar = id => { selAv=id; renderOb(); checkOb(); };
+function checkOb() { document.getElementById('obBtn').disabled = document.getElementById('obName').value.trim().length < 2; }
+
+window.finishOnboarding = async function() {
+  const name = document.getElementById('obName').value.trim();
+  if(name.length < 2) return;
+  S.playerName = name;
+  S.equipped.skin = STARTERS.find(a=>a.id===selAv)?.id || 's0';
   save();
-  // Mettre à jour le profil Firestore
-  if(isOnline){
-    await FB.updateProfile({displayName:name}).catch(()=>{});
-    await FB.setAvatar({skin:S.equipped.skin}).catch(()=>{});
+  if(firebaseAvailable) {
+    FB.updateProfile({displayName:name}).catch(()=>{});
+    FB.setAvatar({skin:S.equipped.skin}).catch(()=>{});
   }
   document.getElementById('screenOnboarding').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
-  document.getElementById('bnav').style.display='';
+  document.getElementById('bnav').style.display = '';
   bootApp();
 };
 
-// ── Modal nom ──
-window.openNameModal = function(){
-  const modal=document.getElementById('nameModal');
-  const input=document.getElementById('nmInput');
-  input.value=S.playerName||'';
-  input.style.cssText+='user-select:auto!important;-webkit-user-select:auto!important';
-  modal.classList.add('show');
-  setTimeout(()=>input.focus(),100);
+// ── Modal nom ───────────────────────────────────────────────
+window.openNameModal = function() {
+  const m = document.getElementById('nameModal');
+  const i = document.getElementById('nmInput');
+  i.value = S.playerName || '';
+  i.style.cssText += 'user-select:auto!important;-webkit-user-select:auto!important';
+  m.classList.add('show');
+  setTimeout(() => i.focus(), 100);
 };
-window.closeNameModal = function(){document.getElementById('nameModal').classList.remove('show');};
-window.saveName = async function(){
-  const val=document.getElementById('nmInput').value.trim();
-  if(val.length<2){showToast('Prénom trop court','Minimum 2 caractères 😊','✏️');return;}
-  S.playerName=val;save();
-  document.getElementById('profileName').textContent=val;
-  if(isOnline && firebaseAvailable && FB.updateProfile) await FB.updateProfile({displayName:val}).catch(()=>{});
+window.closeNameModal = () => document.getElementById('nameModal').classList.remove('show');
+window.saveName = async function() {
+  const val = document.getElementById('nmInput').value.trim();
+  if(val.length < 2){ showToast('Prénom trop court','Minimum 2 caractères 😊','✏️'); return; }
+  S.playerName = val; save();
+  document.getElementById('profileName').textContent = val;
+  if(firebaseAvailable) FB.updateProfile({displayName:val}).catch(()=>{});
   window.closeNameModal();
-  showToast('Prénom modifié !',`Bonjour ${val} 👋`,'✅');
+  showToast('Prénom modifié !', `Bonjour ${val} 👋`, '✅');
 };
 
-// ── Score ──
-function updateScoreUI(value, state){
-  S.score=value; S.scoreState=state; save();
-  const col=scCol(value);
-  document.documentElement.style.setProperty('--sc',col);
-  const el=document.getElementById('scoreNum');
-  el.textContent=value; el.style.color=col;
-  el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
-  const fill=document.getElementById('gaugeFill');
-  fill.style.width=(value*10)+'%';
-  fill.style.background=`linear-gradient(90deg,${col}88,${col})`;
-  const ring=document.getElementById('blobRing');
-  ring.style.borderColor=col; ring.style.boxShadow=`0 0 18px ${col}66`;
-  const badge=document.getElementById('scoreState');
-  badge.className=`score-state ${state}`;
-  badge.textContent=state==='validated'?'✓ Journée validée':state==='pause'?'⏸ Pause':'⚡ En cours';
-  const disp=document.getElementById('demoScoreDisp');
-  if(disp) disp.textContent=value;
+// ── Score UI ────────────────────────────────────────────────
+function updateScoreUI(value, state) {
+  S.score = value; S.scoreState = state; save();
+  const col = scCol(value);
+  document.documentElement.style.setProperty('--sc', col);
+  const el = document.getElementById('scoreNum');
+  el.textContent = value; el.style.color = col;
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  const fill = document.getElementById('gaugeFill');
+  fill.style.width = (value*10)+'%';
+  fill.style.background = `linear-gradient(90deg,${col}88,${col})`;
+  document.getElementById('blobRing').style.cssText = `border-color:${col};box-shadow:0 0 18px ${col}66;`;
+  const badge = document.getElementById('scoreState');
+  badge.className = `score-state ${state}`;
+  badge.textContent = state==='validated'?'✓ Journée validée':state==='pause'?'⏸ Pause':'⚡ En cours';
+  const d = document.getElementById('demoScoreDisp');
+  if(d) d.textContent = value;
 }
 
-// ── Économie ──
-function updateCurUI(stars, marbles){
-  S.stars=stars; S.marbles=marbles; save();
-  ['starsVal','shopStars'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=stars;});
-  ['marblesVal','shopMarbles'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=marbles;});
+// ── Économie UI ─────────────────────────────────────────────
+function updateCurUI(stars, marbles) {
+  S.stars = stars; S.marbles = marbles; save();
+  ['starsVal','shopStars'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=stars; });
+  ['marblesVal','shopMarbles'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=marbles; });
 }
 
-// ── Missions ──
-function renderMissions(items){
-  const list=document.getElementById('missionsList');
-  const card=document.getElementById('missionsCard');
-  if(!items||!items.length){card.style.display='none';return;}
-  card.style.display='';
-  list.innerHTML=items.map((m,i)=>`
-    <div class="mission-item ${m.done?'done':''}" onclick="onMissionTap(${i})">
+// ── Missions — LECTURE SEULE côté enfant ────────────────────
+// Le parent valide les missions au Lot 4
+function renderMissions(items) {
+  const list = document.getElementById('missionsList');
+  const card = document.getElementById('missionsCard');
+  if(!items || !items.length){ card.style.display='none'; return; }
+  card.style.display = '';
+  list.innerHTML = items.map(m => `
+    <div class="mission-item ${m.done?'done':''}">
       <div class="m-check">${m.done?'✓':''}</div>
       <div class="m-ico">${m.ico}</div>
       <div class="m-body">
@@ -759,294 +768,281 @@ function renderMissions(items){
           <span class="rtag m">🔵 +${m.marbles}</span>
         </div>
       </div>
+      <div style="flex-shrink:0;font-size:16px;">${m.done?'✅':'⏳'}</div>
     </div>`).join('');
-  S.missions=items; S.missionDate=today(); save();
+  S.missions = items; S.missionDate = today(); save();
 }
 
-window.onMissionTap = async function(i){
-  if(!isOnline){showToast('Hors ligne','Impossible de cocher en mode hors ligne 📡','⚠️');return;}
-  const m=S.missions[i];
-  if(!m||m.done) return;
-  try{
-    await FB.completeMission(i);
-    showToast('🎉 Mission accomplie !',`+${m.stars} ⭐  +${m.marbles} 🔵`,'🏆');
-  }catch(e){showToast('Erreur',e.message,'❌');}
-};
-
-// ── Avatar ──
-const AV_CATS=[
-  {key:'skin',lbl:'🧒 Personnage',items:[
-    {id:'s0',ico:'🧒',lbl:'Garçon',owned:true},
-    {id:'s1',ico:'👧',lbl:'Fille',owned:true},
-    {id:'s2',ico:'🧑',lbl:'Neutre',owned:true},
-    {id:'s3',ico:'🦊',lbl:'Renard',owned:false,cost:20},
-    {id:'s4',ico:'🐱',lbl:'Chat',owned:false,cost:20},
-    {id:'s5',ico:'🐻',lbl:'Ours',owned:false,cost:20},
+// ── Avatar ──────────────────────────────────────────────────
+const AV_CATS = [
+  {key:'skin', lbl:'🧒 Personnage', items:[
+    {id:'s0',ico:'🧒',lbl:'Garçon',    owned:true},
+    {id:'s1',ico:'👧',lbl:'Fille',     owned:true},
+    {id:'s2',ico:'🧑',lbl:'Neutre',    owned:true},
+    {id:'s3',ico:'🦊',lbl:'Renard',    owned:false,cost:20},
+    {id:'s4',ico:'🐱',lbl:'Chat',      owned:false,cost:20},
+    {id:'s5',ico:'🐻',lbl:'Ours',      owned:false,cost:20},
     {id:'s6',ico:'🐸',lbl:'Grenouille',owned:false,cost:15},
-    {id:'s7',ico:'🦄',lbl:'Licorne',owned:false,cost:30},
+    {id:'s7',ico:'🦄',lbl:'Licorne',   owned:false,cost:30},
   ]},
-  {key:'hat',lbl:'🎩 Coiffe',items:[
-    {id:'h0',ico:'✨',lbl:'Aucune',owned:true},
-    {id:'h1',ico:'🎀',lbl:'Nœud',owned:true},
+  {key:'hat', lbl:'🎩 Coiffe', items:[
+    {id:'h0',ico:'✨',lbl:'Aucune',   owned:true},
+    {id:'h1',ico:'🎀',lbl:'Nœud',    owned:true},
     {id:'h2',ico:'🧢',lbl:'Casquette',owned:true},
-    {id:'h3',ico:'👑',lbl:'Couronne',owned:false,cost:30},
-    {id:'h4',ico:'🌸',lbl:'Fleurs',owned:false,cost:15},
-    {id:'h5',ico:'⭐',lbl:'Étoile',owned:false,cost:20},
+    {id:'h3',ico:'👑',lbl:'Couronne', owned:false,cost:30},
+    {id:'h4',ico:'🌸',lbl:'Fleurs',   owned:false,cost:15},
+    {id:'h5',ico:'⭐',lbl:'Étoile',   owned:false,cost:20},
   ]},
-  {key:'bg',lbl:'🌌 Fond',items:[
-    {id:'b0',ico:'☁️',lbl:'Ciel',owned:true},
-    {id:'b1',ico:'🌸',lbl:'Sakura',owned:true},
-    {id:'b2',ico:'🌈',lbl:'Rainbow',owned:false,cost:20},
-    {id:'b3',ico:'🌙',lbl:'Nuit',owned:false,cost:15},
-    {id:'b4',ico:'🏖️',lbl:'Plage',owned:false,cost:20},
+  {key:'bg', lbl:'🌌 Fond', items:[
+    {id:'b0',ico:'☁️',lbl:'Ciel',    owned:true},
+    {id:'b1',ico:'🌸',lbl:'Sakura',  owned:true},
+    {id:'b2',ico:'🌈',lbl:'Rainbow', owned:false,cost:20},
+    {id:'b3',ico:'🌙',lbl:'Nuit',    owned:false,cost:15},
+    {id:'b4',ico:'🏖️',lbl:'Plage',   owned:false,cost:20},
   ]},
-  {key:'acc',lbl:'✨ Accessoire',items:[
-    {id:'ac0',ico:'✨',lbl:'Aucun',owned:true},
+  {key:'acc', lbl:'✨ Accessoire', items:[
+    {id:'ac0',ico:'✨',lbl:'Aucun',   owned:true},
     {id:'ac1',ico:'🕶️',lbl:'Lunettes',owned:true},
-    {id:'ac2',ico:'🎵',lbl:'Musique',owned:false,cost:10},
+    {id:'ac2',ico:'🎵',lbl:'Musique', owned:false,cost:10},
     {id:'ac3',ico:'🦋',lbl:'Papillon',owned:false,cost:20},
-    {id:'ac4',ico:'🔮',lbl:'Cristal',owned:false,cost:25},
+    {id:'ac4',ico:'🔮',lbl:'Cristal', owned:false,cost:25},
   ]},
 ];
-let curCat='skin';
-function getIco(){const cat=AV_CATS.find(c=>c.key==='skin');return cat?.items.find(i=>i.id===S.equipped.skin)?.ico||'🧒';}
-function updateAvatar(){
-  const ico=getIco();
-  ['blobAvatarIco','avBigIco','profileAva'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=ico;});
+let curCat = 'skin';
+
+function getIco() {
+  return AV_CATS.find(c=>c.key==='skin')?.items.find(i=>i.id===S.equipped.skin)?.ico || '🧒';
 }
-function renderAvCats(){
-  document.getElementById('avCats').innerHTML=AV_CATS.map(c=>`
+function updateAvatar() {
+  const ico = getIco();
+  ['blobAvatarIco','avBigIco','profileAva'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=ico; });
+}
+function renderAvCats() {
+  document.getElementById('avCats').innerHTML = AV_CATS.map(c => `
     <button class="acat ${c.key===curCat?'active':''}" onclick="switchCat('${c.key}')">${c.lbl}</button>`).join('');
 }
-window.switchCat=function(k){curCat=k;renderAvCats();renderAvItems();};
-function renderAvItems(){
-  const cat=AV_CATS.find(c=>c.key===curCat);if(!cat)return;
-  cat.items.forEach(item=>{if(S.unlockedItems.includes(item.id))item.owned=true;});
-  document.getElementById('avItems').innerHTML=cat.items.map(item=>{
-    const isSel=S.equipped[curCat]===item.id;
-    const locked=!item.owned;
-    return `<div class="av-item ${isSel?'selected':''} ${locked?'locked':''}" onclick="equipItem('${item.id}')">
+window.switchCat = k => { curCat=k; renderAvCats(); renderAvItems(); };
+function renderAvItems() {
+  const cat = AV_CATS.find(c=>c.key===curCat); if(!cat) return;
+  cat.items.forEach(item => { if(S.unlockedItems.includes(item.id)) item.owned=true; });
+  document.getElementById('avItems').innerHTML = cat.items.map(item => {
+    const isSel = S.equipped[curCat]===item.id;
+    return `<div class="av-item ${isSel?'selected':''} ${!item.owned?'locked':''}" onclick="equipItem('${item.id}')">
       <div class="ai-ico">${item.ico}</div>
       <div class="ai-lbl">${item.lbl}</div>
-      ${locked?`<div class="ai-cost">🔵${item.cost}</div>`:''}
-      ${isSel?`<div class="ai-eq">✓</div>`:''}
+      ${!item.owned ? `<div class="ai-cost">🔵${item.cost}</div>` : ''}
+      ${isSel ? `<div class="ai-eq">✓</div>` : ''}
     </div>`;
   }).join('');
 }
-window.equipItem = async function(id){
-  let found,fc;
-  for(const cat of AV_CATS){const it=cat.items.find(i=>i.id===id);if(it){found=it;fc=cat;break;}}
-  if(!found)return;
-  if(!found.owned){
-    if(!isOnline){showToast('Hors ligne','Impossible d\'acheter sans connexion 📡','⚠️');return;}
-    if(S.marbles<(found.cost||0)){showToast('Pas assez de billes !',`Il te faut ${found.cost} 🔵`,'😢');return;}
+window.equipItem = async function(id) {
+  let found, fc;
+  for(const cat of AV_CATS){ const it=cat.items.find(i=>i.id===id); if(it){found=it;fc=cat;break;} }
+  if(!found) return;
+  if(!found.owned) {
+    if(!isOnline){ showToast('Hors ligne','Impossible d\'acheter sans connexion 📡','⚠️'); return; }
+    if(S.marbles < (found.cost||0)){ showToast('Pas assez de billes !',`Il te faut ${found.cost} 🔵`,'😢'); return; }
+    if(!firebaseAvailable){ showToast('Firebase indisponible','Impossible d\'acheter 📡','⚠️'); return; }
     try{
-      await FB.addCurrency(-found.cost,'marbles',`Avatar: ${found.lbl}`);
-      found.owned=true;S.unlockedItems.push(id);
-    }catch(e){showToast('Erreur',e.message,'❌');return;}
+      await FB.addCurrency(-found.cost, 'marbles', `Avatar: ${found.lbl}`);
+      found.owned = true; S.unlockedItems.push(id);
+    }catch(e){ showToast('Erreur', e.message, '❌'); return; }
   }
-  S.equipped[fc.key]=id;save();
-  if(isOnline && firebaseAvailable && FB.setAvatar) await FB.setAvatar({[fc.key]:id}).catch(()=>{});
-  updateAvatar();renderAvItems();
-  showToast('Look mis à jour !',`${found.ico} ${found.lbl} équipé !`,'✨');
+  S.equipped[fc.key] = id; save();
+  if(firebaseAvailable) FB.setAvatar({[fc.key]:id}).catch(()=>{});
+  updateAvatar(); renderAvItems();
+  showToast('Look mis à jour !', `${found.ico} ${found.lbl} équipé !`, '✨');
 };
 
-// ── Shop ──
-let curShopTab='real';
-let shopItems=[];
-window.shopTab=function(btn,tab){
+// ── Shop ────────────────────────────────────────────────────
+let curShopTab = 'real';
+let shopItems  = [];
+
+window.shopTab = function(btn, tab) {
   document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');curShopTab=tab;renderShop();
+  btn.classList.add('active'); curShopTab=tab; renderShop();
 };
-async function loadShopItems(){
-  if(isOnline){
-    try{shopItems=await getShopItems();}catch(e){shopItems=[];}
+async function loadShopItems() {
+  if(isOnline && firebaseAvailable) {
+    try{ shopItems = await FB.getShopItems(); }catch(e){ shopItems=[]; }
   }
 }
-function renderShop(){
-  const items=shopItems.filter(i=>i.category===(curShopTab==='real'?'real':'app'));
-  document.getElementById('shopGrid').innerHTML=items.length
-    ? items.map(item=>{
-        const byCost=item.costStars>0?`⭐ ${item.costStars}`:item.costMarbles>0?`🔵 ${item.costMarbles}`:'Gratuit';
-        const cur=item.costStars>0?'s':'m';
-        const pending=S.purchaseReqs.includes(item.id);
+function renderShop() {
+  updateCurUI(S.stars, S.marbles);
+  const items = shopItems.filter(i => i.category===(curShopTab==='real'?'real':'app'));
+  document.getElementById('shopGrid').innerHTML = items.length
+    ? items.map(item => {
+        const byCost = item.costStars>0 ? `⭐ ${item.costStars}` : `🔵 ${item.costMarbles}`;
+        const cur    = item.costStars>0 ? 's' : 'm';
+        const pending = S.purchaseReqs.includes(item.id);
         return `<div class="shop-item write-action" onclick="reqBuy('${item.id}')">
           <div class="si-ico">${item.ico}</div>
           <div class="si-name">${item.name}</div>
-          ${pending?`<div class="si-pending">⏳ En attente</div>`
-            :`<div class="si-cost ${cur}">${byCost}</div>`}
+          ${pending ? `<div class="si-pending">⏳ En attente</div>`
+                    : `<div class="si-cost ${cur}">${byCost}</div>`}
         </div>`;
       }).join('')
-    : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:12px;font-weight:700;color:var(--text2);">
-        ${isOnline?'Boutique vide':'Boutique indisponible hors ligne 📡'}
+    : `<div style="grid-column:1/-1;text-align:center;padding:24px;font-size:12px;font-weight:700;color:var(--text2);">
+         ${!firebaseAvailable ? '🔧 Firebase non connecté' : !isOnline ? '📡 Boutique hors ligne' : '🛒 Boutique vide'}
        </div>`;
 }
-window.reqBuy = async function(id){
-  if(!isOnline){showToast('Hors ligne','Impossible de commander sans connexion 📡','⚠️');return;}
-  const item=shopItems.find(i=>i.id===id);if(!item)return;
-  if(S.purchaseReqs.includes(id)){showToast('Déjà demandé !','Papa/maman va valider 😊','⏳');return;}
+window.reqBuy = async function(id) {
+  if(!isOnline)         { showToast('Hors ligne',     'Impossible sans connexion 📡',    '⚠️'); return; }
+  if(!firebaseAvailable){ showToast('Non disponible', 'Firebase non connecté',            '⚠️'); return; }
+  const item = shopItems.find(i=>i.id===id); if(!item) return;
+  if(S.purchaseReqs.includes(id)){ showToast('Déjà demandé !', 'Papa/maman va valider 😊', '⏳'); return; }
   try{
     await FB.createPurchaseRequest(id);
-    S.purchaseReqs.push(id);save();
-    renderShop();
-    showToast('Demande envoyée !',`${item.ico} ${item.name} — Papa/maman va valider !`,'📨');
+    S.purchaseReqs.push(id); save(); renderShop();
+    showToast('Demande envoyée !', `${item.ico} ${item.name} — Papa/maman va valider !`, '📨');
   }catch(e){
-    showToast('Impossible',e.message==='Solde insuffisant'?`Pas assez de jetons !`:e.message,'😅');
+    showToast('Impossible', e.message==='Solde insuffisant'?'Pas assez de jetons !':e.message, '😅');
   }
 };
 
-// ── Stats ──
-function renderStats(){
-  const h=S.history||[];
-  const avg=h.length?(h.reduce((a,b)=>a+b,0)/h.length).toFixed(1):'–';
-  const best=h.length?Math.max(...h):'–';
-  const done=(S.missions||[]).filter(m=>m.done).length;
-  const tot=(S.missions||[]).length;
-  document.getElementById('statGrid').innerHTML=[
-    {ico:'📈',lbl:'MOYENNE 7J',val:avg==='–'?'–':`${avg}/10`,col:scCol(parseFloat(avg)||8)},
-    {ico:'🏆',lbl:'RECORD',val:best==='–'?'–':`${best}/10`,col:scCol(best)},
-    {ico:'⭐',lbl:'ÉTOILES',val:S.stars,col:'#f5923e'},
-    {ico:'🎯',lbl:'MISSIONS',val:`${done}/${tot}`,col:'#3dba6e'},
+// ── Stats ────────────────────────────────────────────────────
+function renderStats() {
+  const h    = S.history||[];
+  const avg  = h.length ? (h.reduce((a,b)=>a+b,0)/h.length).toFixed(1) : '–';
+  const best = h.length ? Math.max(...h) : '–';
+  const done = (S.missions||[]).filter(m=>m.done).length;
+  const tot  = (S.missions||[]).length;
+  document.getElementById('statGrid').innerHTML = [
+    {ico:'📈',lbl:'MOYENNE 7J', val: avg ==='–'?'–':`${avg}/10`,  col:scCol(parseFloat(avg)||8)},
+    {ico:'🏆',lbl:'RECORD',     val: best==='–'?'–':`${best}/10`, col:scCol(best)},
+    {ico:'⭐',lbl:'ÉTOILES',    val: S.stars,                      col:'#f5923e'},
+    {ico:'🎯',lbl:'MISSIONS',   val: `${done}/${tot}`,             col:'#3dba6e'},
   ].map(s=>`<div class="stat-card">
     <div class="stat-ico">${s.ico}</div>
     <div class="stat-lbl">${s.lbl}</div>
     <div class="stat-val" style="color:${s.col}">${s.val}</div>
   </div>`).join('');
-  const days=['L','M','M','J','V','S','A'];
-  document.getElementById('histBars').innerHTML=h.map((v,i)=>`
+  const days = ['L','M','M','J','V','S','A'];
+  document.getElementById('histBars').innerHTML = h.map((v,i)=>`
     <div class="hb-col">
       <div class="hb-wrap"><div class="hb-fill" style="height:${v*10}%;background:${scCol(v)};"></div></div>
       <div class="hb-val">${v}</div><div class="hb-day">${days[i]||'?'}</div>
     </div>`).join('');
 }
 
-// ── Panneau simulation ──
-window.demoScore=async function(delta){
-  if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
-  const nv=Math.max(1,Math.min(10,S.score+delta));
-  await FB.setScore(nv).catch(()=>{});
+// ── Panneau simulation (Stats) ──────────────────────────────
+window.demoScore = async function(delta) {
+  if(!isOnline||!firebaseAvailable){ showToast('Non disponible','Firebase requis 📡','⚠️'); return; }
+  await FB.setScore(Math.max(1,Math.min(10,S.score+delta))).catch(()=>{});
 };
-window.setState=async function(st){
-  if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
+window.setState = async function(st) {
+  if(!isOnline||!firebaseAvailable){ showToast('Non disponible','Firebase requis 📡','⚠️'); return; }
   await FB.setScoreState(st).catch(()=>{});
 };
-window.refreshMissions=async function(){
-  if(!isOnline||!firebaseAvailable){showToast('Hors ligne','Impossible sans connexion 📡','⚠️');return;}
-  try{
-    // Passer par db.js pour forcer le re-tirage
+window.refreshMissions = async function() {
+  if(!isOnline||!firebaseAvailable){ showToast('Non disponible','Firebase requis 📡','⚠️'); return; }
+  try {
     await FB.forceDailyMissionsReset();
     nav('scHome');
-    showToast('Nouvelles missions !','3 défis du jour tirés au sort 🎲','🎯');
-  }catch(e){showToast('Erreur',e.message,'❌');}
+    showToast('Nouvelles missions !', '3 défis du jour tirés au sort 🎲', '🎯');
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
 };
 
-// ── Nav ──
-window.nav=function(sid,btn){
+// ── Nav ──────────────────────────────────────────────────────
+window.nav = function(sid, btn) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(sid)?.classList.add('active');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  else{const m={scHome:0,scShop:1,scAvatar:2,scStats:3};document.querySelectorAll('.ni')[m[sid]??0]?.classList.add('active');}
-  if(sid==='scShop'){loadShopItems().then(renderShop);}
-  if(sid==='scAvatar'){renderAvCats();renderAvItems();}
-  if(sid==='scStats')renderStats();
+  if(btn) btn.classList.add('active');
+  else { const m={scHome:0,scShop:1,scAvatar:2,scStats:3}; document.querySelectorAll('.ni')[m[sid]??0]?.classList.add('active'); }
+  if(sid==='scShop')  loadShopItems().then(renderShop);
+  if(sid==='scAvatar'){ renderAvCats(); renderAvItems(); }
+  if(sid==='scStats') renderStats();
   window.scrollTo(0,0);
 };
 
-// ── Toast ──
+// ── Toast ────────────────────────────────────────────────────
 let tt;
-function showToast(title,msg,ico='⭐'){
-  const t=document.getElementById('toast');
-  document.getElementById('tIco').textContent=ico;
-  document.getElementById('tTitle').textContent=title;
-  document.getElementById('tMsg').textContent=msg;
-  t.classList.add('show');clearTimeout(tt);
-  tt=setTimeout(()=>t.classList.remove('show'),3200);
+function showToast(title, msg, ico='⭐') {
+  const t = document.getElementById('toast');
+  document.getElementById('tIco').textContent   = ico;
+  document.getElementById('tTitle').textContent = title;
+  document.getElementById('tMsg').textContent   = msg;
+  t.classList.add('show'); clearTimeout(tt);
+  tt = setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-// ── Responsive ──
-function setupLayout(){
-  const isTablet=window.innerWidth>=768&&window.matchMedia('(orientation:landscape)').matches;
-  const sidebar=document.getElementById('sidebar');
-  const bnav=document.getElementById('bnav');
-  const cz=document.getElementById('contentZone');
-  if(!sidebar||!bnav)return;
-  if(isTablet){
-    sidebar.style.display='flex';
-    ['.header','.currencies','.avatar-zone','.score-zone'].forEach(sel=>{
-      const el=cz.querySelector(sel);
-      if(el&&!sidebar.contains(el))sidebar.appendChild(el);
+// ── Responsive ──────────────────────────────────────────────
+function setupLayout() {
+  const isTablet = window.innerWidth>=768 && window.matchMedia('(orientation:landscape)').matches;
+  const sidebar  = document.getElementById('sidebar');
+  const bnav     = document.getElementById('bnav');
+  const cz       = document.getElementById('contentZone');
+  if(!sidebar||!bnav) return;
+  if(isTablet) {
+    sidebar.style.display = 'flex';
+    ['.header','.currencies','.avatar-zone','.score-zone'].forEach(sel => {
+      const el=cz.querySelector(sel); if(el&&!sidebar.contains(el)) sidebar.appendChild(el);
     });
     sidebar.appendChild(bnav);
-    bnav.style.cssText='position:static;transform:none;width:100%';
+    bnav.style.cssText = 'position:static;transform:none;width:100%';
   } else {
-    sidebar.style.display='none';
-    const fs=cz.querySelector('.screen');
-    ['.header','.currencies','.avatar-zone','.score-zone'].forEach(sel=>{
-      const el=document.querySelector(sel);
-      if(el&&!cz.contains(el))cz.insertBefore(el,fs);
+    sidebar.style.display = 'none';
+    const fs = cz.querySelector('.screen');
+    ['.header','.currencies','.avatar-zone','.score-zone'].forEach(sel => {
+      const el=document.querySelector(sel); if(el&&!cz.contains(el)) cz.insertBefore(el,fs);
     });
     document.body.appendChild(bnav);
-    bnav.style.cssText='';
+    bnav.style.cssText = '';
   }
 }
 
-// ── connectFirebase — appelé après chargement Firebase ──
-let appBooted = false;
-let unsubScore, unsubEcon, unsubMissions;
-
-async function connectFirebase(){
-  if(!firebaseAvailable||!isOnline) return;
-  try{
+// ── connectFirebase — listeners temps réel ──────────────────
+async function connectFirebase() {
+  if(!firebaseAvailable || !isOnline) return;
+  try {
     await FB.initDemoFamily();
     await FB.ensureDailyReset();
     await FB.ensureDailyMissions();
     await loadShopItems();
-  }catch(e){
-    console.warn('[Firebase] Erreur init:', e.message);
+  } catch(e) {
+    console.warn('[Firebase] Init:', e.message);
   }
-  // Listeners temps réel
-  unsubScore    = FB.listenScore(data=>{ if(data) updateScoreUI(data.value, data.state); });
-  unsubEcon     = FB.listenEconomy(data=>{ if(data) updateCurUI(data.stars, data.marbles); });
-  unsubMissions = FB.listenMissions(data=>{ if(data?.items) renderMissions(data.items); });
+  // Désabonner les anciens listeners si besoin
+  if(unsubScore) unsubScore();
+  if(unsubEcon)  unsubEcon();
+  if(unsubMiss)  unsubMiss();
+  // Nouveaux listeners
+  unsubScore = FB.listenScore(data    => { if(data)        updateScoreUI(data.value, data.state); });
+  unsubEcon  = FB.listenEconomy(data  => { if(data)        updateCurUI(data.stars, data.marbles); });
+  unsubMiss  = FB.listenMissions(data => { if(data?.items) renderMissions(data.items); });
 }
 
-// ── bootApp — UI synchrone, Firebase en arrière-plan ──
-function bootApp(){
-  appBooted = true;
-  document.getElementById('profileName').textContent = S.playerName||'Joueur';
-  updateAvatar();
+// ── bootApp — synchrone, immédiat ───────────────────────────
+let appBooted = false;
 
-  // Afficher les données localStorage immédiatement
+function bootApp() {
+  appBooted = true;
+  document.getElementById('profileName').textContent = S.playerName || 'Joueur';
+  updateAvatar();
+  // Afficher les données locales immédiatement
   updateScoreUI(S.score, S.scoreState);
   updateCurUI(S.stars, S.marbles);
   if(S.missions?.length) renderMissions(S.missions);
-
   setOnlineStatus(isOnline);
   setupLayout();
-  window.addEventListener('resize',()=>setTimeout(setupLayout,150));
-  window.addEventListener('orientationchange',()=>setTimeout(setupLayout,300));
-
-  // Firebase en arrière-plan — ne bloque pas l'UI
+  window.addEventListener('resize',          () => setTimeout(setupLayout, 150));
+  window.addEventListener('orientationchange', () => setTimeout(setupLayout, 300));
+  // Firebase se connecte en arrière-plan si disponible
   if(firebaseAvailable) connectFirebase();
 }
 
-// ── Init ─────────────────────────────────────────────────
-// 1. Charger l'état local (synchrone, immédiat)
+// ── Init ─────────────────────────────────────────────────────
 S = load();
 
-// 2. Attacher le listener du champ prénom (synchrone)
 const obInput = document.getElementById('obName');
-if(obInput){
+if(obInput) {
   obInput.addEventListener('input', checkOb);
   obInput.style.cssText += 'user-select:auto!important;-webkit-user-select:auto!important';
 }
-
-// 3. Rendre la grille d'avatars (synchrone)
 renderOb();
 
-// 4. Démarrer l'app ou montrer l'onboarding
-if(!S.playerName || !S.playerName.trim()){
+if(!S.playerName || !S.playerName.trim()) {
   document.getElementById('bnav').style.display = 'none';
 } else {
   document.getElementById('screenOnboarding').classList.add('hidden');
@@ -1054,14 +1050,14 @@ if(!S.playerName || !S.playerName.trim()){
   bootApp();
 }
 
-// 5. Charger Firebase en arrière-plan (asynchrone, ne bloque rien)
+// Firebase en arrière-plan — ne bloque pas l'UI
 initFirebase();
 
-// 6. SW registration
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
+// Service Worker
+if('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(()=>{});
 }
 </script>
+
 </body>
 </html>
-

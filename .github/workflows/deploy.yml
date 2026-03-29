@@ -18,8 +18,9 @@ jobs:
 
       - name: Générer firebase.config.js depuis les secrets
         run: |
-          cat > firebase.config.js << CONFIGEOF
-          // Fichier généré automatiquement par GitHub Actions
+          cat > firebase.config.js << EOF
+          // ⚠️  Fichier généré automatiquement par GitHub Actions
+          // Ne pas modifier manuellement
           export const firebaseConfig = {
             apiKey:            '${{ secrets.FIREBASE_API_KEY }}',
             authDomain:        '${{ secrets.FIREBASE_AUTH_DOMAIN }}',
@@ -28,8 +29,9 @@ jobs:
             messagingSenderId: '${{ secrets.FIREBASE_SENDER_ID }}',
             appId:             '${{ secrets.FIREBASE_APP_ID }}',
           };
-          CONFIGEOF
+          EOF
 
+      # Déploiement sur GitHub Pages uniquement depuis main
       - name: Déployer sur GitHub Pages (main uniquement)
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
@@ -38,6 +40,7 @@ jobs:
           publish_dir: ./
           exclude_assets: '.github,*.md,firestore.rules,firebase.config.example.js'
 
+      # Sur les autres branches : juste confirmer que le build passe
       - name: Build check (branches hors main)
         if: github.ref != 'refs/heads/main'
         run: |
