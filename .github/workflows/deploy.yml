@@ -2,7 +2,7 @@ name: Deploy RewardKidz
 
 on:
   push:
-    branches: [ '**' ]   # toutes les branches
+    branches: [ '**' ]   # S'exécute sur toutes les branches
 
 jobs:
   deploy:
@@ -18,23 +18,29 @@ jobs:
 
       - name: Générer firebase.config.js depuis les secrets
         run: |
-          printf 'export const firebaseConfig = {\n' > firebase.config.js
-          printf '  apiKey: "%s",\n'            "${{ secrets.FIREBASE_API_KEY }}"            >> firebase.config.js
-          printf '  authDomain: "%s",\n'        "${{ secrets.FIREBASE_AUTH_DOMAIN }}"        >> firebase.config.js
-          printf '  projectId: "%s",\n'         "${{ secrets.FIREBASE_PROJECT_ID }}"         >> firebase.config.js
-          printf '  storageBucket: "%s",\n'     "${{ secrets.FIREBASE_STORAGE_BUCKET }}"     >> firebase.config.js
-          printf '  messagingSenderId: "%s",\n' "${{ secrets.FIREBASE_SENDER_ID }}"          >> firebase.config.js
-          printf '  appId: "%s",\n'             "${{ secrets.FIREBASE_APP_ID }}"             >> firebase.config.js
-          printf '};\n' >> firebase.config.js
+          cat <<EOF > firebase.config.js
+          export const firebaseConfig = {
+            apiKey: "${{ secrets.FIREBASE_API_KEY }}",
+            authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
+            projectId: "${{ secrets.FIREBASE_PROJECT_ID }}",
+            storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET }}",
+            messagingSenderId: "${{ secrets.FIREBASE_SENDER_ID }}",
+            appId: "${{ secrets.FIREBASE_APP_ID }}"
+          };
+          EOF
 
       - name: Vérifier firebase.config.js (sans afficher les valeurs)
         run: |
           echo "=== Taille du fichier ==="
           wc -c firebase.config.js
-          echo "=== Lignes (valeurs masquées) ==="
+          echo "=== Structure vérifiée ==="
           grep -o '^[^:]*' firebase.config.js
 
-      # Déploiement sur GitHub Pages uniquement depuis main
+      - name: Préparer le déploiement (bypass gitignore)
+        # On retire la restriction seulement si on va déployer
+        if: github.ref == 'refs/heads/main'
+        run: sed -i '/firebase.config.js/d' .gitignore
+
       - name: Déployer sur GitHub Pages (main uniquement)
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
@@ -43,10 +49,9 @@ jobs:
           publish_dir: ./
           exclude_assets: '.github,*.md,firestore.rules,firebase.config.example.js'
 
-      # Sur les autres branches : juste confirmer que le build passe
       - name: Build check (branches hors main)
         if: github.ref != 'refs/heads/main'
         run: |
           echo "✅ Branch: ${{ github.ref_name }}"
-          echo "✅ firebase.config.js généré ($(wc -c < firebase.config.js) bytes)"
+          echo "✅ firebase.config.js généré"
           echo "✅ Build OK — déploiement réservé à main"
