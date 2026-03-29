@@ -1,13 +1,14 @@
-// RewardKidz — Service Worker v1.0
+// RewardKidz — Service Worker v1.2
 // Stratégie : Cache First pour les assets, Network First pour les données
 
-const CACHE_NAME = 'RewardKidz-v1';
+const CACHE_NAME = 'rewardkidz-v2';
 
-// Chemins relatifs — compatibles GitHub Pages sous-répertoire
+// BASE = chemin du repo (ex: /RewardKidz)
 const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
 const ASSETS_TO_CACHE = [
   BASE + '/',
   BASE + '/index.html',
+  BASE + '/reader.html',
   BASE + '/manifest.json',
   BASE + '/icon-192.png',
   BASE + '/icon-512.png',

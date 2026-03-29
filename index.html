@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RewardKidz">
@@ -13,6 +13,38 @@
 <title>RewardKidz 🦄 — Validation PWA</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
+
+/* ── Anti-zoom couche CSS ── */
+html{
+  touch-action:manipulation;
+  overscroll-behavior:none;
+  -webkit-text-size-adjust:100%;
+}
+body{
+  touch-action:manipulation;
+  overscroll-behavior:none;
+  user-select:none;-webkit-user-select:none;
+}
+/* Les zones scrollables gardent le pan vertical */
+.app{touch-action:pan-y;}
+/* Inputs ≥ 16px obligatoire pour éviter zoom auto iOS */
+input,button{font-size:16px;touch-action:manipulation;}
+/* Zone tactile minimum Apple HIG : 44×44px */
+button,.action-btn{min-height:44px;}
+
+/* ── Responsive tablette paysage ── */
+@media (min-width:768px){
+  .app{max-width:640px;}
+  .hdr-title{font-size:16px;}
+  .check-item{padding:14px 18px;}
+  .score-preview{max-width:320px;margin:7px auto 0;}
+  .section{padding:0 8px;}
+}
+@media (min-width:1024px){
+  .app{max-width:860px;}
+  /* Deux colonnes pour les sections checklist */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
+}
 :root{
   --px:'Press Start 2P',monospace;
   --bg:#09031c;
@@ -234,6 +266,9 @@ html,body{min-height:100svh;background:var(--bg);font-family:var(--px);color:#ff
     </div>
   </div>
 
+  <!-- ══ SECTIONS 1–4 en grille sur tablette ══ -->
+  <div class="two-col">
+
   <!-- ══ SECTION 1 — Fondations ══ -->
   <div class="section">
     <div class="section-title">🔧 FONDATIONS</div>
@@ -336,6 +371,8 @@ html,body{min-height:100svh;background:var(--bg);font-family:var(--px);color:#ff
     </div>
   </div>
 
+  </div><!-- /two-col -->
+
   <!-- ══ SECTION 5 — Notifications ══ -->
   <div class="section">
     <div class="section-title">🔔 NOTIFICATIONS PUSH</div>
@@ -400,6 +437,20 @@ html,body{min-height:100svh;background:var(--bg);font-family:var(--px);color:#ff
     <div class="sum-title">📊 RÉSULTAT DE VALIDATION</div>
     <div class="sum-score" id="sumScore">—</div>
     <div class="sum-detail" id="sumDetail">Les tests sont en cours...</div>
+  </div>
+
+  <!-- ══ NAVIGATION LOT 1 ══ -->
+  <div class="section" style="margin-top:16px;">
+    <div class="section-title">🗂️ NAVIGATION</div>
+    <a href="./reader.html" style="
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      background:rgba(192,132,252,.1);border:1.5px solid rgba(192,132,252,.3);
+      padding:14px;text-decoration:none;color:var(--purple);
+      font-size:7px;letter-spacing:.1em;
+      transition:.2s;
+    ">
+      📂 OUVRIR LE LECTEUR — LOT 1
+    </a>
   </div>
 
 </div><!-- /app -->
@@ -564,7 +615,7 @@ async function checkCache() {
     return;
   }
   try {
-    const cache = await caches.open('RewardKidz-v1');
+    const cache = await caches.open('rewardkidz-v2');
     const keys  = await cache.keys();
     if (keys.length > 0) {
       setCheck('cached', 'ok', `${keys.length} ressource(s) en cache — offline possible`);
@@ -781,6 +832,30 @@ async function runAllChecks() {
   // Cache check — après SW enregistré
   setTimeout(checkCache, 1500);
 }
+
+// ══════════════════════════════════
+// ANTI-ZOOM iOS — couche JavaScript
+// Safari ignore parfois user-scalable=no
+// ══════════════════════════════════
+(function lockZoom() {
+  // Bloquer pinch-to-zoom (2 doigts ou plus)
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+
+  // Bloquer double-tap zoom (< 300ms)
+  let lastTouch = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTouch <= 300) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+
+  // Bloquer Ctrl+molette (desktop)
+  document.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+  }, { passive: false });
+})();
 
 runAllChecks();
 
