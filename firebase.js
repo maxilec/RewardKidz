@@ -2,34 +2,16 @@
 // RewardKidz — firebase.js
 // Configuration et initialisation Firebase SDK v9 (modulaire)
 // ─────────────────────────────────────────────────────────
-// IMPORTANT : remplacer les 3 valeurs PLACEHOLDER par les
-// vraies valeurs de ta console Firebase
-// (Paramètres du projet → Vos applications → Config SDK)
+// La config est dans firebase.config.js (généré par GitHub Actions)
+// ou firebase.config.js local (dans .gitignore)
+// Voir firebase.config.example.js pour le template
 // ═══════════════════════════════════════════════════════════
 
 import { initializeApp }                    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, enableIndexedDbPersistence }
                                             from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getAuth }                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-
-// ── Configuration ──────────────────────────────────────────
-// ℹ️  NOTE SÉCURITÉ : ces valeurs peuvent être dans le repo Git.
-// La clé apiKey Firebase n'est PAS un secret — elle est visible
-// dans le navigateur de toute façon et conçue pour être publique.
-// La vraie protection vient des règles Firestore (firestore.rules)
-// qui contrôlent qui peut lire/écrire quoi.
-// Voir : https://firebase.google.com/docs/projects/api-keys
-//
-// ⚠️  Remplacer les 3 valeurs PLACEHOLDER par tes vraies valeurs
-// (console.firebase.google.com → Paramètres → Vos applications)
-const firebaseConfig = {
-  apiKey:            'PLACEHOLDER_API_KEY',
-  authDomain:        'rewardkidz-4fe68.firebaseapp.com',
-  projectId:         'rewardkidz-4fe68',
-  storageBucket:     'rewardkidz-4fe68.firebasestorage.app',
-  messagingSenderId: 'PLACEHOLDER_SENDER_ID',
-  appId:             'PLACEHOLDER_APP_ID',
-};
+import { firebaseConfig }                   from './firebase.config.js';
 
 // ── Initialisation ──────────────────────────────────────────
 const app  = initializeApp(firebaseConfig);

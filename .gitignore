@@ -3,6 +3,13 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Fichier de config Firebase avec les vraies clés — NE JAMAIS COMMITTER
+firebase.config.js
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
 # User-specific files
 *.rsuser
 *.suo
