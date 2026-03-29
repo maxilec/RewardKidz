@@ -597,16 +597,31 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <script type="module">
 'use strict';
 
-// ── Imports Firebase ──
-import {
-  initDemoFamily,
-  ensureDailyReset, listenScore, setScore, setScoreState,
-  listenEconomy, addCurrency,
-  listenMissions, ensureDailyMissions, completeMission,
-  getAvatar, setAvatar,
-  getShopItems, createPurchaseRequest,
-  getProfile, updateProfile,
-} from './db.js';
+// ════════════════════════════════════════════════════════
+// ARCHITECTURE : UI d'abord, Firebase ensuite
+// ────────────────────────────────────────────────────────
+// L'UI s'initialise de façon 100% synchrone.
+// Firebase se charge en arrière-plan via initFirebase().
+// Si Firebase échoue (config absente, réseau HS), l'app
+// fonctionne en mode localStorage uniquement.
+// ════════════════════════════════════════════════════════
+
+// ── Fonctions Firebase (injectées après chargement) ──
+let FB = {};
+let firebaseAvailable = false;
+
+async function initFirebase() {
+  try {
+    const db = await import('./db.js');
+    FB = db;
+    firebaseAvailable = true;
+    console.log('[App] ✅ Firebase chargé');
+    // Maintenant qu'on a Firebase, brancher les listeners
+    if (appBooted) connectFirebase();
+  } catch(e) {
+    console.warn('[App] ⚠️ Mode localStorage — Firebase indisponible:', e.message);
+  }
+}
 
 // ── Anti-zoom ──
 (function(){
@@ -671,8 +686,8 @@ window.finishOnboarding = async function(){
   save();
   // Mettre à jour le profil Firestore
   if(isOnline){
-    await updateProfile({displayName:name}).catch(()=>{});
-    await setAvatar({skin:S.equipped.skin}).catch(()=>{});
+    await FB.updateProfile({displayName:name}).catch(()=>{});
+    await FB.setAvatar({skin:S.equipped.skin}).catch(()=>{});
   }
   document.getElementById('screenOnboarding').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
@@ -695,7 +710,7 @@ window.saveName = async function(){
   if(val.length<2){showToast('Prénom trop court','Minimum 2 caractères 😊','✏️');return;}
   S.playerName=val;save();
   document.getElementById('profileName').textContent=val;
-  if(isOnline) await updateProfile({displayName:val}).catch(()=>{});
+  if(isOnline && firebaseAvailable && FB.updateProfile) await FB.updateProfile({displayName:val}).catch(()=>{});
   window.closeNameModal();
   showToast('Prénom modifié !',`Bonjour ${val} 👋`,'✅');
 };
@@ -753,7 +768,7 @@ window.onMissionTap = async function(i){
   const m=S.missions[i];
   if(!m||m.done) return;
   try{
-    await completeMission(i);
+    await FB.completeMission(i);
     showToast('🎉 Mission accomplie !',`+${m.stars} ⭐  +${m.marbles} 🔵`,'🏆');
   }catch(e){showToast('Erreur',e.message,'❌');}
 };
@@ -826,12 +841,12 @@ window.equipItem = async function(id){
     if(!isOnline){showToast('Hors ligne','Impossible d\'acheter sans connexion 📡','⚠️');return;}
     if(S.marbles<(found.cost||0)){showToast('Pas assez de billes !',`Il te faut ${found.cost} 🔵`,'😢');return;}
     try{
-      await addCurrency(-found.cost,'marbles',`Avatar: ${found.lbl}`);
+      await FB.addCurrency(-found.cost,'marbles',`Avatar: ${found.lbl}`);
       found.owned=true;S.unlockedItems.push(id);
     }catch(e){showToast('Erreur',e.message,'❌');return;}
   }
   S.equipped[fc.key]=id;save();
-  if(isOnline) await setAvatar({[fc.key]:id}).catch(()=>{});
+  if(isOnline && firebaseAvailable && FB.setAvatar) await FB.setAvatar({[fc.key]:id}).catch(()=>{});
   updateAvatar();renderAvItems();
   showToast('Look mis à jour !',`${found.ico} ${found.lbl} équipé !`,'✨');
 };
@@ -871,7 +886,7 @@ window.reqBuy = async function(id){
   const item=shopItems.find(i=>i.id===id);if(!item)return;
   if(S.purchaseReqs.includes(id)){showToast('Déjà demandé !','Papa/maman va valider 😊','⏳');return;}
   try{
-    await createPurchaseRequest(id);
+    await FB.createPurchaseRequest(id);
     S.purchaseReqs.push(id);save();
     renderShop();
     showToast('Demande envoyée !',`${item.ico} ${item.name} — Papa/maman va valider !`,'📨');
@@ -909,19 +924,20 @@ function renderStats(){
 window.demoScore=async function(delta){
   if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
   const nv=Math.max(1,Math.min(10,S.score+delta));
-  await setScore(nv).catch(()=>{});
+  await FB.setScore(nv).catch(()=>{});
 };
 window.setState=async function(st){
   if(!isOnline){showToast('Hors ligne','Impossible de modifier sans connexion 📡','⚠️');return;}
-  await setScoreState(st).catch(()=>{});
+  await FB.setScoreState(st).catch(()=>{});
 };
 window.refreshMissions=async function(){
-  if(!isOnline){showToast('Hors ligne','Impossible sans connexion 📡','⚠️');return;}
-  // Forcer le re-tirage en vidant la date
-  const {setDoc,doc,serverTimestamp:st}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-  const {db:_db,DEMO_FAMILY_ID:fid,DEMO_CHILD_ID:cid}=await import('./firebase.js');
-  await setDoc(doc(_db,'families',fid,'missions',cid),{date:'',items:[],updatedAt:st()});
-  await ensureDailyMissions();
+  if(!isOnline||!firebaseAvailable){showToast('Hors ligne','Impossible sans connexion 📡','⚠️');return;}
+  try{
+    // Passer par db.js pour forcer le re-tirage
+    await FB.forceDailyMissionsReset();
+    nav('scHome');
+    showToast('Nouvelles missions !','3 défis du jour tirés au sort 🎲','🎯');
+  }catch(e){showToast('Erreur',e.message,'❌');}
 };
 
 // ── Nav ──
@@ -975,66 +991,73 @@ function setupLayout(){
   }
 }
 
-// ── Boot app (Firebase branché) ──
-async function bootApp(){
-  document.getElementById('profileName').textContent=S.playerName||'Joueur';
-  updateAvatar();
-  setupLayout();
-  window.addEventListener('resize',()=>setTimeout(setupLayout,150));
-  window.addEventListener('orientationchange',()=>setTimeout(setupLayout,300));
+// ── connectFirebase — appelé après chargement Firebase ──
+let appBooted = false;
+let unsubScore, unsubEcon, unsubMissions;
 
-  if(isOnline){
-    try{
-      // Initialiser la famille démo si besoin
-      await initDemoFamily();
-      // Reset quotidien
-      await ensureDailyReset();
-      // Missions du jour
-      await ensureDailyMissions();
-      // Charger la boutique
-      await loadShopItems();
-    }catch(e){
-      console.warn('[Boot] Erreur Firebase, mode offline activé',e);
-    }
+async function connectFirebase(){
+  if(!firebaseAvailable||!isOnline) return;
+  try{
+    await FB.initDemoFamily();
+    await FB.ensureDailyReset();
+    await FB.ensureDailyMissions();
+    await loadShopItems();
+  }catch(e){
+    console.warn('[Firebase] Erreur init:', e.message);
   }
-
   // Listeners temps réel
-  unsubScore = listenScore(data=>{
-    if(data) updateScoreUI(data.value, data.state);
-  });
-  unsubEcon = listenEconomy(data=>{
-    if(data) updateCurUI(data.stars, data.marbles);
-  });
-  unsubMissions = listenMissions(data=>{
-    if(data?.items) renderMissions(data.items);
-  });
+  unsubScore    = FB.listenScore(data=>{ if(data) updateScoreUI(data.value, data.state); });
+  unsubEcon     = FB.listenEconomy(data=>{ if(data) updateCurUI(data.stars, data.marbles); });
+  unsubMissions = FB.listenMissions(data=>{ if(data?.items) renderMissions(data.items); });
+}
 
-  // Fallback localStorage si pas de données Firebase
+// ── bootApp — UI synchrone, Firebase en arrière-plan ──
+function bootApp(){
+  appBooted = true;
+  document.getElementById('profileName').textContent = S.playerName||'Joueur';
+  updateAvatar();
+
+  // Afficher les données localStorage immédiatement
   updateScoreUI(S.score, S.scoreState);
   updateCurUI(S.stars, S.marbles);
   if(S.missions?.length) renderMissions(S.missions);
 
   setOnlineStatus(isOnline);
+  setupLayout();
+  window.addEventListener('resize',()=>setTimeout(setupLayout,150));
+  window.addEventListener('orientationchange',()=>setTimeout(setupLayout,300));
+
+  // Firebase en arrière-plan — ne bloque pas l'UI
+  if(firebaseAvailable) connectFirebase();
 }
 
-// ── Init ──
-S=load();
-const obInput=document.getElementById('obName');
+// ── Init ─────────────────────────────────────────────────
+// 1. Charger l'état local (synchrone, immédiat)
+S = load();
+
+// 2. Attacher le listener du champ prénom (synchrone)
+const obInput = document.getElementById('obName');
 if(obInput){
-  obInput.addEventListener('input',checkOb);
-  obInput.style.cssText+='user-select:auto!important;-webkit-user-select:auto!important';
+  obInput.addEventListener('input', checkOb);
+  obInput.style.cssText += 'user-select:auto!important;-webkit-user-select:auto!important';
 }
+
+// 3. Rendre la grille d'avatars (synchrone)
 renderOb();
 
-if(!S.playerName||!S.playerName.trim()){
-  document.getElementById('bnav').style.display='none';
+// 4. Démarrer l'app ou montrer l'onboarding
+if(!S.playerName || !S.playerName.trim()){
+  document.getElementById('bnav').style.display = 'none';
 } else {
   document.getElementById('screenOnboarding').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
   bootApp();
 }
 
-// SW registration
+// 5. Charger Firebase en arrière-plan (asynchrone, ne bloque rien)
+initFirebase();
+
+// 6. SW registration
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
 }
