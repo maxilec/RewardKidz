@@ -347,20 +347,215 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .t-title{font-family:var(--ft);font-size:14px;font-weight:800;color:var(--text);}
 .t-msg{font-size:12px;font-weight:600;color:var(--text2);margin-top:2px;line-height:1.4;}
 
-/* ══ DEMO BUTTONS (panneau simulation) ══════════════════════ */
-.demo-btn{
-  padding:10px 16px;border:2px solid var(--border);border-radius:12px;
-  background:var(--white);font-family:var(--ft);font-size:13px;font-weight:800;
-  color:var(--text2);transition:.15s;}
-.demo-btn:active{transform:scale(.97);}
-.demo-btn.minus{color:var(--red);border-color:rgba(240,82,82,.3);}
-.demo-btn.plus {color:var(--green);border-color:rgba(61,186,110,.3);}
-.demo-btn.full {width:100%;color:var(--blue);border-color:rgba(74,144,217,.3);text-align:center;}
-.state-btn{
-  padding:7px 12px;border:2px solid var(--border);border-radius:var(--pill);
-  background:var(--white);font-family:var(--fb);font-size:12px;font-weight:800;
-  color:var(--text2);transition:.15s;}
-.state-btn:active{transform:scale(.97);}
+/* ══ MODE PARENT ═════════════════════════════════════════════ */
+
+/* Badge admin flottant */
+.parent-badge{
+  position:fixed;bottom:calc(80px + var(--sab));right:16px;z-index:100;
+  width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,var(--purple),var(--blue));
+  display:none;align-items:center;justify-content:center;
+  font-size:22px;box-shadow:0 4px 16px rgba(139,111,212,.45);
+  cursor:pointer;transition:.2s;border:2.5px solid var(--white);
+}
+.parent-badge.visible{display:flex;}
+.parent-badge:active{transform:scale(.92);}
+
+/* Simulation banner */
+.sim-banner{
+  position:fixed;top:calc(var(--sat)+0px);left:50%;transform:translateX(-50%);
+  width:min(430px,100vw);z-index:120;
+  background:linear-gradient(90deg,var(--purple),var(--blue));
+  color:#fff;padding:8px 16px;
+  display:none;align-items:center;justify-content:space-between;
+  font-family:var(--ft);font-size:11px;font-weight:800;letter-spacing:.04em;
+}
+.sim-banner.visible{display:flex;}
+.sim-exit{background:rgba(255,255,255,.25);border:none;color:#fff;
+  font-family:var(--ft);font-size:10px;font-weight:800;
+  padding:4px 10px;border-radius:var(--pill);cursor:pointer;}
+
+/* PIN overlay */
+.pin-overlay{
+  position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
+  display:none;align-items:center;justify-content:center;padding:24px;
+}
+.pin-overlay.visible{display:flex;}
+.pin-card{
+  background:var(--white);border-radius:var(--r);box-shadow:0 20px 60px rgba(0,0,0,.25);
+  padding:28px 24px;width:100%;max-width:320px;text-align:center;
+}
+.pin-title{font-family:var(--ft);font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.pin-sub{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:20px;}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;
+  border:2.5px solid var(--border);background:var(--white);transition:.15s;}
+.pin-dot.filled{background:var(--blue);border-color:var(--blue);}
+.pin-dot.error{background:var(--red);border-color:var(--red);}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.pin-key{
+  padding:14px;border:2px solid var(--border);border-radius:14px;
+  background:var(--sky);font-family:var(--ft);font-size:20px;font-weight:800;
+  color:var(--text);cursor:pointer;transition:.15s;
+}
+.pin-key:active{transform:scale(.93);background:var(--blue2);color:#fff;border-color:var(--blue2);}
+.pin-key.del{background:var(--white);font-size:18px;}
+.pin-key.empty{visibility:hidden;}
+.pin-error{font-size:12px;font-weight:700;color:var(--red);min-height:18px;margin-bottom:6px;}
+.pin-cancel{
+  width:100%;padding:10px;border:none;background:none;
+  font-family:var(--fb);font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;
+}
+
+/* Panel parent — slide depuis le bas */
+.parent-panel{
+  position:fixed;inset:0;z-index:200;
+  display:none;flex-direction:column;
+}
+.parent-panel.visible{display:flex;}
+.pp-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);}
+.pp-sheet{
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:min(430px,100vw);
+  background:linear-gradient(145deg,var(--sky),#f0f8ff);
+  border-radius:24px 24px 0 0;
+  max-height:92svh;overflow-y:auto;
+  padding:0 0 calc(24px + var(--sab));
+  animation:slideUp .35s cubic-bezier(.22,1,.36,1);
+}
+@keyframes slideUp{from{transform:translateX(-50%) translateY(100%)}to{transform:translateX(-50%) translateY(0)}}
+.pp-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;}
+.pp-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px 0;margin-bottom:4px;
+}
+.pp-title{font-family:var(--ft);font-size:17px;font-weight:800;color:var(--text);}
+.pp-close{
+  width:32px;height:32px;border-radius:50%;background:var(--border);
+  display:grid;place-items:center;font-size:16px;cursor:pointer;border:none;
+  transition:.15s;
+}
+.pp-close:active{transform:scale(.9);}
+
+/* Section dans le panel */
+.pp-section{padding:14px 20px 0;}
+.pp-section-title{
+  font-size:10px;font-weight:800;color:var(--text3);
+  letter-spacing:.08em;margin-bottom:8px;
+}
+
+/* Carte enfant dans le tableau de bord parent */
+.child-card{
+  background:var(--white);border-radius:var(--r);box-shadow:var(--cs);
+  padding:14px 16px;margin:10px 20px 0;
+  display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;
+}
+.child-card:active{transform:scale(.98);}
+.cc-ava{font-size:32px;flex-shrink:0;}
+.cc-body{flex:1;min-width:0;}
+.cc-name{font-family:var(--ft);font-size:15px;font-weight:800;color:var(--text);}
+.cc-meta{font-size:11px;font-weight:700;color:var(--text2);margin-top:2px;}
+.cc-missions{font-size:10px;font-weight:800;color:var(--text3);margin-top:2px;}
+.cc-arrow{font-size:18px;color:var(--text3);}
+
+/* Score control */
+.score-ctrl{
+  display:flex;align-items:center;gap:12px;
+  background:var(--white);border-radius:var(--r);
+  box-shadow:var(--cs);padding:14px 16px;
+}
+.sc-btn{
+  width:44px;height:44px;border-radius:12px;border:2px solid var(--border);
+  background:var(--white);font-size:22px;font-weight:800;
+  display:grid;place-items:center;cursor:pointer;transition:.15s;flex-shrink:0;
+}
+.sc-btn.minus{color:var(--red);border-color:rgba(240,82,82,.3);}
+.sc-btn.minus:active{background:rgba(240,82,82,.1);}
+.sc-btn.plus{color:var(--green);border-color:rgba(61,186,110,.3);}
+.sc-btn.plus:active{background:rgba(61,186,110,.1);}
+.sc-btn:disabled{opacity:.3;cursor:not-allowed;}
+.sc-val{flex:1;text-align:center;font-family:var(--ft);font-size:28px;font-weight:800;color:var(--sc);}
+.sc-val small{font-size:14px;color:var(--text3);}
+
+/* Boutons d'action parent */
+.parent-btn{
+  width:100%;padding:13px;border:none;border-radius:14px;
+  font-family:var(--ft);font-size:14px;font-weight:800;color:var(--white);
+  cursor:pointer;transition:.15s;margin-bottom:8px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.parent-btn:active{transform:scale(.98);filter:brightness(.92);}
+.parent-btn.validate{background:linear-gradient(135deg,var(--green),#2da05e);
+  box-shadow:0 4px 14px rgba(61,186,110,.35);}
+.parent-btn.pause{background:linear-gradient(135deg,var(--orange),#e07820);
+  box-shadow:0 4px 14px rgba(245,146,62,.3);}
+.parent-btn.resume{background:linear-gradient(135deg,var(--blue),var(--blue2));
+  box-shadow:0 4px 14px rgba(74,144,217,.3);}
+.parent-btn.simulate{background:linear-gradient(135deg,var(--purple),#7058c0);
+  box-shadow:0 4px 14px rgba(139,111,212,.3);}
+.parent-btn.exit-parent{background:var(--border);color:var(--text2);box-shadow:none;}
+.parent-btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
+.stars-preview{font-size:11px;opacity:.85;}
+
+/* Mission item parent (cochable) */
+.pp-mission{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--white);
+  border-radius:12px;border:2px solid var(--border);
+  cursor:pointer;transition:.15s;
+}
+.pp-mission.done{background:var(--mint);border-color:rgba(61,186,110,.3);}
+.pp-mission:active{transform:scale(.98);}
+.pp-m-check{width:24px;height:24px;border-radius:7px;
+  border:2.5px solid var(--text3);display:grid;place-items:center;
+  flex-shrink:0;background:var(--white);font-size:12px;transition:.2s;}
+.pp-mission.done .pp-m-check{background:var(--green);border-color:var(--green);color:#fff;}
+.pp-m-ico{font-size:20px;flex-shrink:0;}
+.pp-m-title{flex:1;font-size:12px;font-weight:800;color:var(--text);}
+.pp-mission.done .pp-m-title{text-decoration:line-through;color:var(--text3);}
+.pp-m-rewards{font-size:10px;font-weight:700;color:var(--text2);}
+
+/* Catalogue missions (sélection lendemain) */
+.cat-mission{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;background:var(--white);
+  border-radius:12px;border:2.5px solid var(--border);
+  cursor:pointer;transition:.15s;
+}
+.cat-mission.selected{border-color:var(--blue);background:rgba(74,144,217,.06);}
+.cat-mission:active{transform:scale(.98);}
+.cat-m-sel{width:22px;height:22px;border-radius:6px;
+  border:2px solid var(--border);background:var(--white);
+  display:grid;place-items:center;flex-shrink:0;font-size:12px;transition:.2s;}
+.cat-mission.selected .cat-m-sel{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+/* Demandes boutique */
+.req-item{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;background:var(--white);
+  border-radius:14px;border:2px solid var(--border);
+}
+.req-ico{font-size:26px;flex-shrink:0;}
+.req-body{flex:1;min-width:0;}
+.req-name{font-size:13px;font-weight:800;color:var(--text);}
+.req-cost{font-size:10px;font-weight:700;color:var(--text2);margin-top:2px;}
+.req-btns{display:flex;gap:6px;flex-shrink:0;}
+.req-approve{padding:7px 12px;border:none;border-radius:10px;
+  background:var(--green);color:#fff;font-family:var(--ft);font-size:11px;
+  font-weight:800;cursor:pointer;transition:.15s;}
+.req-reject{padding:7px 12px;border:2px solid rgba(240,82,82,.3);border-radius:10px;
+  background:var(--white);color:var(--red);font-family:var(--ft);font-size:11px;
+  font-weight:800;cursor:pointer;transition:.15s;}
+.req-approve:active,.req-reject:active{transform:scale(.95);}
+
+/* Écran tableau de bord parent */
+.parent-home-header{
+  padding:calc(var(--sat)+14px) 20px 0;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ph-title{font-family:var(--ft);font-size:18px;font-weight:800;color:var(--text);}
+.ph-subtitle{font-size:11px;font-weight:700;color:var(--text2);margin-top:2px;}
 
 /* ══ TABLET LANDSCAPE ════════════════════════════════════════ */
 @media(min-width:768px) and (orientation:landscape){
@@ -420,10 +615,156 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   </div>
 </div>
 
+<!-- Bannière simulation -->
+<div class="sim-banner" id="simBanner">
+  <span>👁 Vue simulée — <span id="simChildName">enfant</span></span>
+  <button class="sim-exit" onclick="exitSimulation()">Quitter</button>
+</div>
+
+<!-- Badge admin flottant -->
+<div class="parent-badge" id="parentBadge" onclick="openParentPanel()">🔧</div>
+
+<!-- PIN overlay -->
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-card">
+    <div class="pin-title" id="pinTitle">Mode parent 🔐</div>
+    <div class="pin-sub" id="pinSub">Saisir le PIN parent</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key empty" disabled></button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+    <button class="pin-cancel" onclick="closePinOverlay()">Annuler</button>
+  </div>
+</div>
+
+<!-- Panel parent (slide sheet) -->
+<div class="parent-panel" id="parentPanel">
+  <div class="pp-backdrop" onclick="closeParentPanel()"></div>
+  <div class="pp-sheet scrollable">
+    <div class="pp-handle"></div>
+    <div class="pp-header">
+      <div>
+        <div class="pp-title" id="ppTitle">🔧 Mode parent</div>
+      </div>
+      <button class="pp-close" onclick="closeParentPanel()">✕</button>
+    </div>
+
+    <!-- Tableau de bord famille -->
+    <div id="ppDashboard">
+      <div class="pp-section">
+        <div class="pp-section-title">ENFANTS</div>
+        <div id="ppChildList"></div>
+      </div>
+      <div class="pp-section" style="margin-top:8px;">
+        <button class="parent-btn exit-parent" onclick="exitParentMode()">
+          🚪 Quitter le mode parent
+        </button>
+      </div>
+    </div>
+
+    <!-- Panneau enfant sélectionné -->
+    <div id="ppChildPanel" style="display:none;">
+
+      <!-- Retour -->
+      <div class="pp-section">
+        <button onclick="ppBack()" style="
+          background:none;border:none;font-size:13px;font-weight:800;
+          color:var(--blue);cursor:pointer;padding:0;
+        ">← Tous les enfants</button>
+      </div>
+
+      <!-- Score -->
+      <div class="pp-section">
+        <div class="pp-section-title">SCORE DU JOUR</div>
+        <div class="score-ctrl">
+          <button class="sc-btn minus" id="ppScoreMinus" onclick="ppAdjustScore(-1)">−</button>
+          <div class="sc-val"><span id="ppScoreVal">8</span><small id="ppScoreDenom">/10</small></div>
+          <button class="sc-btn plus"  id="ppScorePlus"  onclick="ppAdjustScore(+1)">+</button>
+        </div>
+        <div id="ppScoreNote" style="font-size:11px;font-weight:700;color:var(--text3);text-align:center;margin-top:6px;"></div>
+      </div>
+
+      <!-- État journée -->
+      <div class="pp-section" style="margin-top:12px;">
+        <div class="pp-section-title">JOURNÉE</div>
+        <button class="parent-btn validate" id="ppValidateBtn" onclick="ppValidateDay()">
+          ✓ Valider la journée
+          <span class="stars-preview" id="ppStarsPreview"></span>
+        </button>
+        <button class="parent-btn pause"    id="ppPauseBtn"    onclick="ppPauseDay()">
+          ⏸ Mettre en pause
+        </button>
+        <button class="parent-btn resume"   id="ppResumeBtn"   onclick="ppResumeDay()" style="display:none;">
+          ⚡ Reprendre la journée
+        </button>
+        <button class="parent-btn" id="ppReactivateBtn" onclick="ppReactivateDay()"
+          style="display:none;background:linear-gradient(135deg,#e53e3e,#c53030);box-shadow:0 4px 14px rgba(229,62,62,.3);">
+          ↩ Réactiver (annuler validation)
+        </button>
+      </div>
+
+      <!-- Missions du jour -->
+      <div class="pp-section" style="margin-top:12px;">
+        <div class="pp-section-title">MISSIONS DU JOUR</div>
+        <div id="ppMissionsList" style="display:flex;flex-direction:column;gap:7px;"></div>
+      </div>
+
+      <!-- Missions du lendemain -->
+      <div class="pp-section" style="margin-top:12px;">
+        <div class="pp-section-title">
+          MISSIONS DU LENDEMAIN
+          <span id="ppTomorrowCount" style="color:var(--blue);margin-left:4px;"></span>
+        </div>
+        <div id="ppCatalogList" style="display:flex;flex-direction:column;gap:7px;"></div>
+        <button class="parent-btn validate" style="margin-top:10px;" onclick="ppSaveTomorrow()">
+          💾 Enregistrer les missions
+        </button>
+      </div>
+
+      <!-- Demandes boutique -->
+      <div class="pp-section" style="margin-top:12px;">
+        <div class="pp-section-title">DEMANDES BOUTIQUE
+          <span id="ppReqBadge" style="color:var(--orange);margin-left:4px;"></span>
+        </div>
+        <div id="ppRequestsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <!-- Simulation + Quitter -->
+      <div class="pp-section" style="margin-top:16px;">
+        <button class="parent-btn simulate" onclick="startSimulation()">
+          👁 Voir en tant que <span id="ppSimName"></span>
+        </button>
+        <button class="parent-btn exit-parent" onclick="exitParentMode()">
+          🚪 Quitter le mode parent
+        </button>
+      </div>
+
+    </div><!-- /ppChildPanel -->
+  </div><!-- /pp-sheet -->
+</div><!-- /parentPanel -->
+
+
 <!-- ONBOARDING -->
 <div id="screenOnboarding">
   <div class="ob-logo">Reward<span>Kidz</span></div>
-  <div class="ob-tagline">Gagne des étoiles chaque jour ✨</div>
+  <div class="ob-tagline">Gagne des pièces chaque jour ✨</div>
   <div class="ob-card">
     <div class="ob-step-title">Bienvenue ! 👋</div>
     <div class="ob-step-sub">Comment tu t'appelles, et quel personnage tu choisis ?</div>
@@ -442,10 +783,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
     <div class="header">
       <div>
-        <div class="app-title">Aventuriers</div>
-        <div class="app-title"><span>de la Journée</span></div>
+        <div class="app-title">Reward<span>Kidz</span></div>
       </div>
-      <div class="profile-chip" onclick="openNameModal()">
+      <div class="profile-chip" id="profileChip" onclick="openNameModal()">
         <div class="profile-ava" id="profileAva">🧒</div>
         <div>
           <div class="profile-name" id="profileName">—</div>
@@ -468,10 +808,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
 
     <div class="currencies">
-      <div class="cur-pill stars"><div class="cur-ico">⭐</div>
-        <div><div class="cur-val" id="starsVal">0</div><div class="cur-lbl">ÉTOILES</div></div></div>
-      <div class="cur-pill marbles"><div class="cur-ico">🔵</div>
-        <div><div class="cur-val" id="marblesVal">0</div><div class="cur-lbl">BILLES</div></div></div>
+      <div class="cur-pill stars"><div class="cur-ico">🪙</div>
+        <div><div class="cur-val" id="starsVal">0</div><div class="cur-lbl">PIÈCES</div></div></div>
+      <div class="cur-pill marbles"><div class="cur-ico">💎</div>
+        <div><div class="cur-val" id="marblesVal">0</div><div class="cur-lbl">GEMS</div></div></div>
     </div>
 
     <div class="avatar-zone">
@@ -485,7 +825,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
     <div class="score-zone">
       <div class="score-row">
         <div class="score-num" id="scoreNum">8</div>
-        <div class="score-denom">/10</div>
+        <div class="score-denom" id="score-denom-el">/10</div>
       </div>
       <div class="score-state-row">
         <div class="score-state normal" id="scoreState">⚡ En cours</div>
@@ -514,10 +854,10 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div class="sc-title">🛒 Boutique</div>
       <div class="sc-sub">Échange tes récompenses !</div>
       <div class="shop-bal">
-        <div class="sbp s"><div class="cur-ico">⭐</div>
-          <div><div class="sbp-val" id="shopStars">0</div><div class="sbp-lbl">ÉTOILES</div></div></div>
-        <div class="sbp m"><div class="cur-ico">🔵</div>
-          <div><div class="sbp-val" id="shopMarbles">0</div><div class="sbp-lbl">BILLES</div></div></div>
+        <div class="sbp s"><div class="cur-ico">🪙</div>
+          <div><div class="sbp-val" id="shopStars">0</div><div class="sbp-lbl">PIÈCES</div></div></div>
+        <div class="sbp m"><div class="cur-ico">💎</div>
+          <div><div class="sbp-val" id="shopMarbles">0</div><div class="sbp-lbl">GEMS</div></div></div>
       </div>
       <div class="shop-tabs" id="shopTabs">
         <button class="stab active" onclick="shopTab(this,'real')">🎁 Récompenses réelles</button>
@@ -549,38 +889,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="card-title"><span class="card-title-ico">📅</span>7 Derniers Jours</div>
         <div class="hist-bars" id="histBars"></div>
       </div>
-
-      <!-- Panneau de test / démo — sera retiré au Lot 3 (données depuis Firebase) -->
-      <div class="card" style="margin-top:14px;">
-        <div class="card-title"><span class="card-title-ico">🔧</span>Simulation (démo)</div>
-
-        <!-- Score manuel -->
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;font-weight:800;color:var(--text2);margin-bottom:8px;">Score du jour</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button class="demo-btn minus" onclick="demoScore(-1)">− 1</button>
-            <div style="flex:1;text-align:center;font-family:var(--ft);font-size:20px;font-weight:800;color:var(--sc);"
-                 id="demoScoreDisp">8</div>
-            <button class="demo-btn plus" onclick="demoScore(+1)">+ 1</button>
-          </div>
-        </div>
-
-        <!-- État journée -->
-        <div style="margin-bottom:12px;">
-          <div style="font-size:11px;font-weight:800;color:var(--text2);margin-bottom:8px;">État de la journée</div>
-          <div style="display:flex;gap:7px;flex-wrap:wrap;">
-            <button class="state-btn" onclick="setState('normal')">⚡ En cours</button>
-            <button class="state-btn" onclick="setState('validated')">✓ Validée</button>
-            <button class="state-btn" onclick="setState('pause')">⏸ Pause</button>
-          </div>
-        </div>
-
-        <!-- Missions -->
-        <div>
-          <div style="font-size:11px;font-weight:800;color:var(--text2);margin-bottom:8px;">Missions</div>
-          <button class="demo-btn full" onclick="refreshMissions()">🎲 Nouvelles missions aléatoires</button>
-        </div>
-      </div>
+    </div>
 
     </div>
 
@@ -706,6 +1015,7 @@ window.finishOnboarding = async function() {
 
 // ── Modal nom ───────────────────────────────────────────────
 window.openNameModal = function() {
+  if(simMode){ showToast('Mode simulation','Impossible de modifier en mode simulation 👁','⚠️'); return; }
   const m = document.getElementById('nameModal');
   const i = document.getElementById('nmInput');
   i.value = S.playerName || '';
@@ -729,18 +1039,37 @@ function updateScoreUI(value, state) {
   S.score = value; S.scoreState = state; save();
   const col = scCol(value);
   document.documentElement.style.setProperty('--sc', col);
-  const el = document.getElementById('scoreNum');
-  el.textContent = value; el.style.color = col;
+
+  const el   = document.getElementById('scoreNum');
+  const denom = document.getElementById('score-denom-el');
+  const fill  = document.getElementById('gaugeFill');
+  const ring  = document.getElementById('blobRing');
+
+  if(state === 'pause') {
+    // Pause — masquer le score, afficher l'icône pause
+    el.textContent = '⏸️';
+    el.style.color  = 'var(--text3)';
+    el.style.fontSize = '52px';
+    if(fill) { fill.style.width='0%'; fill.style.background='var(--border)'; }
+    if(ring)  ring.style.cssText = 'border-color:var(--text3);box-shadow:none;';
+    if(denom) denom.style.display = 'none';
+  } else {
+    el.textContent  = value;
+    el.style.color  = col;
+    el.style.fontSize = '';
+    if(fill) { fill.style.width=(value*10)+'%'; fill.style.background=`linear-gradient(90deg,${col}88,${col})`; }
+    if(ring)  ring.style.cssText = `border-color:${col};box-shadow:0 0 18px ${col}66;`;
+    if(denom) denom.style.display = '';
+  }
+
   el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
-  const fill = document.getElementById('gaugeFill');
-  fill.style.width = (value*10)+'%';
-  fill.style.background = `linear-gradient(90deg,${col}88,${col})`;
-  document.getElementById('blobRing').style.cssText = `border-color:${col};box-shadow:0 0 18px ${col}66;`;
+
   const badge = document.getElementById('scoreState');
-  badge.className = `score-state ${state}`;
+  badge.className   = `score-state ${state}`;
   badge.textContent = state==='validated'?'✓ Journée validée':state==='pause'?'⏸ Pause':'⚡ En cours';
-  const d = document.getElementById('demoScoreDisp');
-  if(d) d.textContent = value;
+
+  const d = document.getElementById('ppScoreVal');
+  if(d) d.textContent = state==='pause'?'⏸':value;
 }
 
 // ── Économie UI ─────────────────────────────────────────────
@@ -764,8 +1093,8 @@ function renderMissions(items) {
       <div class="m-body">
         <div class="m-title">${m.title}</div>
         <div class="m-rewards">
-          <span class="rtag s">⭐ +${m.stars}</span>
-          <span class="rtag m">🔵 +${m.marbles}</span>
+          <span class="rtag s">🪙 +${m.stars}</span>
+          <span class="rtag m">💎 +${m.marbles}</span>
         </div>
       </div>
       <div style="flex-shrink:0;font-size:16px;">${m.done?'✅':'⏳'}</div>
@@ -830,7 +1159,7 @@ function renderAvItems() {
     return `<div class="av-item ${isSel?'selected':''} ${!item.owned?'locked':''}" onclick="equipItem('${item.id}')">
       <div class="ai-ico">${item.ico}</div>
       <div class="ai-lbl">${item.lbl}</div>
-      ${!item.owned ? `<div class="ai-cost">🔵${item.cost}</div>` : ''}
+      ${!item.owned ? `<div class="ai-cost">💎${item.cost}</div>` : ''}
       ${isSel ? `<div class="ai-eq">✓</div>` : ''}
     </div>`;
   }).join('');
@@ -841,7 +1170,7 @@ window.equipItem = async function(id) {
   if(!found) return;
   if(!found.owned) {
     if(!isOnline){ showToast('Hors ligne','Impossible d\'acheter sans connexion 📡','⚠️'); return; }
-    if(S.marbles < (found.cost||0)){ showToast('Pas assez de billes !',`Il te faut ${found.cost} 🔵`,'😢'); return; }
+    if(S.marbles < (found.cost||0)){ showToast('Pas assez de gems !',`Il te faut ${found.cost} 💎`,'😢'); return; }
     if(!firebaseAvailable){ showToast('Firebase indisponible','Impossible d\'acheter 📡','⚠️'); return; }
     try{
       await FB.addCurrency(-found.cost, 'marbles', `Avatar: ${found.lbl}`);
@@ -872,7 +1201,7 @@ function renderShop() {
   const items = shopItems.filter(i => i.category===(curShopTab==='real'?'real':'app'));
   document.getElementById('shopGrid').innerHTML = items.length
     ? items.map(item => {
-        const byCost = item.costStars>0 ? `⭐ ${item.costStars}` : `🔵 ${item.costMarbles}`;
+        const byCost = item.costStars>0 ? `🪙 ${item.costStars}` : `💎 ${item.costMarbles}`;
         const cur    = item.costStars>0 ? 's' : 'm';
         const pending = S.purchaseReqs.includes(item.id);
         return `<div class="shop-item write-action" onclick="reqBuy('${item.id}')">
@@ -887,6 +1216,7 @@ function renderShop() {
        </div>`;
 }
 window.reqBuy = async function(id) {
+  if(simMode){ showToast('Mode simulation','Impossible d\'acheter en mode simulation 👁','⚠️'); return; }
   if(!isOnline)         { showToast('Hors ligne',     'Impossible sans connexion 📡',    '⚠️'); return; }
   if(!firebaseAvailable){ showToast('Non disponible', 'Firebase non connecté',            '⚠️'); return; }
   const item = shopItems.find(i=>i.id===id); if(!item) return;
@@ -910,7 +1240,7 @@ function renderStats() {
   document.getElementById('statGrid').innerHTML = [
     {ico:'📈',lbl:'MOYENNE 7J', val: avg ==='–'?'–':`${avg}/10`,  col:scCol(parseFloat(avg)||8)},
     {ico:'🏆',lbl:'RECORD',     val: best==='–'?'–':`${best}/10`, col:scCol(best)},
-    {ico:'⭐',lbl:'ÉTOILES',    val: S.stars,                      col:'#f5923e'},
+    {ico:'🪙',lbl:'PIÈCES',    val: S.stars,                      col:'#f5923e'},
     {ico:'🎯',lbl:'MISSIONS',   val: `${done}/${tot}`,             col:'#3dba6e'},
   ].map(s=>`<div class="stat-card">
     <div class="stat-ico">${s.ico}</div>
@@ -925,23 +1255,6 @@ function renderStats() {
     </div>`).join('');
 }
 
-// ── Panneau simulation (Stats) ──────────────────────────────
-window.demoScore = async function(delta) {
-  if(!isOnline||!firebaseAvailable){ showToast('Non disponible','Firebase requis 📡','⚠️'); return; }
-  await FB.setScore(Math.max(1,Math.min(10,S.score+delta))).catch(()=>{});
-};
-window.setState = async function(st) {
-  if(!isOnline||!firebaseAvailable){ showToast('Non disponible','Firebase requis 📡','⚠️'); return; }
-  await FB.setScoreState(st).catch(()=>{});
-};
-window.refreshMissions = async function() {
-  if(!isOnline||!firebaseAvailable){ showToast('Non disponible','Firebase requis 📡','⚠️'); return; }
-  try {
-    await FB.forceDailyMissionsReset();
-    nav('scHome');
-    showToast('Nouvelles missions !', '3 défis du jour tirés au sort 🎲', '🎯');
-  } catch(e) { showToast('Erreur', e.message, '❌'); }
-};
 
 // ── Nav ──────────────────────────────────────────────────────
 window.nav = function(sid, btn) {
@@ -992,6 +1305,454 @@ function setupLayout() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// MODE PARENT
+// ══════════════════════════════════════════════════════════════
+
+// ── État parent ──────────────────────────────────────────────
+let parentMode    = false;   // mode parent actif
+let simMode       = false;   // mode simulation actif
+let ppCurrentChild = null;   // enfant sélectionné dans le panel
+let pinBuffer     = '';
+let pinMode       = 'verify'; // 'verify' | 'create' | 'confirm'
+let pinFirst      = '';
+let pinFailCount  = 0;
+let pinBlockedUntil = 0;
+let ppTomorrowSelected = []; // missions lendemain sélectionnées
+let ppCatalog     = [];
+
+// Hash SHA-256 (natif)
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Appui long sur le chip profil ────────────────────────────
+(function setupLongPress() {
+  const chip = document.getElementById('profileChip');
+  if(!chip) return;
+  let timer = null;
+  chip.addEventListener('touchstart', e => {
+    timer = setTimeout(() => {
+      e.preventDefault();
+      if(parentMode) { openParentPanel(); return; }
+      openPinOverlay();
+    }, 1500);
+  }, {passive:false});
+  chip.addEventListener('touchend',   () => clearTimeout(timer));
+  chip.addEventListener('touchmove',  () => clearTimeout(timer));
+  chip.addEventListener('mousedown',  () => { timer = setTimeout(() => { if(parentMode){openParentPanel();}else{openPinOverlay();} }, 1500); });
+  chip.addEventListener('mouseup',    () => clearTimeout(timer));
+})();
+
+// ── PIN overlay ──────────────────────────────────────────────
+function openPinOverlay() {
+  if(!firebaseAvailable){ showToast('Firebase requis','Connexion nécessaire pour le mode parent 📡','⚠️'); return; }
+  pinBuffer = ''; pinFirst = '';
+  pinFailCount = 0;
+  document.getElementById('pinError').textContent = '';
+
+  // Vérifier si un PIN existe déjà
+  FB.getParentPinHash().then(hash => {
+    if(hash) {
+      pinMode = 'verify';
+      document.getElementById('pinTitle').textContent = 'Mode parent 🔐';
+      document.getElementById('pinSub').textContent   = 'Saisir le PIN parent';
+    } else {
+      pinMode = 'create';
+      document.getElementById('pinTitle').textContent = 'Créer un PIN 🔐';
+      document.getElementById('pinSub').textContent   = 'Choisir un PIN à 4 chiffres';
+    }
+    document.getElementById('pinOverlay').classList.add('visible');
+    renderPinDots();
+  }).catch(() => showToast('Erreur','Impossible de vérifier le PIN','❌'));
+}
+window.closePinOverlay = function() {
+  document.getElementById('pinOverlay').classList.remove('visible');
+  pinBuffer = ''; renderPinDots();
+};
+
+window.pinKey = function(digit) {
+  if(pinBuffer.length >= 4) return;
+  const now = Date.now();
+  if(pinBlockedUntil > now) {
+    const secs = Math.ceil((pinBlockedUntil - now)/1000);
+    document.getElementById('pinError').textContent = `Bloqué ${secs}s — trop de tentatives`;
+    return;
+  }
+  pinBuffer += digit;
+  renderPinDots();
+  if(pinBuffer.length === 4) setTimeout(validatePin, 200);
+};
+window.pinDel = function() {
+  pinBuffer = pinBuffer.slice(0,-1);
+  renderPinDots();
+};
+
+function renderPinDots(state='') {
+  for(let i=0;i<4;i++){
+    const d = document.getElementById('pd'+i);
+    d.className = 'pin-dot' + (i < pinBuffer.length ? (state==='error'?' error':' filled') : '');
+  }
+}
+
+async function validatePin() {
+  const now = Date.now();
+  if(pinBlockedUntil > now) return;
+
+  if(pinMode === 'create') {
+    pinFirst = pinBuffer; pinBuffer = '';
+    pinMode  = 'confirm';
+    document.getElementById('pinSub').textContent = 'Confirmer le PIN';
+    renderPinDots();
+    return;
+  }
+  if(pinMode === 'confirm') {
+    if(pinBuffer !== pinFirst) {
+      renderPinDots('error');
+      document.getElementById('pinError').textContent = 'Les PIN ne correspondent pas';
+      setTimeout(() => { pinBuffer=''; pinFirst=''; pinMode='create';
+        document.getElementById('pinSub').textContent='Choisir un PIN à 4 chiffres';
+        renderPinDots(); document.getElementById('pinError').textContent=''; }, 1200);
+      return;
+    }
+    const hash = await sha256(pinBuffer);
+    await FB.setParentPin(hash).catch(()=>{});
+    window.closePinOverlay();
+    activateParentMode();
+    showToast('PIN créé !','Mode parent activé 🔧','✅');
+    return;
+  }
+  // Verify
+  const hash      = await sha256(pinBuffer);
+  const savedHash = await FB.getParentPinHash().catch(()=>null);
+  if(hash === savedHash) {
+    pinFailCount = 0;
+    window.closePinOverlay();
+    activateParentMode();
+    showToast('Bienvenue !','Mode parent activé 🔧','🔐');
+  } else {
+    pinFailCount++;
+    renderPinDots('error');
+    if(pinFailCount >= 3) {
+      pinBlockedUntil = Date.now() + 5*60*1000;
+      document.getElementById('pinError').textContent = 'Trop de tentatives — bloqué 5 min';
+    } else {
+      document.getElementById('pinError').textContent = `PIN incorrect (${pinFailCount}/3)`;
+    }
+    setTimeout(() => { pinBuffer=''; renderPinDots();
+      if(pinFailCount < 3) document.getElementById('pinError').textContent=''; }, 1000);
+  }
+}
+
+// ── Activation/désactivation mode parent ─────────────────────
+function activateParentMode() {
+  parentMode = true;
+  sessionStorage.setItem('rk_parent', '1');
+  document.getElementById('parentBadge').classList.add('visible');
+  openParentPanel();
+}
+
+window.exitParentMode = function() {
+  parentMode = false; simMode = false;
+  sessionStorage.removeItem('rk_parent');
+  document.getElementById('parentBadge').classList.remove('visible');
+  document.getElementById('simBanner').classList.remove('visible');
+  closeParentPanel();
+};
+
+// ── Panel parent ─────────────────────────────────────────────
+window.openParentPanel = function() {
+  if(!parentMode) return;
+  document.getElementById('parentPanel').classList.add('visible');
+  if(ppCurrentChild) renderPPChildPanel();
+  else               renderPPDashboard();
+};
+window.closeParentPanel = function() {
+  document.getElementById('parentPanel').classList.remove('visible');
+};
+
+// Dashboard : liste des enfants
+async function renderPPDashboard() {
+  document.getElementById('ppDashboard').style.display   = '';
+  document.getElementById('ppChildPanel').style.display  = 'none';
+  document.getElementById('ppTitle').textContent         = '🔧 Mode parent';
+
+  const listEl = document.getElementById('ppChildList');
+  listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text2);font-size:12px;">Chargement…</div>';
+
+  try {
+    const children = await FB.getChildren();
+    if(!children.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text2);font-size:12px;">Aucun enfant trouvé</div>';
+      return;
+    }
+    const cards = await Promise.all(children.map(async child => {
+      const score    = await FB.getScore(undefined, child.id).catch(()=>null) || {value:8,state:'normal'};
+      const missions = await FB.getMissions(undefined, child.id).catch(()=>null) || {items:[]};
+      const done     = (missions.items||[]).filter(m=>m.done).length;
+      const total    = (missions.items||[]).length;
+      const sv       = score?.value ?? 8;
+      const ss       = score?.state ?? 'normal';
+      const stateLabel = ss==='validated'?'✓ Validée':ss==='pause'?'⏸ Pause':'⚡ En cours';
+      const skinId   = child.equipped?.skin || child.skin || 's0';
+      const ico      = AV_CATS.find(c=>c.key==='skin')?.items.find(i=>i.id===skinId)?.ico || '🧒';
+      return { ...child, score:{value:sv,state:ss}, missions, done, total, stateLabel, ico };
+    }));
+
+    listEl.innerHTML = cards.map(c => `
+      <div class="child-card" onclick="ppSelectChild('${c.id}')">
+        <div class="cc-ava">${c.ico}</div>
+        <div class="cc-body">
+          <div class="cc-name">${c.displayName||'Enfant'}</div>
+          <div class="cc-meta">Score : <strong>${c.score?.value??8}/10</strong> — ${c.stateLabel}</div>
+          <div class="cc-missions">Missions : ${c.done}/${c.total} faites</div>
+        </div>
+        <div class="cc-arrow">›</div>
+      </div>`).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div style="text-align:center;padding:16px;color:var(--red);font-size:12px;">Erreur : ${e.message}</div>`;
+  }
+}
+
+window.ppSelectChild = async function ppSelectChild(uid) {
+  ppCurrentChild = uid;
+  ppTomorrowSelected = [];
+  renderPPChildPanel();
+}
+
+window.ppBack = function() {
+  ppCurrentChild = null;
+  renderPPDashboard();
+};
+
+async function renderPPChildPanel() {
+  document.getElementById('ppDashboard').style.display   = 'none';
+  document.getElementById('ppChildPanel').style.display  = '';
+
+  // Charger les données
+  const [profile, scoreData, missions, catalog, requests] = await Promise.all([
+    FB.getProfile(undefined, ppCurrentChild).catch(()=>null).then(r=>r||{displayName:'Enfant'}),
+    FB.getScore(undefined, ppCurrentChild).catch(()=>null).then(r=>r||{value:8,state:'normal'}),
+    FB.getMissions(undefined, ppCurrentChild).catch(()=>null).then(r=>r||{items:[],tomorrow:[]}),
+    FB.getMissionCatalog().catch(()=>[]),
+    FB.getPurchaseRequests().catch(()=>[]),
+  ]);
+
+  const name = profile?.displayName || 'Enfant';
+  document.getElementById('ppTitle').textContent  = `🔧 ${name}`;
+  document.getElementById('ppSimName').textContent = name;
+
+  const isValidated = scoreData.state === 'validated';
+  const isPause     = scoreData.state === 'pause';
+  const isLocked    = isValidated || isPause; // Score non modifiable
+
+  // Score display
+  const scoreValEl  = document.getElementById('ppScoreVal');
+  const scoreDenom  = document.getElementById('ppScoreDenom');
+  const scoreNote   = document.getElementById('ppScoreNote');
+  if(scoreValEl) scoreValEl.textContent = isPause ? '⏸' : scoreData.value;
+  if(scoreDenom) scoreDenom.style.display = isPause ? 'none' : '';
+  if(scoreNote)  scoreNote.textContent = isValidated ? '🔒 Score verrouillé — journée validée'
+                                       : isPause     ? '⏸ Journée en pause — pas de score'
+                                       : '';
+
+  document.getElementById('ppScoreMinus').disabled = isLocked;
+  document.getElementById('ppScorePlus').disabled  = isLocked;
+  document.getElementById('ppStarsPreview').textContent = isLocked ? '' : `+${starsForScore(scoreData.value)} 🪙`;
+
+  // Boutons état
+  document.getElementById('ppValidateBtn').style.display    = (isValidated||isPause) ? 'none' : '';
+  document.getElementById('ppPauseBtn').style.display       = isPause ? 'none' : (isValidated ? 'none' : '');
+  document.getElementById('ppResumeBtn').style.display      = isPause ? '' : 'none';
+  document.getElementById('ppReactivateBtn').style.display  = isValidated ? '' : 'none';
+
+  ppCatalog = catalog;
+
+  // Missions du jour
+  const mList = document.getElementById('ppMissionsList');
+  if(!missions.items?.length) {
+    mList.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:8px 0;">Aucune mission aujourd\'hui</div>';
+  } else {
+    mList.innerHTML = missions.items.map((m,i) => `
+      <div class="pp-mission ${m.done?'done':''}" onclick="ppCheckMission(${i})">
+        <div class="pp-m-check">${m.done?'✓':''}</div>
+        <div class="pp-m-ico">${m.ico}</div>
+        <div class="pp-m-title">${m.title}</div>
+        <div class="pp-m-rewards">🪙${m.stars} 💎${m.marbles}</div>
+      </div>`).join('');
+  }
+
+  // Catalogue missions lendemain
+  const tomorrow = missions.tomorrow || [];
+  ppTomorrowSelected = tomorrow.map(m=>m.missionId);
+  renderPPCatalog();
+
+  // Demandes boutique (filtrer cet enfant)
+  const childReqs = requests.filter(r => r.childId === ppCurrentChild);
+  const rList = document.getElementById('ppRequestsList');
+  document.getElementById('ppReqBadge').textContent = childReqs.length ? `(${childReqs.length})` : '';
+  if(!childReqs.length) {
+    rList.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:8px 0;">Aucune demande en attente</div>';
+  } else {
+    rList.innerHTML = childReqs.map(r => `
+      <div class="req-item">
+        <div class="req-ico">${r.item.ico}</div>
+        <div class="req-body">
+          <div class="req-name">${r.item.name}</div>
+          <div class="req-cost">${r.item.costStars>0?`🪙 ${r.item.costStars}`:`💎 ${r.item.costMarbles}`}</div>
+        </div>
+        <div class="req-btns">
+          <button class="req-approve" onclick="ppApprove('${r.itemId}','${r.id}')">✓</button>
+          <button class="req-reject"  onclick="ppReject('${r.itemId}','${r.id}')">✕</button>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function starsForScore(score) {
+  if(score<=3) return 0;
+  if(score<=5) return 5;
+  if(score<=7) return 10;
+  if(score<=9) return 15;
+  return 20;
+}
+
+function renderPPCatalog() {
+  const count = document.getElementById('ppTomorrowCount');
+  count.textContent = ppTomorrowSelected.length ? `${ppTomorrowSelected.length}/3 sélectionnées` : '(optionnel)';
+  document.getElementById('ppCatalogList').innerHTML = ppCatalog.map(m => {
+    const sel = ppTomorrowSelected.includes(m.id);
+    return `
+    <div class="cat-mission ${sel?'selected':''}" onclick="ppToggleTomorrow('${m.id}')">
+      <div class="cat-m-sel">${sel?'✓':''}</div>
+      <div style="font-size:18px;flex-shrink:0;">${m.ico}</div>
+      <div style="flex:1;font-size:12px;font-weight:800;color:var(--text);">${m.title}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text2);">🪙${m.stars} 💎${m.marbles}</div>
+    </div>`;
+  }).join('');
+}
+
+// Actions panel parent
+window.ppAdjustScore = async function(delta) {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  if(S.scoreState==='validated'){ showToast('Score verrouillé','Réactiver la journée d\'abord 🔒','🔒'); return; }
+  if(S.scoreState==='pause')    { showToast('Journée en pause','Reprendre la journée d\'abord ⏸','⏸'); return; }
+  try {
+    await FB.adjustScore(delta, undefined, ppCurrentChild);
+    const valEl = document.getElementById('ppScoreVal');
+    if(valEl) {
+      const cur    = parseInt(valEl.textContent) || 8;
+      const newVal = Math.max(1, Math.min(10, cur + delta));
+      valEl.textContent = newVal;
+      const minBtn = document.getElementById('ppScoreMinus');
+      const maxBtn = document.getElementById('ppScorePlus');
+      const prevEl = document.getElementById('ppStarsPreview');
+      if(minBtn) minBtn.disabled = newVal <= 1;
+      if(maxBtn) maxBtn.disabled = newVal >= 10;
+      if(prevEl) prevEl.textContent = `+${starsForScore(newVal)} 🪙`;
+    }
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+window.ppValidateDay = async function() {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  try {
+    const stars = await FB.validateDay(undefined, ppCurrentChild);
+    showToast('Journée validée !', stars>0?`+${stars} 🪙 créditées`:'Score trop bas — pas de récompense', '🏆');
+    renderPPChildPanel();
+    closeParentPanel();
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+window.ppReactivateDay = async function() {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  if(!confirm('Réactiver la journée ? Cela annulera la validation et retirera les pièces créditées.')) return;
+  try {
+    await FB.reactivateDay(undefined, ppCurrentChild);
+    showToast('Journée réactivée','Score à nouveau modifiable ↩','✅');
+    renderPPChildPanel();
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+window.ppPauseDay = async function() {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  await FB.setScoreState('pause', undefined, ppCurrentChild).catch(()=>{});
+  document.getElementById('ppPauseBtn').style.display  = 'none';
+  document.getElementById('ppResumeBtn').style.display = '';
+  showToast('Journée en pause','Le score ne compte pas ⏸','⏸');
+};
+
+window.ppResumeDay = async function() {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  await FB.setScoreState('normal', undefined, ppCurrentChild).catch(()=>{});
+  document.getElementById('ppResumeBtn').style.display = 'none';
+  document.getElementById('ppPauseBtn').style.display  = '';
+  showToast('Journée reprise','⚡ En cours !','⚡');
+};
+
+window.ppCheckMission = async function(index) {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  try {
+    const mission = await FB.completeMissionByParent(index, undefined, ppCurrentChild);
+    if(mission) {
+      showToast('Mission validée !', `${mission.ico} ${mission.title} — +${mission.stars}🪙`, '✅');
+      renderPPChildPanel();
+    }
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+window.ppToggleTomorrow = function(id) {
+  const idx = ppTomorrowSelected.indexOf(id);
+  if(idx >= 0) { ppTomorrowSelected.splice(idx,1); }
+  else if(ppTomorrowSelected.length < 3) { ppTomorrowSelected.push(id); }
+  else { showToast('Maximum atteint','3 missions max pour une journée 🎯','⚠️'); return; }
+  renderPPCatalog();
+};
+
+window.ppSaveTomorrow = async function() {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  try {
+    await FB.setTomorrowMissions(ppTomorrowSelected, undefined, ppCurrentChild);
+    showToast('Missions enregistrées !',
+      ppTomorrowSelected.length ? `${ppTomorrowSelected.length} mission(s) pour demain 📅` : 'Tirage aléatoire demain',
+      '💾');
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+window.ppApprove = async function(itemId, reqId) {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  try {
+    await FB.approvePurchase(itemId, reqId);
+    showToast('Demande validée !','Le solde a été débité ✅','✅');
+    renderPPChildPanel();
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+window.ppReject = async function(itemId, reqId) {
+  if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
+  try {
+    await FB.rejectPurchase(itemId, reqId);
+    showToast('Demande refusée','L\'enfant sera notifié ✕','✕');
+    renderPPChildPanel();
+  } catch(e) { showToast('Erreur', e.message, '❌'); }
+};
+
+// ── Mode simulation ──────────────────────────────────────────
+window.startSimulation = function() {
+  simMode = true;
+  closeParentPanel();
+  document.getElementById('parentBadge').classList.remove('visible');
+  document.getElementById('simBanner').classList.add('visible');
+  const name = document.getElementById('ppTitle').textContent.replace('🔧 ','');
+  document.getElementById('simChildName').textContent = name;
+};
+window.exitSimulation = function() {
+  simMode = false;
+  document.getElementById('simBanner').classList.remove('visible');
+  if(parentMode) document.getElementById('parentBadge').classList.add('visible');
+};
+
 // ── connectFirebase — listeners temps réel ──────────────────
 async function connectFirebase() {
   if(!firebaseAvailable || !isOnline) return;
@@ -1003,11 +1764,9 @@ async function connectFirebase() {
   } catch(e) {
     console.warn('[Firebase] Init:', e.message);
   }
-  // Désabonner les anciens listeners si besoin
   if(unsubScore) unsubScore();
   if(unsubEcon)  unsubEcon();
   if(unsubMiss)  unsubMiss();
-  // Nouveaux listeners
   unsubScore = FB.listenScore(data    => { if(data)        updateScoreUI(data.value, data.state); });
   unsubEcon  = FB.listenEconomy(data  => { if(data)        updateCurUI(data.stars, data.marbles); });
   unsubMiss  = FB.listenMissions(data => { if(data?.items) renderMissions(data.items); });
@@ -1020,15 +1779,21 @@ function bootApp() {
   appBooted = true;
   document.getElementById('profileName').textContent = S.playerName || 'Joueur';
   updateAvatar();
-  // Afficher les données locales immédiatement
   updateScoreUI(S.score, S.scoreState);
   updateCurUI(S.stars, S.marbles);
   if(S.missions?.length) renderMissions(S.missions);
   setOnlineStatus(isOnline);
   setupLayout();
+
+  // Restaurer la session parent si elle était active
+  if(sessionStorage.getItem('rk_parent')) {
+    parentMode = true;
+    document.getElementById('parentBadge').classList.add('visible');
+  }
+
+  // Long press setup (après que l'element existe)
   window.addEventListener('resize',          () => setTimeout(setupLayout, 150));
   window.addEventListener('orientationchange', () => setTimeout(setupLayout, 300));
-  // Firebase se connecte en arrière-plan si disponible
   if(firebaseAvailable) connectFirebase();
 }
 
@@ -1050,14 +1815,11 @@ if(!S.playerName || !S.playerName.trim()) {
   bootApp();
 }
 
-// Firebase en arrière-plan — ne bloque pas l'UI
 initFirebase();
 
-// Service Worker
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(()=>{});
 }
 </script>
-
 </body>
 </html>
