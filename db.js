@@ -46,15 +46,25 @@ function generateToken() {
 }
 
 // AUTH
+// Détecter si le popup OAuth est supporté
+// Safari (tous modes) et PWA standalone → toujours redirect
+// Chrome desktop → popup
+function useRedirect() {
+  const ua  = navigator.userAgent;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua);
+  const isIOS    = /iPhone|iPad|iPod/i.test(ua);
+  return isStandalone || isSafari || isIOS;
+}
+
 export async function signInWithGoogle() {
-  // Sur mobile (iOS Safari notamment), le popup est souvent bloqué
-  // → utiliser redirect à la place
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if(isMobile) {
-    await signInWithRedirect(auth, new GoogleAuthProvider());
-    return null; // La page sera rechargée, résultat récupéré via getRedirectResult
+  const provider = new GoogleAuthProvider();
+  if(useRedirect()) {
+    await signInWithRedirect(auth, provider);
+    return null; // Page rechargée, résultat via checkRedirectResult()
   }
-  const result = await signInWithPopup(auth, new GoogleAuthProvider());
+  const result = await signInWithPopup(auth, provider);
   return result.user;
 }
 
@@ -71,8 +81,7 @@ export async function checkRedirectResult() {
 export async function signInWithApple() {
   const provider = new OAuthProvider('apple.com');
   provider.addScope('name');
-  const isMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if(isMobile) {
+  if(useRedirect()) {
     await signInWithRedirect(auth, provider);
     return null;
   }
