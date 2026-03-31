@@ -11,7 +11,8 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 import {
-  signInWithPopup, signOut, onAuthStateChanged,
+  signInWithPopup, signInWithRedirect, getRedirectResult,
+  signOut, onAuthStateChanged,
   GoogleAuthProvider, OAuthProvider,
   signInAnonymously,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -46,13 +47,35 @@ function generateToken() {
 
 // AUTH
 export async function signInWithGoogle() {
+  // Sur mobile (iOS Safari notamment), le popup est souvent bloqué
+  // → utiliser redirect à la place
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if(isMobile) {
+    await signInWithRedirect(auth, new GoogleAuthProvider());
+    return null; // La page sera rechargée, résultat récupéré via getRedirectResult
+  }
   const result = await signInWithPopup(auth, new GoogleAuthProvider());
   return result.user;
+}
+
+export async function checkRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user || null;
+  } catch(e) {
+    console.warn('[Auth] Redirect result:', e.message);
+    return null;
+  }
 }
 
 export async function signInWithApple() {
   const provider = new OAuthProvider('apple.com');
   provider.addScope('name');
+  const isMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if(isMobile) {
+    await signInWithRedirect(auth, provider);
+    return null;
+  }
   const result = await signInWithPopup(auth, provider);
   return result.user;
 }
