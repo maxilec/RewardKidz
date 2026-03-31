@@ -71,11 +71,26 @@ export async function signInWithGoogle() {
 export async function checkRedirectResult() {
   try {
     const result = await getRedirectResult(auth);
-    return result?.user || null;
+    if(result?.user) {
+      console.log('[Auth] Redirect result: user =', result.user.uid);
+      return result.user;
+    }
+    return null;
   } catch(e) {
-    console.warn('[Auth] Redirect result:', e.message);
+    console.warn('[Auth] Redirect result error:', e.code, e.message);
     return null;
   }
+}
+
+// Attendre que Firebase Auth ait résolu son état initial (redirect ou persisté)
+// Plus fiable que checkRedirectResult seul
+export function waitForAuthReady() {
+  return new Promise(resolve => {
+    const unsub = onAuthStateChanged(auth, user => {
+      unsub(); // se désabonner après le premier appel
+      resolve(user);
+    });
+  });
 }
 
 export async function signInWithApple() {
