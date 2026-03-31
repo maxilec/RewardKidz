@@ -83,12 +83,39 @@ export async function checkRedirectResult() {
 }
 
 // Attendre que Firebase Auth ait résolu son état initial (redirect ou persisté)
-// Plus fiable que checkRedirectResult seul
+// Attend que Firebase Auth soit prêt ET que le redirect result soit traité.
+// Sur iOS Safari, onAuthStateChanged peut d'abord firer null avant de firer
+// l'utilisateur (résultat du redirect OAuth pas encore processé).
+// On attend jusqu'à 4s avant de résoudre null pour couvrir ce cas.
 export function waitForAuthReady() {
   return new Promise(resolve => {
-    const unsub = onAuthStateChanged(auth, user => {
-      unsub(); // se désabonner après le premier appel
+    // Si Firebase a déjà un user courant, résoudre immédiatement
+    if (auth.currentUser) { resolve(auth.currentUser); return; }
+
+    let resolved = false;
+    const done = (user) => {
+      if (resolved) return;
+      resolved = true;
+      unsub();
+      clearTimeout(timer);
       resolve(user);
+    };
+
+    // Timer de sécurité : si Firebase ne résout rien après 4s, on capitule
+    const timer = setTimeout(() => done(auth.currentUser || null), 4000);
+
+    const unsub = onAuthStateChanged(auth, user => {
+      if (user) {
+        // On a un utilisateur → résoudre immédiatement
+        done(user);
+      } else {
+        // null : peut être l'état initial avant traitement du redirect.
+        // On attend encore un peu (500ms) pour laisser Firebase traiter
+        // le redirect result avant de conclure qu'il n'y a pas d'utilisateur.
+        setTimeout(() => {
+          if (!resolved) done(auth.currentUser || null);
+        }, 500);
+      }
     });
   });
 }

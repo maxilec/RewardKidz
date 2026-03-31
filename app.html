@@ -1695,7 +1695,7 @@ window.obSignInApple = async function(action) {
 
 window.obSignInGoogle = async function(action) {
   obPendingAction = action;
-  sessionStorage.setItem('rk_ob_action', action); // persisté avant redirect
+  localStorage.setItem('rk_ob_action', action); // localStorage survit au redirect iOS
   const errId = action === 'create' ? 'obCreateAuthError' : 'obJoinParentError';
   try {
     obSetLoading('Connexion Google…');
@@ -2283,7 +2283,7 @@ async function sha256(text) {
 // DRAWERS
 // ══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.6.2';
+const APP_VERSION = 'v0.5.0';
 
 function initDrawers() {
   ['childDrawerVersion','parentDrawerVersion'].forEach(id => {
@@ -2930,7 +2930,7 @@ async function handleStartup() {
   if(!firebaseAvailable) { obGo('obWelcome'); return; }
 
   obSetLoading('Vérification de la session…');
-  const pendingAction = sessionStorage.getItem('rk_ob_action');
+  const pendingAction = localStorage.getItem('rk_ob_action');
 
   try {
     // waitForAuthReady attend le premier onAuthStateChanged
@@ -2939,7 +2939,7 @@ async function handleStartup() {
 
     if(user && pendingAction) {
       // Retour de redirect OAuth → reprendre le flux
-      sessionStorage.removeItem('rk_ob_action');
+      localStorage.removeItem('rk_ob_action');
       obPendingAction = pendingAction;
       console.log('[Startup] Redirect auth → user:', user.uid, 'action:', pendingAction);
       await obAfterAuth(user, pendingAction);
@@ -2962,9 +2962,11 @@ async function handleStartup() {
     }
 
     // Pas d'utilisateur connecté → accueil
+    localStorage.removeItem('rk_ob_action');
     obGo('obWelcome');
   } catch(e) {
     console.warn('[Startup]', e.message);
+    localStorage.removeItem('rk_ob_action');
     obGo('obWelcome');
   }
 }
