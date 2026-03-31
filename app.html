@@ -98,13 +98,82 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .app-title{font-family:var(--ft);font-size:20px;font-weight:800;color:var(--blue2);line-height:1.15;}
 .app-title span{color:var(--orange);}
 .profile-chip{display:flex;align-items:center;gap:8px;background:var(--white);
-  border-radius:var(--pill);padding:6px 12px 6px 6px;box-shadow:var(--ss);cursor:pointer;transition:.15s;}
+  border-radius:var(--pill);padding:6px 12px 6px 6px;box-shadow:var(--ss);
+  cursor:pointer;transition:.15s;min-height:44px;}
 .profile-chip:active{transform:scale(.97);}
 .profile-ava{width:34px;height:34px;border-radius:50%;
   background:linear-gradient(135deg,var(--blue),var(--purple));
   display:grid;place-items:center;font-size:18px;flex-shrink:0;}
 .profile-name{font-weight:800;font-size:13px;color:var(--text);}
-.profile-edit{font-size:12px;color:var(--text3);margin-left:2px;}
+.profile-chevron{font-size:11px;color:var(--text3);margin-left:2px;}
+
+/* Hamburger parent */
+.hamburger-btn{
+  width:44px;height:44px;border-radius:14px;border:none;
+  background:var(--white);box-shadow:var(--ss);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;cursor:pointer;transition:.15s;padding:0;flex-shrink:0;
+}
+.hamburger-btn.visible{display:flex;}
+.hamburger-btn:active{transform:scale(.93);}
+.hb-line{width:18px;height:2px;background:var(--text);border-radius:2px;}
+
+/* ══ DRAWER ══════════════════════════════════════════════════ */
+.drawer-overlay{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(3px);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .25s,visibility .25s;
+}
+.drawer-overlay.open{opacity:1;visibility:visible;pointer-events:auto;}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;z-index:301;
+  width:min(300px,85vw);background:var(--white);
+  box-shadow:-8px 0 40px rgba(0,0,0,.15);
+  display:flex;flex-direction:column;
+  padding:calc(var(--sat)+0px) 0 calc(var(--sab)+0px);
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.22,1,.36,1);
+}
+.drawer.open{transform:translateX(0);}
+.drawer-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 20px 16px;border-bottom:1.5px solid var(--border);
+}
+.drawer-logo{font-family:var(--ft);font-size:16px;font-weight:800;color:var(--blue2);}
+.drawer-logo span{color:var(--orange);}
+.drawer-logo-sub{font-size:11px;font-weight:700;color:var(--text2);margin-top:2px;}
+.drawer-close{
+  width:32px;height:32px;border-radius:50%;background:var(--border);
+  display:grid;place-items:center;font-size:15px;
+  cursor:pointer;border:none;transition:.15s;flex-shrink:0;
+}
+.drawer-close:active{transform:scale(.9);}
+.drawer-body{flex:1;overflow-y:auto;padding:6px 0;}
+.drawer-section{
+  font-size:10px;font-weight:800;color:var(--text3);
+  letter-spacing:.08em;padding:14px 20px 6px;
+}
+.drawer-item{
+  display:flex;align-items:center;gap:12px;
+  padding:13px 20px;cursor:pointer;transition:.1s;
+  border:none;background:none;width:100%;text-align:left;
+}
+.drawer-item:active{background:var(--sky);}
+.di-ico{font-size:20px;width:26px;text-align:center;flex-shrink:0;}
+.di-body{flex:1;min-width:0;}
+.di-label{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;}
+.di-sub{font-size:11px;font-weight:600;color:var(--text2);margin-top:1px;}
+.drawer-item.danger .di-label{color:var(--red);}
+.drawer-sep{height:1px;background:var(--border);margin:6px 20px;}
+.drawer-footer{
+  padding:14px 20px;border-top:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.drawer-version{font-size:11px;font-weight:700;color:var(--text3);}
+.drawer-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:var(--pill);}
+.drawer-badge.parent{background:rgba(139,111,212,.12);color:var(--purple);}
+.drawer-badge.child {background:rgba(74,144,217,.12);color:var(--blue);}
 
 /* Modal édition nom */
 .name-modal-overlay{
@@ -591,6 +660,96 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 </head>
 <body>
 
+<!-- ══ DRAWER ENFANT ══════════════════════════════════════════ -->
+<div class="drawer-overlay" id="childDrawerOverlay" onclick="closeChildDrawer()"></div>
+<div class="drawer" id="childDrawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-logo">Reward<span>Kidz</span></div>
+      <div class="drawer-logo-sub" id="drawerChildSub">Mon espace</div>
+    </div>
+    <button class="drawer-close" onclick="closeChildDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-section">MON PROFIL</div>
+    <button class="drawer-item" onclick="closeChildDrawer();openNameModal()">
+      <div class="di-ico">✏️</div>
+      <div class="di-body"><div class="di-label">Modifier mon prénom</div></div>
+    </button>
+    <button class="drawer-item" onclick="closeChildDrawer();nav('scAvatar')">
+      <div class="di-ico">🦄</div>
+      <div class="di-body"><div class="di-label">Mon avatar</div></div>
+    </button>
+    <button class="drawer-item" onclick="closeChildDrawer();nav('scStats')">
+      <div class="di-ico">📊</div>
+      <div class="di-body"><div class="di-label">Mes stats</div></div>
+    </button>
+    <div class="drawer-sep"></div>
+    <div class="drawer-section">COMPTE</div>
+    <button class="drawer-item" onclick="closeChildDrawer();openPinOverlay()">
+      <div class="di-ico">🔐</div>
+      <div class="di-body">
+        <div class="di-label">Mode parent</div>
+        <div class="di-sub">Accès protégé par PIN</div>
+      </div>
+    </button>
+    <button class="drawer-item danger" onclick="closeChildDrawer();disconnectAndReset()">
+      <div class="di-ico">↩</div>
+      <div class="di-body"><div class="di-label">Changer de compte</div></div>
+    </button>
+  </div>
+  <div class="drawer-footer">
+    <div class="drawer-version" id="childDrawerVersion"></div>
+    <div class="drawer-badge child">Enfant</div>
+  </div>
+</div>
+
+<!-- ══ DRAWER PARENT ══════════════════════════════════════════ -->
+<div class="drawer-overlay" id="parentDrawerOverlay" onclick="closeParentDrawer()"></div>
+<div class="drawer" id="parentDrawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-logo">Reward<span>Kidz</span></div>
+      <div class="drawer-logo-sub">Mode parent</div>
+    </div>
+    <button class="drawer-close" onclick="closeParentDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-section">GESTION</div>
+    <button class="drawer-item" onclick="closeParentDrawer();openParentPanel()">
+      <div class="di-ico">🏠</div>
+      <div class="di-body"><div class="di-label">Tableau de bord</div></div>
+    </button>
+    <div class="drawer-sep"></div>
+    <div class="drawer-section">VUE</div>
+    <button class="drawer-item" onclick="closeParentDrawer();triggerSimulation()">
+      <div class="di-ico">👁</div>
+      <div class="di-body">
+        <div class="di-label">Voir en tant que…</div>
+        <div class="di-sub" id="drawerSimName">Sélectionner un enfant</div>
+      </div>
+    </button>
+    <button class="drawer-item" onclick="closeParentDrawer();exitParentMode()">
+      <div class="di-ico">🚪</div>
+      <div class="di-body"><div class="di-label">Quitter le mode parent</div></div>
+    </button>
+    <div class="drawer-sep"></div>
+    <div class="drawer-section">PARAMÈTRES</div>
+    <button class="drawer-item" onclick="closeParentDrawer();resetPinAndLogout()">
+      <div class="di-ico">🔑</div>
+      <div class="di-body"><div class="di-label">Changer de PIN</div></div>
+    </button>
+    <button class="drawer-item danger" onclick="closeParentDrawer();disconnectAndReset()">
+      <div class="di-ico">↩</div>
+      <div class="di-body"><div class="di-label">Changer de famille</div></div>
+    </button>
+  </div>
+  <div class="drawer-footer">
+    <div class="drawer-version" id="parentDrawerVersion"></div>
+    <div class="drawer-badge parent">Parent</div>
+  </div>
+</div>
+
 <!-- Bannière hors-ligne -->
 <div id="offlineBanner" style="
   display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);
@@ -622,7 +781,6 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 </div>
 
 <!-- Badge admin flottant -->
-<div class="parent-badge" id="parentBadge" onclick="openParentPanel()">🔧</div>
 
 <!-- PIN overlay -->
 <div class="pin-overlay" id="pinOverlay">
@@ -797,16 +955,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <div class="content-zone" id="contentZone">
 
     <div class="header">
-      <div>
-        <div class="app-title">Reward<span>Kidz</span></div>
-      </div>
-      <div class="profile-chip" id="profileChip" onclick="openNameModal()">
+      <div class="app-title">Reward<span>Kidz</span></div>
+      <!-- Enfant : chip avatar -->
+      <div class="profile-chip" id="profileChip" onclick="openChildDrawer()">
         <div class="profile-ava" id="profileAva">🧒</div>
-        <div>
-          <div class="profile-name" id="profileName">—</div>
-        </div>
-        <div class="profile-edit">✏️</div>
+        <div class="profile-name" id="profileName">—</div>
+        <div class="profile-chevron">▾</div>
       </div>
+      <!-- Parent : hamburger -->
+      <button class="hamburger-btn" id="hamburgerBtn" onclick="openParentDrawer()" aria-label="Menu">
+        <div class="hb-line"></div>
+        <div class="hb-line"></div>
+        <div class="hb-line"></div>
+      </button>
     </div>
 
     <!-- Modal édition nom -->
@@ -1379,36 +1540,76 @@ async function sha256(text) {
 }
 
 // ── Appui long sur le chip profil ────────────────────────────
-(function setupLongPress() {
-  const chip = document.getElementById('profileChip');
-  if(!chip) return;
-  let timer = null;
 
-  // Vibration haptique — fonctionne sur Android et iOS 16.4+ PWA
-  function haptic(pattern = [30]) {
-    if(navigator.vibrate) navigator.vibrate(pattern);
-  }
+// ══════════════════════════════════════════════════════════════
+// DRAWERS
+// ══════════════════════════════════════════════════════════════
 
-  chip.addEventListener('touchstart', e => {
-    timer = setTimeout(() => {
-      e.preventDefault();
-      haptic([10, 50, 30]); // double pulse discret
-      if(parentMode) { openParentPanel(); return; }
-      openPinOverlay();
-    }, 1500);
-  }, {passive:false});
-  chip.addEventListener('touchend',   () => clearTimeout(timer));
-  chip.addEventListener('touchmove',  () => clearTimeout(timer));
-  chip.addEventListener('mousedown',  () => {
-    timer = setTimeout(() => {
-      if(parentMode){ openParentPanel(); }else{ openPinOverlay(); }
-    }, 1500);
+const APP_VERSION = 'v0.5.0';
+
+function initDrawers() {
+  ['childDrawerVersion','parentDrawerVersion'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = `RewardKidz ${APP_VERSION}`;
   });
-  chip.addEventListener('mouseup', () => clearTimeout(timer));
-})();
+}
+
+// ── Basculer header selon le rôle ────────────────────────────
+function updateHeaderForRole() {
+  const chip   = document.getElementById('profileChip');
+  const burger = document.getElementById('hamburgerBtn');
+  if(!chip || !burger) return;
+  if(parentMode && !simMode) {
+    chip.style.display = 'none';
+    burger.classList.add('visible');
+  } else {
+    chip.style.display = '';
+    burger.classList.remove('visible');
+  }
+}
+
+// ── Drawer enfant ────────────────────────────────────────────
+window.openChildDrawer = function() {
+  if(simMode){ showToast('Mode simulation','Actions bloquées en mode simulation 👁','⚠️'); return; }
+  const sub = document.getElementById('drawerChildSub');
+  if(sub) sub.textContent = S.playerName || '—';
+  document.getElementById('childDrawerOverlay').classList.add('open');
+  document.getElementById('childDrawer').classList.add('open');
+};
+window.closeChildDrawer = function() {
+  document.getElementById('childDrawerOverlay').classList.remove('open');
+  document.getElementById('childDrawer').classList.remove('open');
+};
+
+// ── Drawer parent ────────────────────────────────────────────
+window.openParentDrawer = function() {
+  // Mettre à jour le nom de l'enfant pour "Voir en tant que"
+  const simEl = document.getElementById('drawerSimName');
+  if(simEl) {
+    const childName = document.getElementById('ppTitle')?.textContent.replace('🔧 ','');
+    simEl.textContent = childName && childName !== 'Mode parent'
+      ? childName : 'Ouvrir le tableau de bord d\'abord';
+  }
+  document.getElementById('parentDrawerOverlay').classList.add('open');
+  document.getElementById('parentDrawer').classList.add('open');
+};
+window.closeParentDrawer = function() {
+  document.getElementById('parentDrawerOverlay').classList.remove('open');
+  document.getElementById('parentDrawer').classList.remove('open');
+};
+
+// ── Simulation depuis le drawer ──────────────────────────────
+window.triggerSimulation = function() {
+  // Nécessite qu'un enfant soit sélectionné dans le panel
+  if(!ppCurrentChild) {
+    showToast('Aucun enfant sélectionné','Ouvrir le tableau de bord et sélectionner un enfant d\'abord','ℹ️');
+    return;
+  }
+  startSimulation();
+};
 
 // ── PIN overlay ──────────────────────────────────────────────
-function openPinOverlay() {
+window.openPinOverlay = function openPinOverlay() {
   // Le PIN peut être vérifié localement (localStorage) OU via Firestore
   // Pendant la phase démo, Firestore n'est pas requis
   pinBuffer = ''; pinFirst = '';
@@ -1572,16 +1773,18 @@ window.disconnectAndReset = function() {
 function activateParentMode() {
   parentMode = true;
   sessionStorage.setItem('rk_parent', '1');
-  document.getElementById('parentBadge').classList.add('visible');
+  updateHeaderForRole();
   openParentPanel();
 }
 
 window.exitParentMode = function() {
   parentMode = false; simMode = false;
   sessionStorage.removeItem('rk_parent');
-  document.getElementById('parentBadge').classList.remove('visible');
   document.getElementById('simBanner').classList.remove('visible');
   closeParentPanel();
+  updateHeaderForRole();
+  // Restaurer le nom de l'enfant dans le chip
+  document.getElementById('profileName').textContent = S.playerName || 'Joueur';
 };
 
 // ── Panel parent ─────────────────────────────────────────────
@@ -1865,15 +2068,18 @@ window.ppReject = async function(itemId, reqId) {
 window.startSimulation = function() {
   simMode = true;
   closeParentPanel();
-  document.getElementById('parentBadge').classList.remove('visible');
   document.getElementById('simBanner').classList.add('visible');
-  const name = document.getElementById('ppTitle').textContent.replace('🔧 ','');
+  const name = document.getElementById('ppTitle')?.textContent.replace('🔧 ','') || 'Enfant';
   document.getElementById('simChildName').textContent = name;
+  // En simulation : afficher le chip avec le nom de l'enfant simulé
+  document.getElementById('profileName').textContent = name;
+  updateHeaderForRole(); // cache le hamburger, montre le chip
 };
 window.exitSimulation = function() {
   simMode = false;
   document.getElementById('simBanner').classList.remove('visible');
-  if(parentMode) document.getElementById('parentBadge').classList.add('visible');
+  document.getElementById('profileName').textContent = S.playerName || 'Joueur';
+  updateHeaderForRole(); // remet le hamburger
 };
 
 // ── connectFirebase — listeners temps réel ──────────────────
@@ -1888,10 +2094,9 @@ async function connectFirebase() {
       currentRole     = session.role;
       if(session.role === 'child') currentChildId = session.childId;
       if(session.role === 'parent') {
-        // Si on était en mode parent, réactiver le badge
         if(sessionStorage.getItem('rk_parent')) {
           parentMode = true;
-          document.getElementById('parentBadge')?.classList.add('visible');
+          updateHeaderForRole();
         }
       }
       console.log(`[App] Session: ${session.role} — famille ${session.familyId}`);
@@ -1932,16 +2137,14 @@ function bootApp() {
   if(S.missions?.length) renderMissions(S.missions);
   setOnlineStatus(isOnline);
   setupLayout();
+  initDrawers();
 
   // Restaurer la session parent si elle était active
-  if(sessionStorage.getItem('rk_parent')) {
-    parentMode = true;
-    document.getElementById('parentBadge').classList.add('visible');
-  }
+  if(sessionStorage.getItem('rk_parent')) parentMode = true;
+  updateHeaderForRole();
 
-  // Long press setup (après que l'element existe)
-  window.addEventListener('resize',          () => setTimeout(setupLayout, 150));
-  window.addEventListener('orientationchange', () => setTimeout(setupLayout, 300));
+  window.addEventListener('resize',           () => setTimeout(setupLayout, 150));
+  window.addEventListener('orientationchange',() => setTimeout(setupLayout, 300));
   if(firebaseAvailable) connectFirebase();
 }
 
