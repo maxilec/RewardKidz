@@ -1742,28 +1742,30 @@ window.obCreateFamily = async function() {
   obSetLoading('Création de la famille…');
   try {
     const user = FB.currentUser();
-    if(!user) throw new Error('Non connecté');
+    if(!user) throw new Error('Non connecté — veuillez vous reconnecter');
 
-    // Créer la famille
+    // Créer la famille (sans stocker rk_family_id pour l'instant)
     obFamilyId = await FB.createFamily(user.uid, familyName);
-    // Stocker pour getMySession
-    localStorage.setItem('rk_family_id', obFamilyId);
 
-    // Ajouter le premier enfant
+    obSetLoading('Ajout de l\'enfant…');
     obChildId = await FB.addChildToFamily(obFamilyId, childName, obSelAv);
 
-    // Initialiser catalogue et boutique par défaut
+    obSetLoading('Initialisation…');
     await FB.initDefaultCatalog(obFamilyId);
     await FB.initDefaultShop(obFamilyId);
 
-    // Récupérer le token enfant généré par addChildToFamily
-    const tokenData = await getLastChildToken(obFamilyId, obChildId);
-    obToken = tokenData?.token || '————';
+    // Générer le token enfant
+    const tokenData = await FB.generateInviteToken(obFamilyId, obChildId, 'child');
+    obToken = tokenData?.token;
+    if(!obToken) throw new Error('Impossible de générer le code d\'invitation');
 
-    // Afficher le QR code et le token
+    // Tout s'est bien passé → stocker maintenant
+    localStorage.setItem('rk_family_id', obFamilyId);
+
     obGo('obFamilyCreated');
     renderObToken(obToken, obFamilyId);
   } catch(e) {
+    console.error('[obCreateFamily]', e);
     obGo('obCreateFamily');
     obShowError('obCreateFamilyError', `Erreur : ${e.message}`);
   }
@@ -1777,20 +1779,28 @@ async function getLastChildToken(fid, childId) {
 }
 
 function renderObToken(token, fid) {
-  // Afficher le token tronqué pour la lisibilité
-  const display = token.slice(0,8) + '…' + token.slice(-4);
-  document.getElementById('obTokenDisplay').textContent = token;
-  document.getElementById('obTokenDisplay').dataset.full = token;
+  // Stocker le token complet pour le bouton copier
+  const tokenEl = document.getElementById('obTokenDisplay');
+  tokenEl.textContent = token;
+  tokenEl.dataset.full = token;
 
-  // QR code — encode fid + token dans une URL
-  const url = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
-  if(typeof QRCode !== 'undefined') {
+  // URL d'invitation — format fid:token pour faciliter le parsing
+  const inviteUrl = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
+
+  // QR code via Google Charts API (gratuit, fiable, pas de JS)
+  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(inviteUrl)}&choe=UTF-8`;
     const canvas = document.getElementById('obQRCanvas');
-    QRCode.toCanvas(canvas, url, {width: 180, margin: 1}, err => {
-      if(err) console.warn('QR error:', err);
-    });
-  } else {
-    document.getElementById('obQRCanvas').style.display = 'none';
+  if(canvas) {
+    // Remplacer le canvas par une image (plus simple et fiable)
+    const img = document.createElement('img');
+    img.src   = qrUrl;
+    img.width = 180;
+    img.height= 180;
+    img.alt   = 'QR code invitation';
+    img.style.display = 'block';
+    img.style.margin  = '0 auto';
+    img.onerror = () => { img.style.display = 'none'; };
+    canvas.replaceWith(img);
   }
 }
 
@@ -3071,8 +3081,5 @@ if('serviceWorker' in navigator) {
 }
 </script>
 
-<!-- QR Code library (CDN, chargée à la demande) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
-  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 </html>
