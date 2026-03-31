@@ -676,6 +676,21 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <button class="parent-btn exit-parent" onclick="exitParentMode()">
           🚪 Quitter le mode parent
         </button>
+        <!-- Séparateur -->
+        <div style="height:1px;background:var(--border);margin:8px 0;"></div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:8px;letter-spacing:.04em;">
+          COMPTE & DONNÉES
+        </div>
+        <button class="parent-btn" onclick="resetPinAndLogout()"
+          style="background:none;border:2px solid rgba(240,82,82,.3);color:var(--red);
+                 box-shadow:none;font-size:13px;margin-bottom:0;">
+          🔑 Changer de PIN
+        </button>
+        <button class="parent-btn" onclick="disconnectAndReset()"
+          style="background:none;border:2px solid rgba(240,82,82,.3);color:var(--red);
+                 box-shadow:none;font-size:13px;margin-top:6px;margin-bottom:0;">
+          ↩ Changer de famille / Se déconnecter
+        </button>
       </div>
     </div>
 
@@ -1366,25 +1381,53 @@ async function sha256(text) {
 
 // ── PIN overlay ──────────────────────────────────────────────
 function openPinOverlay() {
-  if(!firebaseAvailable){ showToast('Firebase requis','Connexion nécessaire pour le mode parent 📡','⚠️'); return; }
+  // Le PIN peut être vérifié localement (localStorage) OU via Firestore
+  // Pendant la phase démo, Firestore n'est pas requis
   pinBuffer = ''; pinFirst = '';
   pinFailCount = 0;
   document.getElementById('pinError').textContent = '';
 
-  // Vérifier si un PIN existe déjà
-  FB.getParentPinHash(currentFamilyId).then(hash => {
-    if(hash) {
-      pinMode = 'verify';
-      document.getElementById('pinTitle').textContent = 'Mode parent 🔐';
-      document.getElementById('pinSub').textContent   = 'Saisir le PIN parent';
-    } else {
+  // Chercher le PIN : localStorage d'abord, Firestore ensuite
+  const localPin = localStorage.getItem('rk_parent_pin');
+
+  if(localPin) {
+    // PIN existant en local → mode vérification
+    pinMode = 'verify';
+    document.getElementById('pinTitle').textContent = 'Mode parent 🔐';
+    document.getElementById('pinSub').textContent   = 'Saisir le PIN parent';
+    document.getElementById('pinOverlay').classList.add('visible');
+    renderPinDots();
+  } else if(firebaseAvailable) {
+    // Pas de PIN local → vérifier Firestore
+    FB.getParentPinHash(currentFamilyId).then(hash => {
+      if(hash) {
+        localStorage.setItem('rk_parent_pin', hash); // Mettre en cache
+        pinMode = 'verify';
+        document.getElementById('pinTitle').textContent = 'Mode parent 🔐';
+        document.getElementById('pinSub').textContent   = 'Saisir le PIN parent';
+      } else {
+        pinMode = 'create';
+        document.getElementById('pinTitle').textContent = 'Créer un PIN 🔐';
+        document.getElementById('pinSub').textContent   = 'Choisir un PIN à 4 chiffres';
+      }
+      document.getElementById('pinOverlay').classList.add('visible');
+      renderPinDots();
+    }).catch(() => {
+      // Firestore inaccessible → permettre la création locale
       pinMode = 'create';
       document.getElementById('pinTitle').textContent = 'Créer un PIN 🔐';
       document.getElementById('pinSub').textContent   = 'Choisir un PIN à 4 chiffres';
-    }
+      document.getElementById('pinOverlay').classList.add('visible');
+      renderPinDots();
+    });
+  } else {
+    // Pas de Firebase → création locale uniquement
+    pinMode = 'create';
+    document.getElementById('pinTitle').textContent = 'Créer un PIN 🔐';
+    document.getElementById('pinSub').textContent   = 'Choisir un PIN à 4 chiffres';
     document.getElementById('pinOverlay').classList.add('visible');
     renderPinDots();
-  }).catch(() => showToast('Erreur','Impossible de vérifier le PIN','❌'));
+  }
 }
 window.closePinOverlay = function() {
   document.getElementById('pinOverlay').classList.remove('visible');
@@ -1436,15 +1479,19 @@ async function validatePin() {
       return;
     }
     const hash = await sha256(pinBuffer);
-    await FB.setParentPin(hash, currentFamilyId).catch(()=>{});
+    // Sauvegarder localement toujours, Firestore si disponible
+    localStorage.setItem('rk_parent_pin', hash);
+    if(firebaseAvailable) FB.setParentPin(hash, currentFamilyId).catch(()=>{});
     window.closePinOverlay();
     activateParentMode();
     showToast('PIN créé !','Mode parent activé 🔧','✅');
     return;
   }
-  // Verify
+  // Verify — comparer avec le hash local
   const hash      = await sha256(pinBuffer);
-  const savedHash = await FB.getParentPinHash(currentFamilyId).catch(()=>null);
+  const localPin  = localStorage.getItem('rk_parent_pin');
+  const savedHash = localPin ||
+    await FB.getParentPinHash(currentFamilyId).catch(()=>null);
   if(hash === savedHash) {
     pinFailCount = 0;
     if(navigator.vibrate) navigator.vibrate([20, 40, 20]); // succès
@@ -1465,6 +1512,33 @@ async function validatePin() {
       if(pinFailCount < 3) document.getElementById('pinError').textContent=''; }, 1000);
   }
 }
+
+// ── Changer de PIN ───────────────────────────────────────────
+window.resetPinAndLogout = function() {
+  if(!confirm('Réinitialiser le PIN parent ? Tu devras en créer un nouveau.')) return;
+  localStorage.removeItem('rk_parent_pin');
+  if(firebaseAvailable) FB.setParentPin(null, currentFamilyId).catch(()=>{});
+  exitParentMode();
+  showToast('PIN réinitialisé','Crée un nouveau PIN au prochain accès 🔑','🔑');
+};
+
+// ── Déconnexion / Changement de famille ──────────────────────
+window.disconnectAndReset = function() {
+  if(!confirm('Se déconnecter et revenir à l\'écran d\'accueil ?\n\nLes données locales seront effacées.')) return;
+  // Effacer toute la session locale
+  localStorage.removeItem('rk_session');
+  localStorage.removeItem('rk_parent_pin');
+  localStorage.removeItem('rk_app_v1');
+  sessionStorage.removeItem('rk_parent');
+  // Déconnexion Firebase Auth si connecté
+  if(firebaseAvailable && FB.signOutUser) FB.signOutUser().catch(()=>{});
+  // Désabonner les listeners
+  if(unsubScore) unsubScore();
+  if(unsubEcon)  unsubEcon();
+  if(unsubMiss)  unsubMiss();
+  // Recharger la page — montre l'onboarding
+  window.location.reload();
+};
 
 // ── Activation/désactivation mode parent ─────────────────────
 function activateParentMode() {

@@ -24,6 +24,14 @@ service cloud.firestore {
         request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)/members/$(docId)).data.linkedAuthUid;
     }
 
+    // ── TRANSITION DÉMO ──────────────────────────────────────
+    // famille_demo reste accessible sans auth pendant la transition
+    // vers le Lot 0-SEC complet (onboarding multi-famille)
+    // À SUPPRIMER une fois l'onboarding implémenté
+    match /families/famille_demo/{document=**} {
+      allow read, write: if true;
+    }
+
     // ── Anti-énumération ─────────────────────────────────────
     // Impossible de lister /families sans familyId exact
     match /families/{familyId} {
