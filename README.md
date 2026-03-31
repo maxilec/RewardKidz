@@ -1,4 +1,4 @@
-# RewardKidz — PWA familiale de récompenses
+# RewardKidz — PWA familiale de récompenses 
 
 Application PWA installable sur iPhone/iPad et Android.  
 Hébergée sur GitHub Pages — 100% gratuite, sans serveur.
