@@ -47,15 +47,14 @@ function generateToken() {
 
 // AUTH
 // Détecter si le popup OAuth est supporté
-// Safari (tous modes) et PWA standalone → toujours redirect
+// iOS et PWA standalone → redirect (popup bloqué par l'OS)
+// Safari desktop → popup (ITP bloque les cookies Firebase lors d'un redirect)
 // Chrome desktop → popup
 function useRedirect() {
-  const ua  = navigator.userAgent;
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
                     || window.navigator.standalone === true;
-  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua);
-  const isIOS    = /iPhone|iPad|iPod/i.test(ua);
-  return isStandalone || isSafari || isIOS;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  return isStandalone || isIOS;
 }
 
 export async function signInWithGoogle() {
@@ -635,4 +634,5 @@ export async function deleteFamily(fid) {
   batch.delete(familyRef(fid));
   await batch.commit();
   localStorage.removeItem('rk_session');
+  localStorage.removeItem('rk_family_id');
 }
