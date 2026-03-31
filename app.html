@@ -1165,6 +1165,7 @@ function renderAvItems() {
   }).join('');
 }
 window.equipItem = async function(id) {
+  if(simMode){ showToast('Mode simulation','Impossible de modifier en mode simulation 👁','⚠️'); return; }
   let found, fc;
   for(const cat of AV_CATS){ const it=cat.items.find(i=>i.id===id); if(it){found=it;fc=cat;break;} }
   if(!found) return;
@@ -1332,17 +1333,28 @@ async function sha256(text) {
   const chip = document.getElementById('profileChip');
   if(!chip) return;
   let timer = null;
+
+  // Vibration haptique — fonctionne sur Android et iOS 16.4+ PWA
+  function haptic(pattern = [30]) {
+    if(navigator.vibrate) navigator.vibrate(pattern);
+  }
+
   chip.addEventListener('touchstart', e => {
     timer = setTimeout(() => {
       e.preventDefault();
+      haptic([10, 50, 30]); // double pulse discret
       if(parentMode) { openParentPanel(); return; }
       openPinOverlay();
     }, 1500);
   }, {passive:false});
   chip.addEventListener('touchend',   () => clearTimeout(timer));
   chip.addEventListener('touchmove',  () => clearTimeout(timer));
-  chip.addEventListener('mousedown',  () => { timer = setTimeout(() => { if(parentMode){openParentPanel();}else{openPinOverlay();} }, 1500); });
-  chip.addEventListener('mouseup',    () => clearTimeout(timer));
+  chip.addEventListener('mousedown',  () => {
+    timer = setTimeout(() => {
+      if(parentMode){ openParentPanel(); }else{ openPinOverlay(); }
+    }, 1500);
+  });
+  chip.addEventListener('mouseup', () => clearTimeout(timer));
 })();
 
 // ── PIN overlay ──────────────────────────────────────────────
@@ -1428,11 +1440,13 @@ async function validatePin() {
   const savedHash = await FB.getParentPinHash().catch(()=>null);
   if(hash === savedHash) {
     pinFailCount = 0;
+    if(navigator.vibrate) navigator.vibrate([20, 40, 20]); // succès
     window.closePinOverlay();
     activateParentMode();
     showToast('Bienvenue !','Mode parent activé 🔧','🔐');
   } else {
     pinFailCount++;
+    if(navigator.vibrate) navigator.vibrate([80, 30, 80]); // erreur
     renderPinDots('error');
     if(pinFailCount >= 3) {
       pinBlockedUntil = Date.now() + 5*60*1000;
