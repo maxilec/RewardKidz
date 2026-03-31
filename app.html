@@ -3005,9 +3005,12 @@ async function handleStartup() {
   const pendingAction = localStorage.getItem('rk_ob_action');
 
   try {
-    // waitForAuthReady attend le premier onAuthStateChanged
-    // ce qui garantit que le redirect result est traité
-    const user = await FB.waitForAuthReady();
+    // Sur iOS/Safari le flow redirect exige un appel explicite à getRedirectResult()
+    // pour que Firebase traite le résultat OAuth avant onAuthStateChanged.
+    // Sans cet appel, onAuthStateChanged reçoit null et l'utilisateur revient
+    // sur l'écran d'accueil au lieu de continuer vers la création de famille.
+    const redirectUser = await FB.checkRedirectResult();
+    const user = redirectUser || await FB.waitForAuthReady();
 
     if(user && pendingAction) {
       // Retour de redirect OAuth → reprendre le flux
