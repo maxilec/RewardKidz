@@ -920,6 +920,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 let FB = {};
 let firebaseAvailable = false;
 let unsubScore = null;
+
+// ── Session courante ─────────────────────────────────────────
+// Initialisé depuis localStorage ou Firebase Auth au boot
+// Remplace l'ancien DEMO_FAMILY_ID hardcodé
+let currentFamilyId = 'famille_demo';   // fallback démo
+let currentChildId  = 'enfant_demo';    // fallback démo
+let currentRole     = 'child';          // 'parent' | 'child'
 let unsubEcon  = null;
 let unsubMiss  = null;
 
@@ -1004,8 +1011,8 @@ window.finishOnboarding = async function() {
   S.equipped.skin = STARTERS.find(a=>a.id===selAv)?.id || 's0';
   save();
   if(firebaseAvailable) {
-    FB.updateProfile({displayName:name}).catch(()=>{});
-    FB.setAvatar({skin:S.equipped.skin}).catch(()=>{});
+    FB.updateProfile({displayName:name}, currentFamilyId, currentChildId).catch(()=>{});
+    FB.setAvatar({skin:S.equipped.skin}, currentFamilyId, currentChildId).catch(()=>{});
   }
   document.getElementById('screenOnboarding').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
@@ -1179,7 +1186,7 @@ window.equipItem = async function(id) {
     }catch(e){ showToast('Erreur', e.message, '❌'); return; }
   }
   S.equipped[fc.key] = id; save();
-  if(firebaseAvailable) FB.setAvatar({[fc.key]:id}).catch(()=>{});
+  if(firebaseAvailable) FB.setAvatar({[fc.key]:id}, currentFamilyId, currentChildId).catch(()=>{});
   updateAvatar(); renderAvItems();
   showToast('Look mis à jour !', `${found.ico} ${found.lbl} équipé !`, '✨');
 };
@@ -1194,7 +1201,7 @@ window.shopTab = function(btn, tab) {
 };
 async function loadShopItems() {
   if(isOnline && firebaseAvailable) {
-    try{ shopItems = await FB.getShopItems(); }catch(e){ shopItems=[]; }
+    try{ shopItems = await FB.getShopItems(currentFamilyId); }catch(e){ shopItems=[]; }
   }
 }
 function renderShop() {
@@ -1223,7 +1230,7 @@ window.reqBuy = async function(id) {
   const item = shopItems.find(i=>i.id===id); if(!item) return;
   if(S.purchaseReqs.includes(id)){ showToast('Déjà demandé !', 'Papa/maman va valider 😊', '⏳'); return; }
   try{
-    await FB.createPurchaseRequest(id);
+    await FB.createPurchaseRequest(id, currentFamilyId, currentChildId);
     S.purchaseReqs.push(id); save(); renderShop();
     showToast('Demande envoyée !', `${item.ico} ${item.name} — Papa/maman va valider !`, '📨');
   }catch(e){
@@ -1365,7 +1372,7 @@ function openPinOverlay() {
   document.getElementById('pinError').textContent = '';
 
   // Vérifier si un PIN existe déjà
-  FB.getParentPinHash().then(hash => {
+  FB.getParentPinHash(currentFamilyId).then(hash => {
     if(hash) {
       pinMode = 'verify';
       document.getElementById('pinTitle').textContent = 'Mode parent 🔐';
@@ -1429,7 +1436,7 @@ async function validatePin() {
       return;
     }
     const hash = await sha256(pinBuffer);
-    await FB.setParentPin(hash).catch(()=>{});
+    await FB.setParentPin(hash, currentFamilyId).catch(()=>{});
     window.closePinOverlay();
     activateParentMode();
     showToast('PIN créé !','Mode parent activé 🔧','✅');
@@ -1437,7 +1444,7 @@ async function validatePin() {
   }
   // Verify
   const hash      = await sha256(pinBuffer);
-  const savedHash = await FB.getParentPinHash().catch(()=>null);
+  const savedHash = await FB.getParentPinHash(currentFamilyId).catch(()=>null);
   if(hash === savedHash) {
     pinFailCount = 0;
     if(navigator.vibrate) navigator.vibrate([20, 40, 20]); // succès
@@ -1496,14 +1503,14 @@ async function renderPPDashboard() {
   listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text2);font-size:12px;">Chargement…</div>';
 
   try {
-    const children = await FB.getChildren();
+    const children = await FB.getChildren(currentFamilyId);
     if(!children.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text2);font-size:12px;">Aucun enfant trouvé</div>';
       return;
     }
     const cards = await Promise.all(children.map(async child => {
-      const score    = await FB.getScore(undefined, child.id).catch(()=>null) || {value:8,state:'normal'};
-      const missions = await FB.getMissions(undefined, child.id).catch(()=>null) || {items:[]};
+      const score    = await FB.getScore(currentFamilyId, child.id).catch(()=>null) || {value:8,state:'normal'};
+      const missions = await FB.getMissions(currentFamilyId, child.id).catch(()=>null) || {items:[]};
       const done     = (missions.items||[]).filter(m=>m.done).length;
       const total    = (missions.items||[]).length;
       const sv       = score?.value ?? 8;
@@ -1546,11 +1553,11 @@ async function renderPPChildPanel() {
 
   // Charger les données
   const [profile, scoreData, missions, catalog, requests] = await Promise.all([
-    FB.getProfile(undefined, ppCurrentChild).catch(()=>null).then(r=>r||{displayName:'Enfant'}),
-    FB.getScore(undefined, ppCurrentChild).catch(()=>null).then(r=>r||{value:8,state:'normal'}),
-    FB.getMissions(undefined, ppCurrentChild).catch(()=>null).then(r=>r||{items:[],tomorrow:[]}),
-    FB.getMissionCatalog().catch(()=>[]),
-    FB.getPurchaseRequests().catch(()=>[]),
+    FB.getProfile(currentFamilyId, ppCurrentChild).catch(()=>null).then(r=>r||{displayName:'Enfant'}),
+    FB.getScore(currentFamilyId, ppCurrentChild).catch(()=>null).then(r=>r||{value:8,state:'normal'}),
+    FB.getMissions(currentFamilyId, ppCurrentChild).catch(()=>null).then(r=>r||{items:[],tomorrow:[]}),
+    FB.getMissionCatalog(currentFamilyId).catch(()=>[]),
+    FB.getPurchaseRequests(currentFamilyId).catch(()=>[]),
   ]);
 
   const name = profile?.displayName || 'Enfant';
@@ -1653,7 +1660,7 @@ window.ppAdjustScore = async function(delta) {
   if(S.scoreState==='validated'){ showToast('Score verrouillé','Réactiver la journée d\'abord 🔒','🔒'); return; }
   if(S.scoreState==='pause')    { showToast('Journée en pause','Reprendre la journée d\'abord ⏸','⏸'); return; }
   try {
-    await FB.adjustScore(delta, undefined, ppCurrentChild);
+    await FB.adjustScore(delta, currentFamilyId, ppCurrentChild);
     const valEl = document.getElementById('ppScoreVal');
     if(valEl) {
       const cur    = parseInt(valEl.textContent) || 8;
@@ -1672,7 +1679,7 @@ window.ppAdjustScore = async function(delta) {
 window.ppValidateDay = async function() {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
   try {
-    const stars = await FB.validateDay(undefined, ppCurrentChild);
+    const stars = await FB.validateDay(currentFamilyId, ppCurrentChild);
     showToast('Journée validée !', stars>0?`+${stars} 🪙 créditées`:'Score trop bas — pas de récompense', '🏆');
     renderPPChildPanel();
     closeParentPanel();
@@ -1683,7 +1690,7 @@ window.ppReactivateDay = async function() {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
   if(!confirm('Réactiver la journée ? Cela annulera la validation et retirera les pièces créditées.')) return;
   try {
-    await FB.reactivateDay(undefined, ppCurrentChild);
+    await FB.reactivateDay(currentFamilyId, ppCurrentChild);
     showToast('Journée réactivée','Score à nouveau modifiable ↩','✅');
     renderPPChildPanel();
   } catch(e) { showToast('Erreur', e.message, '❌'); }
@@ -1691,7 +1698,7 @@ window.ppReactivateDay = async function() {
 
 window.ppPauseDay = async function() {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
-  await FB.setScoreState('pause', undefined, ppCurrentChild).catch(()=>{});
+  await FB.setScoreState('pause', currentFamilyId, ppCurrentChild).catch(()=>{});
   document.getElementById('ppPauseBtn').style.display  = 'none';
   document.getElementById('ppResumeBtn').style.display = '';
   showToast('Journée en pause','Le score ne compte pas ⏸','⏸');
@@ -1699,7 +1706,7 @@ window.ppPauseDay = async function() {
 
 window.ppResumeDay = async function() {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
-  await FB.setScoreState('normal', undefined, ppCurrentChild).catch(()=>{});
+  await FB.setScoreState('normal', currentFamilyId, ppCurrentChild).catch(()=>{});
   document.getElementById('ppResumeBtn').style.display = 'none';
   document.getElementById('ppPauseBtn').style.display  = '';
   showToast('Journée reprise','⚡ En cours !','⚡');
@@ -1708,7 +1715,7 @@ window.ppResumeDay = async function() {
 window.ppCheckMission = async function(index) {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
   try {
-    const mission = await FB.completeMissionByParent(index, undefined, ppCurrentChild);
+    const mission = await FB.completeMissionByParent(index, currentFamilyId, ppCurrentChild);
     if(mission) {
       showToast('Mission validée !', `${mission.ico} ${mission.title} — +${mission.stars}🪙`, '✅');
       renderPPChildPanel();
@@ -1727,7 +1734,7 @@ window.ppToggleTomorrow = function(id) {
 window.ppSaveTomorrow = async function() {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
   try {
-    await FB.setTomorrowMissions(ppTomorrowSelected, undefined, ppCurrentChild);
+    await FB.setTomorrowMissions(ppTomorrowSelected, currentFamilyId, ppCurrentChild);
     showToast('Missions enregistrées !',
       ppTomorrowSelected.length ? `${ppTomorrowSelected.length} mission(s) pour demain 📅` : 'Tirage aléatoire demain',
       '💾');
@@ -1737,7 +1744,7 @@ window.ppSaveTomorrow = async function() {
 window.ppApprove = async function(itemId, reqId) {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
   try {
-    await FB.approvePurchase(itemId, reqId);
+    await FB.approvePurchase(itemId, reqId, currentFamilyId);
     showToast('Demande validée !','Le solde a été débité ✅','✅');
     renderPPChildPanel();
   } catch(e) { showToast('Erreur', e.message, '❌'); }
@@ -1746,7 +1753,7 @@ window.ppApprove = async function(itemId, reqId) {
 window.ppReject = async function(itemId, reqId) {
   if(!isOnline||!firebaseAvailable){ showToast('Hors ligne','Impossible sans connexion 📡','⚠️'); return; }
   try {
-    await FB.rejectPurchase(itemId, reqId);
+    await FB.rejectPurchase(itemId, reqId, currentFamilyId);
     showToast('Demande refusée','L\'enfant sera notifié ✕','✕');
     renderPPChildPanel();
   } catch(e) { showToast('Erreur', e.message, '❌'); }
@@ -1770,20 +1777,45 @@ window.exitSimulation = function() {
 // ── connectFirebase — listeners temps réel ──────────────────
 async function connectFirebase() {
   if(!firebaseAvailable || !isOnline) return;
+
+  // Récupérer la session depuis Firebase / localStorage
   try {
-    await FB.initDemoFamily();
-    await FB.ensureDailyReset();
-    await FB.ensureDailyMissions();
+    const session = await FB.getMySession();
+    if(session) {
+      currentFamilyId = session.familyId;
+      currentRole     = session.role;
+      if(session.role === 'child') currentChildId = session.childId;
+      if(session.role === 'parent') {
+        // Si on était en mode parent, réactiver le badge
+        if(sessionStorage.getItem('rk_parent')) {
+          parentMode = true;
+          document.getElementById('parentBadge')?.classList.add('visible');
+        }
+      }
+      console.log(`[App] Session: ${session.role} — famille ${session.familyId}`);
+    }
+  } catch(e) {
+    console.warn('[App] Session non trouvée, mode démo:', e.message);
+    // Garder les valeurs par défaut (famille_demo / enfant_demo)
+  }
+
+  try {
+    await FB.ensureDailyReset(currentFamilyId, currentChildId);
+    await FB.ensureDailyMissions(currentFamilyId, currentChildId);
     await loadShopItems();
   } catch(e) {
     console.warn('[Firebase] Init:', e.message);
   }
+
   if(unsubScore) unsubScore();
   if(unsubEcon)  unsubEcon();
   if(unsubMiss)  unsubMiss();
-  unsubScore = FB.listenScore(data    => { if(data)        updateScoreUI(data.value, data.state); });
-  unsubEcon  = FB.listenEconomy(data  => { if(data)        updateCurUI(data.stars, data.marbles); });
-  unsubMiss  = FB.listenMissions(data => { if(data?.items) renderMissions(data.items); });
+  unsubScore = FB.listenScore(data    => { if(data) updateScoreUI(data.value, data.state); },
+    currentFamilyId, currentChildId);
+  unsubEcon  = FB.listenEconomy(data  => { if(data) updateCurUI(data.stars, data.marbles); },
+    currentFamilyId, currentChildId);
+  unsubMiss  = FB.listenMissions(data => { if(data?.items) renderMissions(data.items); },
+    currentFamilyId, currentChildId);
 }
 
 // ── bootApp — synchrone, immédiat ───────────────────────────
