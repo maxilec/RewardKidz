@@ -1,5 +1,5 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyBXdLGC0PbhIVrTPY6eXY4p9SVFwz_5LXI",
+  apiKey: "AIzaSyCP2URoUdpjcKt_7ajoLXxnoTAsuwTRMVo",
   authDomain: "rewardkidz-4fe68.firebaseapp.com",
   projectId: "rewardkidz-4fe68",
   storageBucket: "rewardkidz-4fe68.firebasestorage.app",
