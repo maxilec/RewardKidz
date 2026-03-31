@@ -1008,6 +1008,11 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
                  box-shadow:none;font-size:13px;margin-top:6px;margin-bottom:0;">
           ↩ Changer de famille / Se déconnecter
         </button>
+        <button class="parent-btn" onclick="deleteFamilyAndReset()"
+          style="background:none;border:2px solid rgba(240,82,82,.5);color:var(--red);
+                 box-shadow:none;font-size:13px;margin-top:6px;margin-bottom:0;opacity:.8;">
+          🗑 Supprimer cette famille
+        </button>
       </div>
     </div>
 
@@ -2556,6 +2561,8 @@ window.disconnectAndReset = function() {
   if(!confirm('Se déconnecter et revenir à l\'écran d\'accueil ?\n\nLes données locales seront effacées.')) return;
   // Effacer toute la session locale
   localStorage.removeItem('rk_session');
+  localStorage.removeItem('rk_family_id');
+  localStorage.removeItem('rk_ob_action');
   localStorage.removeItem('rk_parent_pin');
   localStorage.removeItem('rk_app_v1');
   sessionStorage.removeItem('rk_parent');
@@ -2567,6 +2574,27 @@ window.disconnectAndReset = function() {
   if(unsubMiss)  unsubMiss();
   // Recharger la page — montre l'onboarding
   window.location.reload();
+};
+
+// ── Suppression famille ───────────────────────────────────────
+window.deleteFamilyAndReset = async function() {
+  if(!confirm('⚠️ Supprimer définitivement cette famille ?\n\nToutes les données (enfants, scores, missions, boutique) seront effacées de façon irréversible.')) return;
+  try {
+    if(firebaseAvailable && currentFamilyId) await FB.deleteFamily(currentFamilyId);
+    localStorage.removeItem('rk_session');
+    localStorage.removeItem('rk_family_id');
+    localStorage.removeItem('rk_ob_action');
+    localStorage.removeItem('rk_parent_pin');
+    localStorage.removeItem('rk_app_v1');
+    sessionStorage.removeItem('rk_parent');
+    if(firebaseAvailable && FB.signOutUser) FB.signOutUser().catch(()=>{});
+    if(unsubScore) unsubScore();
+    if(unsubEcon)  unsubEcon();
+    if(unsubMiss)  unsubMiss();
+    window.location.reload();
+  } catch(e) {
+    showToast('Erreur', e.message, '❌');
+  }
 };
 
 // ── Activation/désactivation mode parent ─────────────────────
