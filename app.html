@@ -1025,14 +1025,42 @@ window.finishOnboarding = async function() {
   S.playerName = name;
   S.equipped.skin = STARTERS.find(a=>a.id===selAv)?.id || 's0';
   save();
-  if(firebaseAvailable) {
-    FB.updateProfile({displayName:name}, currentFamilyId, currentChildId).catch(()=>{});
-    FB.setAvatar({skin:S.equipped.skin}, currentFamilyId, currentChildId).catch(()=>{});
-  }
+
   document.getElementById('screenOnboarding').classList.add('hidden');
   document.getElementById('appShell').classList.remove('hidden');
   document.getElementById('bnav').style.display = '';
   bootApp();
+
+  // Attendre que Firebase soit disponible avant d'écrire
+  // (initFirebase() est async et peut ne pas être terminé)
+  const writeToFirebase = async () => {
+    try {
+      await FB.updateProfile({displayName: name}, currentFamilyId, currentChildId);
+      await FB.setAvatar({skin: S.equipped.skin}, currentFamilyId, currentChildId);
+      console.log('[Onboarding] Profil écrit dans Firebase ✅');
+    } catch(e) {
+      console.warn('[Onboarding] Écriture Firebase différée:', e.message);
+    }
+  };
+
+  if(firebaseAvailable) {
+    writeToFirebase();
+  } else {
+    // Firebase pas encore chargé → attendre jusqu'à 5s
+    const maxWait = 5000;
+    const interval = 200;
+    let waited = 0;
+    const poll = setInterval(() => {
+      waited += interval;
+      if(firebaseAvailable) {
+        clearInterval(poll);
+        writeToFirebase();
+      } else if(waited >= maxWait) {
+        clearInterval(poll);
+        console.warn('[Onboarding] Firebase non disponible après 5s');
+      }
+    }, interval);
+  }
 };
 
 // ── Modal nom ───────────────────────────────────────────────
@@ -1051,7 +1079,7 @@ window.saveName = async function() {
   if(val.length < 2){ showToast('Prénom trop court','Minimum 2 caractères 😊','✏️'); return; }
   S.playerName = val; save();
   document.getElementById('profileName').textContent = val;
-  if(firebaseAvailable) FB.updateProfile({displayName:val}).catch(()=>{});
+  if(firebaseAvailable) FB.updateProfile({displayName:val}, currentFamilyId, currentChildId).catch(()=>{});
   window.closeNameModal();
   showToast('Prénom modifié !', `Bonjour ${val} 👋`, '✅');
 };
@@ -1196,7 +1224,7 @@ window.equipItem = async function(id) {
     if(S.marbles < (found.cost||0)){ showToast('Pas assez de gems !',`Il te faut ${found.cost} 💎`,'😢'); return; }
     if(!firebaseAvailable){ showToast('Firebase indisponible','Impossible d\'acheter 📡','⚠️'); return; }
     try{
-      await FB.addCurrency(-found.cost, 'marbles', `Avatar: ${found.lbl}`);
+      await FB.addCurrency(-found.cost, 'marbles', `Avatar: ${found.lbl}`, currentFamilyId, currentChildId);
       found.owned = true; S.unlockedItems.push(id);
     }catch(e){ showToast('Erreur', e.message, '❌'); return; }
   }
