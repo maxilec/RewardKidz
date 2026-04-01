@@ -1711,7 +1711,7 @@ window.obSignInApple = async function(action) {
 
 window.obSignInGoogle = async function(action) {
   obPendingAction = action;
-  localStorage.setItem('rk_ob_action', action); // localStorage survit au redirect iOS
+  localStorage.setItem('rk_ob_action', action); // survit au redirect page (sessionStorage ne survit pas)
   const errId = action === 'create' ? 'obCreateAuthError' : 'obJoinParentError';
   try {
     obSetLoading('Connexion Google…');
@@ -3002,78 +3002,85 @@ OB_SCREENS.forEach(id => {
 document.getElementById('appShell')?.classList.add('hidden');
 document.getElementById('bnav').style.display = 'none';
 
-// Firebase en arrière-plan — on attend qu'il soit prêt pour handleStartup
-initFirebase().then(() => handleStartup());
+// Firebase en arrière-plan
+initFirebase().then(() => bootOnboarding());
 
-async function handleStartup() {
-  // 1. Token dans l'URL → onboarding rejoindre
-  if(checkUrlToken()) return;
+/**
+ * Attendre que Firebase initialise l'état de l'utilisateur.
+ * Utilise FB.onAuthChange (wrapper de onAuthStateChanged) pour éviter
+ * d'exposer auth directement.
+ */
+function getAuthUser() {
+  return new Promise((resolve) => {
+    const unsub = FB.onAuthChange((user) => {
+      unsub();
+      resolve(user);
+    });
+  });
+}
 
-  // 2. Session locale déjà connue → lancer directement sans attendre Auth
-  const session  = localStorage.getItem('rk_session');
-  const familyId = localStorage.getItem('rk_family_id');
-  const isDemo   = !session && !familyId && S.playerName?.trim();
-
-  if(session || familyId) {
-    document.getElementById('appShell').classList.remove('hidden');
-    document.getElementById('bnav').style.display = '';
-    bootApp();
-    return;
-  }
-  if(isDemo) {
-    document.getElementById('appShell').classList.remove('hidden');
-    document.getElementById('bnav').style.display = '';
-    bootApp();
-    return;
-  }
-
-  // 3. Attendre que Firebase Auth résolve son état
-  // (redirect OAuth ou session persistée)
-  if(!firebaseAvailable) { obGo('obWelcome'); return; }
-
-  obSetLoading('Vérification de la session…');
-  const pendingAction = localStorage.getItem('rk_ob_action');
-
+/**
+ * Initialisation principale — remplace handleStartup
+ */
+async function bootOnboarding() {
   try {
-    // Sur iOS/Safari le flow redirect exige un appel explicite à getRedirectResult()
-    // pour que Firebase traite le résultat OAuth avant onAuthStateChanged.
-    // Sans cet appel, onAuthStateChanged reçoit null et l'utilisateur revient
-    // sur l'écran d'accueil au lieu de continuer vers la création de famille.
-    const redirectUser = await FB.checkRedirectResult();
-    const user = redirectUser || await FB.waitForAuthReady();
+    // 1. Priorité absolue : lien d'invitation dans l'URL
+    if(checkUrlToken()) return;
 
-    if(user && pendingAction) {
-      // Retour de redirect OAuth → reprendre le flux
-      localStorage.removeItem('rk_ob_action');
-      obPendingAction = pendingAction;
-      console.log('[Startup] Redirect auth → user:', user.uid, 'action:', pendingAction);
-      await obAfterAuth(user, pendingAction);
-      return;
+    // 2. Attendre que Firebase soit prêt (indispensable iOS/Safari)
+    let user = null;
+    if(firebaseAvailable) {
+      // Vérifier d'abord un retour de redirection Google/Apple
+      const redirectResult = await FB.checkRedirectResult().catch(() => null);
+      user = redirectResult || await getAuthUser();
     }
 
+    const session  = localStorage.getItem('rk_session');
+    const familyId = localStorage.getItem('rk_family_id');
+
+    // Cas A : utilisateur Firebase authentifié
     if(user) {
-      // Utilisateur déjà connecté (session Firebase persistée)
-      // Vérifier s'il a déjà une famille
-      const cachedFamilyId = localStorage.getItem('rk_family_id');
-      if(cachedFamilyId) {
-        document.getElementById('appShell').classList.remove('hidden');
-        document.getElementById('bnav').style.display = '';
-        bootApp();
+      const pendingAction = localStorage.getItem('rk_ob_action');
+      if(pendingAction) {
+        // Retour de redirect OAuth → reprendre le flux d'onboarding
+        localStorage.removeItem('rk_ob_action');
+        obPendingAction = pendingAction;
+        console.log('[Startup] Redirect auth → user:', user.uid, 'action:', pendingAction);
+        await obAfterAuth(user, pendingAction);
         return;
       }
-      // Connecté mais pas de famille → proposer de créer ou rejoindre
+      if(familyId) {
+        // Famille déjà connue → lancer l'app
+        showApp();
+        return;
+      }
+      // Connecté mais pas de famille → créer
       obGo('obCreateFamily');
       return;
     }
 
-    // Pas d'utilisateur connecté → accueil
-    localStorage.removeItem('rk_ob_action');
+    // Cas B : session locale sans auth Firebase (mode démo ou session enfant)
+    if(session || familyId || S.playerName?.trim()) {
+      showApp();
+      return;
+    }
+
+    // Cas C : aucune session → accueil
     obGo('obWelcome');
-  } catch(e) {
-    console.warn('[Startup]', e.message);
-    localStorage.removeItem('rk_ob_action');
+  } catch(err) {
+    console.error('[Startup]', err);
     obGo('obWelcome');
   }
+}
+
+/**
+ * Affiche l'interface principale
+ */
+function showApp() {
+  document.getElementById('appShell').classList.remove('hidden');
+  const bnav = document.getElementById('bnav');
+  if(bnav) bnav.style.display = '';
+  bootApp();
 }
 
 if('serviceWorker' in navigator) {
