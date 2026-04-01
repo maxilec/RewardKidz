@@ -47,14 +47,15 @@ function generateToken() {
 
 // AUTH
 // Détecter si le popup OAuth est supporté
-// iOS et PWA standalone → redirect (popup bloqué par l'OS)
-// Safari desktop → popup (ITP bloque les cookies Firebase lors d'un redirect)
+// Safari (tous modes) et PWA standalone → toujours redirect
 // Chrome desktop → popup
 function useRedirect() {
+  const ua  = navigator.userAgent;
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
                     || window.navigator.standalone === true;
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  return isStandalone || isIOS;
+  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua);
+  const isIOS    = /iPhone|iPad|iPod/i.test(ua);
+  return isStandalone || isSafari || isIOS;
 }
 
 export async function signInWithGoogle() {
@@ -82,39 +83,12 @@ export async function checkRedirectResult() {
 }
 
 // Attendre que Firebase Auth ait résolu son état initial (redirect ou persisté)
-// Attend que Firebase Auth soit prêt ET que le redirect result soit traité.
-// Sur iOS Safari, onAuthStateChanged peut d'abord firer null avant de firer
-// l'utilisateur (résultat du redirect OAuth pas encore processé).
-// On attend jusqu'à 4s avant de résoudre null pour couvrir ce cas.
+// Plus fiable que checkRedirectResult seul
 export function waitForAuthReady() {
   return new Promise(resolve => {
-    // Si Firebase a déjà un user courant, résoudre immédiatement
-    if (auth.currentUser) { resolve(auth.currentUser); return; }
-
-    let resolved = false;
-    const done = (user) => {
-      if (resolved) return;
-      resolved = true;
-      unsub();
-      clearTimeout(timer);
-      resolve(user);
-    };
-
-    // Timer de sécurité : si Firebase ne résout rien après 4s, on capitule
-    const timer = setTimeout(() => done(auth.currentUser || null), 4000);
-
     const unsub = onAuthStateChanged(auth, user => {
-      if (user) {
-        // On a un utilisateur → résoudre immédiatement
-        done(user);
-      } else {
-        // null : peut être l'état initial avant traitement du redirect.
-        // On attend encore un peu (500ms) pour laisser Firebase traiter
-        // le redirect result avant de conclure qu'il n'y a pas d'utilisateur.
-        setTimeout(() => {
-          if (!resolved) done(auth.currentUser || null);
-        }, 500);
-      }
+      unsub(); // se désabonner après le premier appel
+      resolve(user);
     });
   });
 }
@@ -634,5 +608,4 @@ export async function deleteFamily(fid) {
   batch.delete(familyRef(fid));
   await batch.commit();
   localStorage.removeItem('rk_session');
-  localStorage.removeItem('rk_family_id');
 }
