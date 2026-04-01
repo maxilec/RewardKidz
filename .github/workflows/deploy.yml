@@ -33,6 +33,10 @@ jobs:
           echo "=== Taille ===" && wc -c firebase.config.js
           echo "=== Clés ===" && grep -o '^[^:]*' firebase.config.js
 
+      - name: Préparer le déploiement (bypass gitignore)
+        if: github.ref == 'refs/heads/main'
+        run: sed -i '/firebase.config.js/d' .gitignore
+
       - name: Deploy to Firebase Hosting
         if: github.ref == 'refs/heads/main'
         uses: FirebaseExtended/action-hosting-deploy@v0

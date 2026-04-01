@@ -8,8 +8,7 @@
       ".gitignore",
       ".github/**",
       "*.md",
-      "firebase.config.example.js",
-      "firebase.config.js"
+      "firebase.config.example.js"
     ],
     "rewrites": [
       {
