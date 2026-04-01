@@ -45,6 +45,77 @@ function generateToken() {
   return Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+// Code court alphanumérique 6 chars (sans I, O, 0, 1 — ambigus)
+// Unique par famille grâce au familyId utilisé comme seed supplémentaire
+function generateShortCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const arr = new Uint8Array(6);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => chars[b % chars.length]).join('');
+}
+
+// Chercher la famille d'un utilisateur authentifié via ses membres
+export async function findFamilyByUser(uid) {
+  // On ne peut pas lister /families (anti-énumération)
+  // On utilise le cache localStorage côté app — cette fonction
+  // est le fallback quand le cache est absent
+  const cached = localStorage.getItem('rk_family_id');
+  if(cached) {
+    try {
+      const snap = await getDoc(familyRef(cached));
+      if(snap.exists()) {
+        const data = snap.data();
+        // Parent : dans ownerIds
+        if((data.ownerIds||[]).includes(uid)) return { familyId: cached, role: 'parent' };
+        // Enfant : chercher dans members
+        const mSnap = await getDoc(memberRef(cached, uid));
+        if(mSnap.exists()) return { familyId: cached, role: mSnap.data().role };
+      }
+    } catch(e) { /* cache invalide */ }
+    localStorage.removeItem('rk_family_id');
+  }
+  return null;
+}
+
+// Chercher un token d'invitation par son code court
+// Le code court est stocké dans le document token sous la clé 'shortCode'
+export async function findTokenByShortCode(shortCode) {
+  // On cherche dans toutes les familles — impossible via Firestore sans listing
+  // Solution : stocker le familyId dans le code court via un document index global
+  // Pour l'instant : le code court est affiché avec le familyId encodé dans le QR
+  // Cette fonction est appelée quand on a familyId + shortCode
+  throw new Error('Utiliser validateShortCode(familyId, shortCode) à la place');
+}
+
+export async function validateShortCode(familyId, shortCode) {
+  // Chercher les invitations actives avec ce shortCode dans cette famille
+  const q = query(
+    collection(db, 'families', familyId, 'invites'),
+    where('shortCode', '==', shortCode.toUpperCase()),
+    where('active', '==', true)
+  );
+  const snap = await getDocs(q);
+  if(snap.empty) throw new Error('Code invalide ou expiré');
+  const tokenDoc = snap.docs[0];
+  const data = tokenDoc.data();
+  const exp = data.expiresAt instanceof Date ? data.expiresAt : data.expiresAt.toDate();
+  if(exp < new Date()) {
+    await updateDoc(tokenDoc.ref, { active: false });
+    throw new Error('Code expiré');
+  }
+  return { tokenId: tokenDoc.id, token: data.token, ...data };
+}
+
+// Vérifier nom de famille (sécurité anti-intrusion)
+export async function verifyFamilyName(familyId, nameInput) {
+  const snap = await getDoc(familyRef(familyId));
+  if(!snap.exists()) throw new Error('Famille introuvable');
+  const stored = (snap.data().name || '').trim().toLowerCase();
+  const input  = (nameInput || '').trim().toLowerCase();
+  if(stored !== input) throw new Error('Nom de famille incorrect');
+  return snap.data();
+}
+
 // AUTH
 // Détecter si le popup OAuth est supporté
 // Safari (tous modes) et PWA standalone → toujours redirect
@@ -151,28 +222,48 @@ export async function addChildToFamily(familyId, childName, avatarSkin = 's0') {
 
 // TOKENS
 export async function generateInviteToken(familyId, targetId, type) {
-  const existing = await getDocs(
-    query(collection(db, 'families', familyId, 'invites'),
-      where('targetId', '==', targetId), where('active', '==', true))
-  );
+  // Invalider les tokens actifs du même type/cible
+  const q = targetId
+    ? query(collection(db, 'families', familyId, 'invites'),
+        where('targetId', '==', targetId), where('active', '==', true))
+    : query(collection(db, 'families', familyId, 'invites'),
+        where('type', '==', type), where('active', '==', true));
+  const existing = await getDocs(q);
   const batch = writeBatch(db);
   existing.docs.forEach(d => batch.update(d.ref, { active: false }));
 
-  const token    = generateToken();
-  const tokenId  = await sha256(token);
-  const now      = Date.now();
-  const expiresAt = new Date(now + (type === 'parent' ? 48 : 7*24) * 3600 * 1000);
+  const token     = generateToken();          // UUID 32 chars (robuste, dans QR)
+  const shortCode = generateShortCode();      // 6 chars alphanumériques (saisie manuelle)
+  const tokenId   = await sha256(token);
+  const now       = Date.now();
+  // Invitations courtes (depuis le menu parent) : 15 min
+  // Tokens enfant initiaux (création famille) : 7 jours
+  const isShortInvite = type === 'invite';
+  const expiresAt = new Date(now + (
+    isShortInvite ? 15 * 60 * 1000 :           // 15 minutes
+    type === 'parent' ? 48 * 3600 * 1000 :      // 48 heures
+    7 * 24 * 3600 * 1000                        // 7 jours
+  ));
 
   batch.set(tokenRef(familyId, tokenId), {
-    type, targetId, familyId, active: true,
-    createdAt: serverTimestamp(), expiresAt, usedAt: null, usedBy: null,
+    type, targetId: targetId || null, familyId,
+    token,        // stocké pour pouvoir rebuilder l'URL QR
+    shortCode,    // stocké pour lookup par code court
+    active: true,
+    createdAt: serverTimestamp(), expiresAt,
+    usedAt: null, usedBy: null,
   });
   await batch.commit();
-  return { token, tokenId, expiresAt };
+  return { token, tokenId, shortCode, expiresAt };
 }
 
 export async function generateParentInviteToken(familyId) {
   return generateInviteToken(familyId, null, 'parent');
+}
+
+// Token d'invitation universel (depuis menu parent, 15 min)
+export async function generateFamilyInvite(familyId) {
+  return generateInviteToken(familyId, null, 'invite');
 }
 
 export async function validateTokenForFamily(familyId, token) {

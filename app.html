@@ -879,6 +879,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div class="di-ico">🏠</div>
       <div class="di-body"><div class="di-label">Tableau de bord</div></div>
     </button>
+    <button class="drawer-item" onclick="closeParentDrawer();openInvitePanel()">
+      <div class="di-ico">➕</div>
+      <div class="di-body">
+        <div class="di-label">Inviter un membre</div>
+        <div class="di-sub">QR code + code 6 caractères</div>
+      </div>
+    </button>
     <div class="drawer-sep"></div>
     <div class="drawer-section">VUE</div>
     <button class="drawer-item" onclick="closeParentDrawer();triggerSimulation()">
@@ -906,6 +913,53 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   <div class="drawer-footer">
     <div class="drawer-version" id="parentDrawerVersion"></div>
     <div class="drawer-badge parent">Parent</div>
+  </div>
+</div>
+
+<!-- ══ PANEL INVITATION ══════════════════════════════════════ -->
+<div class="drawer-overlay" id="inviteOverlay" onclick="closeInvitePanel()"></div>
+<div style="
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+  width:min(430px,100vw);z-index:302;
+  background:var(--white);border-radius:24px 24px 0 0;
+  box-shadow:0 -8px 40px rgba(0,0,0,.15);
+  padding:0 0 calc(var(--sab)+20px);
+  transition:transform .35s cubic-bezier(.22,1,.36,1);
+" id="invitePanel">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 12px;">
+    <div>
+      <div style="font-family:var(--ft);font-size:18px;font-weight:800;color:var(--text);">Inviter un membre ➕</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-top:2px;" id="inviteExpiry"></div>
+    </div>
+    <button onclick="closeInvitePanel()" style="width:32px;height:32px;border-radius:50%;background:var(--border);border:none;font-size:15px;cursor:pointer;display:grid;place-items:center;">✕</button>
+  </div>
+
+  <div style="padding:0 20px 16px;text-align:center;">
+    <!-- QR code -->
+    <div style="background:var(--white);border-radius:16px;padding:16px;display:inline-block;box-shadow:var(--cs);margin-bottom:14px;">
+      <div id="inviteQR"></div>
+    </div>
+
+    <!-- Code court -->
+    <div style="font-size:11px;font-weight:800;color:var(--text3);letter-spacing:.06em;margin-bottom:8px;">CODE À SAISIR</div>
+    <div id="inviteCode"
+      onclick="copyInviteCode()"
+      style="font-family:monospace;font-size:36px;font-weight:800;letter-spacing:.25em;
+             color:var(--blue);background:var(--sky);border-radius:14px;
+             padding:14px 20px;cursor:pointer;margin-bottom:6px;display:inline-block;">
+      ——————
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:16px;">
+      Appuyez pour copier · Valable 15 min
+    </div>
+
+    <!-- Bouton rafraîchir -->
+    <button onclick="refreshInvite()"
+      style="background:none;border:2px solid var(--border);border-radius:12px;
+             padding:10px 20px;font-family:var(--ft);font-size:13px;font-weight:800;
+             color:var(--text2);cursor:pointer;width:100%;max-width:280px;">
+      🔄 Générer un nouveau code
+    </button>
   </div>
 </div>
 
@@ -1100,29 +1154,24 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 <!-- ══ ONBOARDING MULTI-FAMILLE ══════════════════════════════ -->
 
-<!-- Écran 1 : Accueil — Créer | Rejoindre -->
+<!-- ACCUEIL -->
 <div class="ob-screen" id="obWelcome">
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
     <div class="ob-tagline">La récompense du comportement ✨</div>
   </div>
-
-  <!-- Appareil déjà configuré — affiché dynamiquement -->
+  <!-- Famille détectée sur cet appareil -->
   <div id="obKnownDevice" style="display:none;width:100%;max-width:340px;margin-bottom:16px;">
-    <div style="font-size:11px;font-weight:800;color:var(--text3);
-                letter-spacing:.06em;text-align:center;margin-bottom:8px;">
-      FAMILLE DÉTECTÉE SUR CET APPAREIL
-    </div>
+    <div style="font-size:11px;font-weight:800;color:var(--text3);letter-spacing:.06em;text-align:center;margin-bottom:8px;">SESSION DÉTECTÉE</div>
     <button class="ob-big-btn primary" onclick="obResumeSession()" id="obResumeBtn">
       <div class="ob-big-ico">🔄</div>
       <div class="ob-big-body">
         <div class="ob-big-label" id="obResumeLabel">Reprendre ma session</div>
-        <div class="ob-big-hint" id="obResumeHint">Famille détectée</div>
+        <div class="ob-big-hint" id="obResumeHint"></div>
       </div>
     </button>
-    <div class="drawer-sep" style="margin:12px 0;"></div>
+    <div class="drawer-sep" style="margin:14px 0;"></div>
   </div>
-
   <div class="ob-choice">
     <button class="ob-big-btn primary" onclick="obGo('obCreateAuth')">
       <div class="ob-big-ico">🏠</div>
@@ -1131,17 +1180,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="ob-big-hint">Je suis parent, je démarre</div>
       </div>
     </button>
-    <button class="ob-big-btn secondary" onclick="obGo('obJoinChoice')">
+    <button class="ob-big-btn secondary" onclick="obGo('obJoin')">
       <div class="ob-big-ico">🔗</div>
       <div class="ob-big-body">
         <div class="ob-big-label">Rejoindre une famille</div>
-        <div class="ob-big-hint">J'ai reçu une invitation</div>
+        <div class="ob-big-hint">J'ai un code ou un QR code</div>
       </div>
     </button>
-
-    <!-- Séparateur -->
     <div class="ob-or"><span>déjà un compte ?</span></div>
-
     <button class="ob-big-btn secondary" onclick="obGo('obSignIn')">
       <div class="ob-big-ico">🔐</div>
       <div class="ob-big-body">
@@ -1149,106 +1195,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
         <div class="ob-big-hint">Parent ou enfant existant</div>
       </div>
     </button>
-
     <div style="text-align:center;padding:8px 0 0;">
-      <button onclick="obGo('obDemo')"
-        style="background:none;border:none;font-size:12px;font-weight:700;
-               color:var(--text3);cursor:pointer;text-decoration:underline;">
+      <button onclick="obGo('obDemo')" style="background:none;border:none;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;text-decoration:underline;">
         Essayer sans compte (mode démo)
       </button>
     </div>
   </div>
 </div>
 
-<!-- Écran Se connecter — fork parent / enfant -->
-<div class="ob-screen hidden" id="obSignIn">
-  <button class="ob-back" onclick="obGo('obWelcome')">← Retour</button>
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Se connecter 🔐</div>
-    <div class="ob-card-sub">Choisissez votre rôle dans la famille</div>
-  </div>
-  <div class="ob-choice">
-    <button class="ob-big-btn primary" onclick="obGo('obSignInParent')">
-      <div class="ob-big-ico">👨‍👩‍👧</div>
-      <div class="ob-big-body">
-        <div class="ob-big-label">Je suis parent</div>
-        <div class="ob-big-hint">Connexion avec Google ou Apple</div>
-      </div>
-    </button>
-    <button class="ob-big-btn secondary" onclick="obGo('obSignInChild')">
-      <div class="ob-big-ico">🧒</div>
-      <div class="ob-big-body">
-        <div class="ob-big-label">Je suis un enfant</div>
-        <div class="ob-big-hint">Mot de passe ou code famille</div>
-      </div>
-    </button>
-  </div>
-</div>
-
-<!-- Écran Se connecter — Parent -->
-<div class="ob-screen hidden" id="obSignInParent">
-  <button class="ob-back" onclick="obGo('obSignIn')">← Retour</button>
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Connexion parent</div>
-    <div class="ob-card-sub">
-      Connectez-vous avec le même compte que lors de la création de votre famille
-    </div>
-  </div>
-  <div id="obSignInParentError" class="ob-error"></div>
-  <button class="ob-apple-btn" id="obAppleBtn3" onclick="obSignInApple('signin')">
-    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg">
-      <path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/>
-    </svg>
-    <span>Continuer avec Apple</span>
-  </button>
-  <button class="ob-auth-btn" onclick="obSignInGoogle('signin')">
-    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-      <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-      <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/>
-      <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-      <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-    </svg>
-    <span class="ob-auth-label">Continuer avec Google</span>
-  </button>
-</div>
-
-<!-- Écran Se connecter — Enfant -->
-<div class="ob-screen hidden" id="obSignInChild">
-  <button class="ob-back" onclick="obGo('obSignIn')">← Retour</button>
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Connexion enfant</div>
-    <div class="ob-card-sub">Entrez votre mot de passe, ou demandez un nouveau code à vos parents</div>
-  </div>
-  <div id="obSignInChildError" class="ob-error"></div>
-  <label class="ob-field-label">IDENTIFIANT FAMILLE</label>
-  <input class="ob-token-input" id="obSignInFamilyId" type="text"
-    placeholder="Code famille…" maxlength="40"
-    autocomplete="off" spellcheck="false">
-  <label class="ob-field-label" style="margin-top:8px;">MOT DE PASSE</label>
-  <input class="ob-field" id="obSignInPassword" type="password"
-    placeholder="Votre mot de passe…" maxlength="30"
-    autocomplete="current-password">
-  <button class="ob-btn" onclick="obSignInChildWithPassword()"
-    style="width:100%;max-width:340px;margin-top:4px;">
-    Se connecter ➜
-  </button>
-  <div class="ob-or" style="width:100%;max-width:340px;margin-top:12px;">
-    <span>ou avec un nouveau code</span>
-  </div>
-  <button class="ob-big-btn secondary" onclick="obGo('obJoinChild')"
-    style="width:100%;max-width:340px;">
-    <div class="ob-big-ico">🔗</div>
-    <div class="ob-big-body">
-      <div class="ob-big-label">Utiliser un code d'invitation</div>
-      <div class="ob-big-hint">Le parent doit en générer un nouveau</div>
-    </div>
-  </button>
-</div>
-
-<!-- Écran 2a : Auth parent (Créer) -->
+<!-- CRÉER — Auth parent -->
 <div class="ob-screen hidden" id="obCreateAuth">
   <button class="ob-back" onclick="obGo('obWelcome')">← Retour</button>
   <div class="ob-top">
@@ -1258,253 +1213,231 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   </div>
   <div id="obCreateAuthError" class="ob-error"></div>
   <button class="ob-apple-btn" id="obAppleBtn1" onclick="obSignInApple('create')">
-    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg">
-    <path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/>
-  </svg>
+    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/></svg>
     <span>Continuer avec Apple</span>
   </button>
   <button class="ob-auth-btn" onclick="obSignInGoogle('create')">
-    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/>
-    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-  </svg>
+    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
     <span class="ob-auth-label">Continuer avec Google</span>
   </button>
 </div>
 
-<!-- Écran 2b : Créer la famille -->
+<!-- CRÉER — Formulaire famille -->
 <div class="ob-screen hidden" id="obCreateFamily">
   <button class="ob-back" onclick="obGo('obCreateAuth')">← Retour</button>
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
     <div class="ob-card-title">Votre famille 🏠</div>
-    <div class="ob-card-sub">Comment s'appelle votre famille ?</div>
   </div>
   <div id="obCreateFamilyError" class="ob-error"></div>
   <label class="ob-field-label">NOM DE LA FAMILLE</label>
-  <input class="ob-field" id="obFamilyName" type="text"
-    placeholder="Famille Martin…" maxlength="30"
-    autocomplete="off" autocorrect="off" spellcheck="false">
-  <div class="ob-card-title" style="font-size:16px;margin-bottom:6px;width:100%;max-width:340px;">
-    Premier enfant 👶
-  </div>
-  <div class="ob-card-sub" style="margin-bottom:10px;width:100%;max-width:340px;">
-    Utilisez un prénom ou un surnom
-  </div>
-  <label class="ob-field-label">PRÉNOM (OU SURNOM)</label>
-  <input class="ob-field" id="obChildName" type="text"
-    placeholder="Léo, Chaton, Ninja…" maxlength="20"
-    autocomplete="off" autocorrect="off" spellcheck="false">
+  <input class="ob-field" id="obFamilyName" type="text" placeholder="Famille Martin…" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false">
+  <label class="ob-field-label" style="margin-top:4px;">PRÉNOM DU PREMIER ENFANT</label>
+  <input class="ob-field" id="obChildName" type="text" placeholder="Léo, Chaton, Ninja…" maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false">
   <label class="ob-field-label">AVATAR</label>
   <div class="ob-av-grid" id="obCreateAvatars" style="width:100%;max-width:340px;"></div>
-  <button class="ob-btn" id="obCreateBtn" onclick="obCreateFamily()" disabled
-    style="width:100%;max-width:340px;">
-    Créer ma famille 🚀
-  </button>
+  <button class="ob-btn" id="obCreateBtn" onclick="obCreateFamily()" disabled style="width:100%;max-width:340px;">Créer ma famille 🚀</button>
 </div>
 
-<!-- Écran 2c : Famille créée — tokens -->
-<div class="ob-screen hidden" id="obFamilyCreated">
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Famille créée ! 🎉</div>
-    <div class="ob-card-sub">
-      Pour connecter l'appareil de votre enfant,<br>partagez ce code :
-    </div>
-  </div>
-  <div class="ob-qr-wrap">
-    <canvas id="obQRCanvas"></canvas>
-    <div class="ob-qr-hint">Scannez avec l'appareil de l'enfant</div>
-  </div>
-  <div style="width:100%;max-width:340px;">
-    <div class="ob-or"><span>ou partagez le code</span></div>
-    <div id="obTokenDisplay"
-      style="font-family:monospace;font-size:20px;font-weight:800;
-             text-align:center;letter-spacing:.1em;color:var(--blue);
-             background:var(--sky);border-radius:12px;padding:14px;
-             margin-bottom:12px;cursor:pointer;"
-      onclick="copyToken()">
-      ——————
-    </div>
-    <div style="font-size:11px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:16px;">
-      Appuyez sur le code pour copier · Expire dans 7 jours
-    </div>
-    <button class="ob-btn" onclick="obFinishCreate()"
-      style="width:100%;max-width:340px;">
-      Accéder au mode parent ➜
-    </button>
-  </div>
-</div>
-
-<!-- Écran 3 : Rejoindre — choix parent / enfant -->
-<div class="ob-screen hidden" id="obJoinChoice">
+<!-- REJOINDRE — Scanner ou code -->
+<div class="ob-screen hidden" id="obJoin">
   <button class="ob-back" onclick="obGo('obWelcome')">← Retour</button>
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
+    <div class="ob-card-title">Rejoindre une famille</div>
+    <div class="ob-card-sub">Scannez le QR code ou saisissez le code</div>
+  </div>
+  <div id="obJoinError" class="ob-error"></div>
+
+  <!-- QR Scanner -->
+  <div style="width:100%;max-width:340px;margin-bottom:12px;">
+    <div id="obQRReader" style="border-radius:16px;overflow:hidden;display:none;"></div>
+    <button class="ob-big-btn secondary" id="obScanBtn" onclick="obStartScan()" style="width:100%;">
+      <div class="ob-big-ico">📷</div>
+      <div class="ob-big-body">
+        <div class="ob-big-label">Scanner le QR code</div>
+        <div class="ob-big-hint">Ouvre la caméra</div>
+      </div>
+    </button>
+  </div>
+
+  <div class="ob-or"><span>ou saisir le code</span></div>
+
+  <label class="ob-field-label">CODE D'INVITATION (6 caractères)</label>
+  <div style="display:flex;gap:8px;width:100%;max-width:340px;margin-bottom:12px;">
+    <input class="ob-token-input" id="obJoinCode" type="text"
+      placeholder="EX: K7X2MQ" maxlength="6" style="flex:1;font-size:22px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:0;"
+      autocomplete="off" spellcheck="false">
+    <button class="ob-btn" onclick="obValidateCode()" style="width:auto;padding:0 20px;margin:0;">OK</button>
+  </div>
+</div>
+
+<!-- REJOINDRE — Vérification nom famille -->
+<div class="ob-screen hidden" id="obJoinVerify">
+  <button class="ob-back" onclick="obGo('obJoin')">← Retour</button>
+  <div class="ob-top">
+    <div class="ob-logo">Reward<span>Kidz</span></div>
+    <div class="ob-card-title">Vérification 🔒</div>
+    <div class="ob-card-sub">Entrez le nom de la famille pour confirmer</div>
+  </div>
+  <div id="obJoinVerifyError" class="ob-error"></div>
+  <label class="ob-field-label">NOM DE LA FAMILLE</label>
+  <input class="ob-field" id="obJoinFamilyName" type="text" placeholder="Famille Martin…" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false">
+  <button class="ob-btn" onclick="obVerifyFamilyName()" style="width:100%;max-width:340px;margin-top:4px;">Confirmer ➜</button>
+</div>
+
+<!-- REJOINDRE — Choisir rôle -->
+<div class="ob-screen hidden" id="obJoinRole">
+  <div class="ob-top">
+    <div class="ob-logo">Reward<span>Kidz</span></div>
     <div class="ob-card-title">Qui êtes-vous ?</div>
-    <div class="ob-card-sub">Cela détermine le type d'accès</div>
+    <div class="ob-card-sub" id="obJoinRoleFamilyName"></div>
   </div>
   <div class="ob-choice">
     <button class="ob-big-btn primary" onclick="obGo('obJoinParentAuth')">
       <div class="ob-big-ico">👨‍👩‍👧</div>
       <div class="ob-big-body">
         <div class="ob-big-label">Je suis parent</div>
-        <div class="ob-big-hint">J'ai reçu une invitation parent</div>
+        <div class="ob-big-hint">Connexion avec Google ou Apple</div>
       </div>
     </button>
-    <button class="ob-big-btn secondary" onclick="obGo('obJoinChild')">
+    <button class="ob-big-btn secondary" onclick="obJoinShowChildren()">
       <div class="ob-big-ico">🧒</div>
       <div class="ob-big-body">
         <div class="ob-big-label">Je suis un enfant</div>
-        <div class="ob-big-hint">J'ai un code ou QR code</div>
+        <div class="ob-big-hint">Choisir mon prénom</div>
       </div>
     </button>
   </div>
 </div>
 
-<!-- Écran 4a : Rejoindre — Auth parent -->
+<!-- REJOINDRE — Auth parent -->
 <div class="ob-screen hidden" id="obJoinParentAuth">
-  <button class="ob-back" onclick="obGo('obJoinChoice')">← Retour</button>
+  <button class="ob-back" onclick="obGo('obJoinRole')">← Retour</button>
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
     <div class="ob-card-title">Connexion parent</div>
-    <div class="ob-card-sub">Connectez-vous puis saisissez le code d'invitation</div>
+    <div class="ob-card-sub">Connectez-vous pour rejoindre la famille</div>
   </div>
   <div id="obJoinParentError" class="ob-error"></div>
   <button class="ob-apple-btn" id="obAppleBtn2" onclick="obSignInApple('join')">
-    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg">
-    <path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/>
-  </svg>
+    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/></svg>
     <span>Continuer avec Apple</span>
   </button>
   <button class="ob-auth-btn" onclick="obSignInGoogle('join')">
-    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/>
-    <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-  </svg>
+    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
     <span class="ob-auth-label">Continuer avec Google</span>
   </button>
 </div>
 
-<!-- Écran 4b : Saisir token parent -->
-<div class="ob-screen hidden" id="obJoinParentToken">
-  <button class="ob-back" onclick="obGo('obJoinParentAuth')">← Retour</button>
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Code d'invitation</div>
-    <div class="ob-card-sub">Saisissez le code reçu du premier parent</div>
-  </div>
-  <div id="obJoinParentTokenError" class="ob-error"></div>
-  <label class="ob-field-label">CODE FAMILLE (32 caractères)</label>
-  <input class="ob-token-input" id="obParentToken" type="text"
-    placeholder="Collez le code ici…"
-    autocomplete="off" autocorrect="off" spellcheck="false" maxlength="32">
-  <button class="ob-btn" id="obJoinParentBtn" onclick="obJoinParent()"
-    style="width:100%;max-width:340px;margin-top:4px;">
-    Rejoindre la famille ➜
-  </button>
-</div>
-
-<!-- Écran 5 : Rejoindre — Enfant (token + choix prénom) -->
-<div class="ob-screen hidden" id="obJoinChild">
-  <button class="ob-back" onclick="obGo('obJoinChoice')">← Retour</button>
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Rejoindre ma famille</div>
-    <div class="ob-card-sub">Saisissez le code donné par vos parents</div>
-  </div>
-  <div id="obJoinChildError" class="ob-error"></div>
-  <label class="ob-field-label">CODE (32 caractères)</label>
-  <input class="ob-token-input" id="obChildToken" type="text"
-    placeholder="Collez le code ici…"
-    autocomplete="off" autocorrect="off" spellcheck="false" maxlength="32">
-  <button class="ob-btn" onclick="obValidateChildToken()"
-    style="width:100%;max-width:340px;margin-top:4px;">
-    Valider le code ➜
-  </button>
-</div>
-
-<!-- Écran 6 : Choix du prénom enfant -->
-<div class="ob-screen hidden" id="obSelectChild">
+<!-- REJOINDRE — Enfant : choisir prénom -->
+<div class="ob-screen hidden" id="obJoinChildSelect">
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
     <div class="ob-card-title">C'est toi ! 👋</div>
-    <div class="ob-card-sub">Choisis ton prénom dans la liste</div>
+    <div class="ob-card-sub">Choisis ton prénom</div>
   </div>
-  <div id="obSelectChildError" class="ob-error"></div>
+  <div id="obJoinChildError" class="ob-error"></div>
   <div class="ob-child-list" id="obChildList"></div>
-  <div class="ob-or" style="width:100%;max-width:340px;margin-top:16px;">
-    <span>mot de passe optionnel</span>
-  </div>
-  <input class="ob-field" id="obChildPassword" type="password"
-    placeholder="Créer un mot de passe (optionnel)" maxlength="30"
-    autocomplete="new-password"
-    style="margin-bottom:4px;">
-  <div style="font-size:11px;font-weight:600;color:var(--text2);
-              width:100%;max-width:340px;margin-bottom:16px;">
-    Permet de vous reconnecter sur un autre appareil sans code
-  </div>
-  <button class="ob-btn" id="obSelectChildBtn" onclick="obJoinChild()" disabled
-    style="width:100%;max-width:340px;">
-    C'est parti ! 🚀
+  <div class="ob-or" style="width:100%;max-width:340px;margin-top:16px;"><span>connexion optionnelle</span></div>
+  <button class="ob-apple-btn" id="obAppleBtn3" onclick="obSignInApple('child')" style="width:100%;max-width:340px;margin-bottom:10px;">
+    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/></svg>
+    <span>Associer un compte Apple</span>
+  </button>
+  <button class="ob-auth-btn" onclick="obSignInGoogle('child')" style="width:100%;max-width:340px;margin-bottom:12px;">
+    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+    <span class="ob-auth-label">Associer un compte Google</span>
+  </button>
+  <button class="ob-btn" id="obJoinChildBtn" onclick="obConfirmChild()" disabled style="width:100%;max-width:340px;">
+    Continuer sans compte ➜
   </button>
 </div>
 
-<!-- Écran démo (accès rapide sans compte) -->
+<!-- SE CONNECTER — Fork -->
+<div class="ob-screen hidden" id="obSignIn">
+  <button class="ob-back" onclick="obGo('obWelcome')">← Retour</button>
+  <div class="ob-top">
+    <div class="ob-logo">Reward<span>Kidz</span></div>
+    <div class="ob-card-title">Se connecter 🔐</div>
+    <div class="ob-card-sub">Connectez-vous avec votre compte</div>
+  </div>
+  <div id="obSignInError" class="ob-error"></div>
+  <button class="ob-apple-btn" id="obAppleBtn4" onclick="obSignInApple('signin')">
+    <svg width="17" height="20" viewBox="0 0 17 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M13.117 0c.217 1.643-.476 3.25-1.395 4.412-.952 1.19-2.5 2.1-3.968 2.002-.247-1.584.46-3.232 1.37-4.293C10.063.967 11.72.077 13.117 0zM16.913 13.9c-.46 1.007-.68 1.457-1.27 2.34-.824 1.25-1.985 2.807-3.43 2.82-1.28.013-1.61-.828-3.347-.818-1.737.01-2.1.834-3.382.821C4.042 18.85 2.94 17.45 2.117 16.2 0 12.985-.52 9.228.724 7.295c.877-1.358 2.26-2.154 3.558-2.154 1.323 0 2.155.836 3.25.836 1.065 0 1.713-.838 3.247-.838 1.158 0 2.39.63 3.267 1.72-2.87 1.572-2.404 5.666.867 7.04z"/></svg>
+    <span>Continuer avec Apple</span>
+  </button>
+  <button class="ob-auth-btn" onclick="obSignInGoogle('signin')">
+    <svg class="ob-auth-ico" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+    <span class="ob-auth-label">Continuer avec Google</span>
+  </button>
+  <div style="font-size:11px;font-weight:600;color:var(--text2);text-align:center;margin-top:8px;">
+    Parent ou enfant avec compte associé
+  </div>
+</div>
+
+<!-- SE CONNECTER — Vérification nom famille (nouvel appareil) -->
+<div class="ob-screen hidden" id="obSignInVerify">
+  <button class="ob-back" onclick="obGo('obSignIn')">← Retour</button>
+  <div class="ob-top">
+    <div class="ob-logo">Reward<span>Kidz</span></div>
+    <div class="ob-card-title">Vérification 🔒</div>
+    <div class="ob-card-sub">Confirmez le nom de votre famille pour accéder à votre espace</div>
+  </div>
+  <div id="obSignInVerifyError" class="ob-error"></div>
+  <label class="ob-field-label">NOM DE LA FAMILLE</label>
+  <input class="ob-field" id="obSignInFamilyName" type="text" placeholder="Famille Martin…" maxlength="30" autocomplete="off" autocorrect="off" spellcheck="false">
+  <button class="ob-btn" onclick="obSignInVerify()" style="width:100%;max-width:340px;margin-top:4px;">Accéder ➜</button>
+</div>
+
+<!-- FAMILLE CRÉÉE — QR + code court -->
+<div class="ob-screen hidden" id="obFamilyCreated">
+  <div class="ob-top">
+    <div class="ob-logo">Reward<span>Kidz</span></div>
+    <div class="ob-card-title">Famille créée ! 🎉</div>
+    <div class="ob-card-sub">Partagez ce code pour inviter un membre</div>
+  </div>
+  <div class="ob-qr-wrap">
+    <div id="obQRDisplay"></div>
+    <div class="ob-qr-hint">QR code pour rejoindre</div>
+  </div>
+  <div style="width:100%;max-width:340px;">
+    <div style="font-size:11px;font-weight:800;color:var(--text3);letter-spacing:.06em;text-align:center;margin-bottom:8px;">CODE À SAISIR</div>
+    <div id="obShortCodeDisplay"
+      style="font-family:monospace;font-size:32px;font-weight:800;text-align:center;
+             letter-spacing:.25em;color:var(--blue);background:var(--sky);
+             border-radius:16px;padding:16px;margin-bottom:6px;cursor:pointer;"
+      onclick="copyShortCode()">——</div>
+    <div style="font-size:11px;font-weight:600;color:var(--text2);text-align:center;margin-bottom:16px;">
+      Appuyez pour copier · Expire dans 15 min
+    </div>
+    <button class="ob-btn" onclick="obFinishCreate()" style="width:100%;max-width:340px;">
+      Accéder au mode parent ➜
+    </button>
+  </div>
+</div>
+
+<!-- MODE DÉMO -->
 <div class="ob-screen hidden" id="obDemo">
   <button class="ob-back" onclick="obGo('obWelcome')">← Retour</button>
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
     <div class="ob-card-title">Mode démo 🔧</div>
-    <div class="ob-card-sub">
-      Les données sont partagées et non sécurisées.<br>
-      Pour un usage réel, créez une famille.
-    </div>
+    <div class="ob-card-sub">Données partagées, non sécurisées.<br>Pour un usage réel, créez une famille.</div>
   </div>
   <div class="ob-choice">
-    <label class="ob-field-label" style="margin-top:8px;">TON PRÉNOM</label>
-    <input class="ob-field" id="obDemoName" type="text"
-      placeholder="Ton prénom…" maxlength="20"
-      autocomplete="off" autocorrect="off" spellcheck="false">
+    <label class="ob-field-label">TON PRÉNOM</label>
+    <input class="ob-field" id="obDemoName" type="text" placeholder="Ton prénom…" maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false">
     <div class="ob-av-grid" id="obDemoAvatars" style="width:100%;max-width:340px;"></div>
-    <button class="ob-btn" id="obDemoBtn" onclick="obStartDemo()" disabled
-      style="width:100%;max-width:340px;margin-top:4px;">
-      Essayer en démo ➜
-    </button>
+    <button class="ob-btn" id="obDemoBtn" onclick="obStartDemo()" disabled style="width:100%;max-width:340px;margin-top:4px;">Essayer en démo ➜</button>
   </div>
 </div>
 
-<!-- Spinner de chargement global -->
-<!-- Écran Se connecter — Parent sans famille locale -->
-<div class="ob-screen hidden" id="obSignInParentToken">
-  <button class="ob-back" onclick="obGo('obSignInParent')">← Retour</button>
-  <div class="ob-top">
-    <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-card-title">Identifiant famille</div>
-    <div class="ob-card-sub">
-      Votre famille n'est pas enregistrée sur cet appareil.<br>
-      Saisissez l'identifiant famille (visible dans les réglages).
-    </div>
-  </div>
-  <div id="obSignInParentTokenError" class="ob-error"></div>
-  <label class="ob-field-label">IDENTIFIANT FAMILLE</label>
-  <input class="ob-token-input" id="obSignInParentFamilyId" type="text"
-    placeholder="Ex: a3f7b2c9d1e4…" maxlength="40"
-    autocomplete="off" spellcheck="false">
-  <button class="ob-btn" onclick="obSignInParentWithFamily()"
-    style="width:100%;max-width:340px;margin-top:4px;">
-    Accéder à ma famille ➜
-  </button>
-</div>
-
+<!-- CHARGEMENT -->
 <div class="ob-screen hidden" id="obLoading">
   <div class="ob-spinner"></div>
   <div style="font-size:13px;font-weight:700;color:var(--text2);" id="obLoadingMsg">Chargement…</div>
 </div>
+
 
 <!-- APP SHELL -->
 <div id="appShell" class="hidden">
@@ -1734,28 +1667,30 @@ function scCol(v){ return SC[Math.round(v)]||'#4a90d9'; }
 // ONBOARDING MULTI-FAMILLE
 // ══════════════════════════════════════════════════════════════
 
-const OB_SCREENS = ['obWelcome','obCreateAuth','obCreateFamily','obFamilyCreated',
-  'obJoinChoice','obJoinParentAuth','obJoinParentToken','obJoinChild',
-  'obSelectChild','obDemo','obLoading',
-  'obSignIn','obSignInParent','obSignInChild','obSignInParentToken'];
+const OB_SCREENS = [
+  'obWelcome','obCreateAuth','obCreateFamily','obFamilyCreated',
+  'obJoin','obJoinVerify','obJoinRole','obJoinParentAuth','obJoinChildSelect',
+  'obSignIn','obSignInVerify','obDemo','obLoading'
+];
 
-// État onboarding
-let obSelAv     = STARTERS[0].id;  // avatar sélectionné
-let obFamilyId  = null;             // familyId en cours de création
-let obChildId   = null;             // childId sélectionné
-let obToken     = null;             // token généré / validé
-let obPendingAction = null;         // 'create' | 'join' (après auth)
-let obChildList = [];               // liste des enfants de la famille
+// État partagé de l'onboarding
+let obSelAv      = STARTERS[0].id;
+let obFamilyId   = null;   // familyId courant
+let obChildId    = null;   // childId courant (sélectionné par l'enfant)
+let obToken      = null;   // token UUID (pour QR)
+let obShortCode  = null;   // code 6 chars (saisie manuelle)
+let obJoinData   = null;   // {familyId, tokenId, token, type} après validation du code
+let obPendingAction = null;
 
-// ── Navigation entre écrans ──────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────
 window.obGo = function(screenId) {
   OB_SCREENS.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('hidden', id !== screenId);
   });
-  // Cacher aussi l'appShell si on revient à l'onboarding
   document.getElementById('appShell')?.classList.add('hidden');
-  document.getElementById('bnav')?.style && (document.getElementById('bnav').style.display = 'none');
+  const bnav = document.getElementById('bnav');
+  if(bnav) bnav.style.display = 'none';
 };
 
 function obShowError(id, msg) {
@@ -1763,7 +1698,7 @@ function obShowError(id, msg) {
   if(!el) return;
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 5000);
+  setTimeout(() => el.classList.remove('show'), 6000);
 }
 
 function obSetLoading(msg = 'Chargement…') {
@@ -1771,33 +1706,24 @@ function obSetLoading(msg = 'Chargement…') {
   obGo('obLoading');
 }
 
-// ── Grilles d'avatars ────────────────────────────────────────
+// ── Grilles d'avatars ─────────────────────────────────────────
 function renderObAvatars(containerId, selId, onSelect) {
   const el = document.getElementById(containerId);
   if(!el) return;
   el.innerHTML = STARTERS.map(a => `
-    <div class="ob-av ${a.id===selId?'sel':''}"
-      onclick="${onSelect}('${a.id}')">
+    <div class="ob-av ${a.id===selId?'sel':''}" onclick="${onSelect}('${a.id}')">
       <div class="ob-av-ico">${a.ico}</div>
       <div class="ob-av-lbl">${a.lbl}</div>
     </div>`).join('');
 }
 
-window.obSelCreateAv = function(id) {
-  obSelAv = id;
-  renderObAvatars('obCreateAvatars', obSelAv, 'obSelCreateAv');
-  checkObCreate();
-};
-window.obSelDemoAv = function(id) {
-  obSelAv = id;
-  renderObAvatars('obDemoAvatars', obSelAv, 'obSelDemoAv');
-  checkObDemo();
-};
+window.obSelCreateAv = id => { obSelAv=id; renderObAvatars('obCreateAvatars', obSelAv, 'obSelCreateAv'); checkObCreate(); };
+window.obSelDemoAv   = id => { obSelAv=id; renderObAvatars('obDemoAvatars',   obSelAv, 'obSelDemoAv');   checkObDemo(); };
 
 function checkObCreate() {
-  const name   = document.getElementById('obFamilyName')?.value.trim() || '';
-  const child  = document.getElementById('obChildName')?.value.trim() || '';
-  const btn    = document.getElementById('obCreateBtn');
+  const name  = document.getElementById('obFamilyName')?.value.trim() || '';
+  const child = document.getElementById('obChildName')?.value.trim() || '';
+  const btn   = document.getElementById('obCreateBtn');
   if(btn) btn.disabled = name.length < 2 || child.length < 2;
 }
 function checkObDemo() {
@@ -1806,225 +1732,178 @@ function checkObDemo() {
   if(btn) btn.disabled = name.length < 2;
 }
 
-// Initialiser les champs onboarding
+// ── Détection Apple / setup boutons ──────────────────────────
+function setupAppleButton() {
+  const isSafariOrApple = /iPhone|iPad|iPod|Macintosh/i.test(navigator.userAgent)
+    || /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  ['obAppleBtn1','obAppleBtn2','obAppleBtn3','obAppleBtn4'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = isSafariOrApple ? '' : 'none';
+  });
+}
+
+// ── Détection appareil connu ──────────────────────────────────
+function detectKnownDevice() {
+  const session  = localStorage.getItem('rk_session');
+  const familyId = localStorage.getItem('rk_family_id');
+  if(!session && !familyId) return;
+  const el    = document.getElementById('obKnownDevice');
+  const label = document.getElementById('obResumeLabel');
+  const hint  = document.getElementById('obResumeHint');
+  if(!el) return;
+  try {
+    if(session) {
+      const s = JSON.parse(session);
+      label.textContent = "Reprendre en tant qu'enfant";
+      hint.textContent  = s.familyId?.slice(0,8) + '…';
+    } else {
+      label.textContent = 'Reprendre en tant que parent';
+      hint.textContent  = familyId?.slice(0,8) + '…';
+    }
+    el.style.display = '';
+  } catch(e) {}
+}
+
+window.obResumeSession = function() { showApp(); };
+
+// ── Initialisation des champs ─────────────────────────────────
 function initObFields() {
   renderObAvatars('obCreateAvatars', obSelAv, 'obSelCreateAv');
   renderObAvatars('obDemoAvatars',   obSelAv, 'obSelDemoAv');
-
   document.getElementById('obFamilyName')?.addEventListener('input', checkObCreate);
   document.getElementById('obChildName')?.addEventListener('input', checkObCreate);
   document.getElementById('obDemoName')?.addEventListener('input', checkObDemo);
-
-  ['obParentToken','obChildToken'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.style.cssText += ';user-select:auto;-webkit-user-select:auto;';
+  document.getElementById('obJoinCode')?.addEventListener('input', e => {
+    e.target.value = e.target.value.toUpperCase();
   });
-
   setupAppleButton();
   detectKnownDevice();
 }
 
-// ── Détection plateforme pour Apple Sign-In ──────────────────
-// Apple Sign-In ne fonctionne que sur Safari (iOS/macOS)
-// On masque le bouton sur les autres navigateurs
-function setupAppleButton() {
-  const isApplePlatform = /iPhone|iPad|iPod|Macintosh/i.test(navigator.userAgent);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const showApple = isApplePlatform || isSafari;
-  ['obAppleBtn1','obAppleBtn2','obAppleBtn3'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.style.display = showApple ? '' : 'none';
-  });
-}
+// ── AUTH GOOGLE / APPLE ───────────────────────────────────────
 window.obSignInApple = async function(action) {
   obPendingAction = action;
-  const errId = action === 'create' ? 'obCreateAuthError' : 'obJoinParentError';
+  localStorage.setItem('rk_ob_action', action);
   try {
     obSetLoading('Connexion Apple…');
     const user = await FB.signInWithApple();
-    if(!user) return; // Redirect en cours → page va se recharger
+    if(!user) return; // redirect en cours
     await obAfterAuth(user, action);
   } catch(e) {
-    obGo(action === 'create' ? 'obCreateAuth' : 'obJoinParentAuth');
-    obShowError(errId, `Erreur : ${e.message}`);
+    obGo(action === 'create' ? 'obCreateAuth' : action === 'join' ? 'obJoinParentAuth' : 'obSignIn');
+    obShowError(action === 'create' ? 'obCreateAuthError' : action === 'join' ? 'obJoinParentError' : 'obSignInError', `Erreur : ${e.message}`);
   }
 };
 
 window.obSignInGoogle = async function(action) {
   obPendingAction = action;
-  localStorage.setItem('rk_ob_action', action); // survit au redirect page (sessionStorage ne survit pas)
-  const errId = action === 'create' ? 'obCreateAuthError' : 'obJoinParentError';
+  localStorage.setItem('rk_ob_action', action);
   try {
     obSetLoading('Connexion Google…');
     const user = await FB.signInWithGoogle();
-    if(!user) return; // Redirect en cours → page va se recharger
+    if(!user) return; // redirect en cours
     await obAfterAuth(user, action);
   } catch(e) {
-    obGo(action === 'create' ? 'obCreateAuth' : 'obJoinParentAuth');
-    obShowError(errId, `Erreur : ${e.message}`);
+    obGo(action === 'create' ? 'obCreateAuth' : action === 'join' ? 'obJoinParentAuth' : 'obSignIn');
+    obShowError(action === 'create' ? 'obCreateAuthError' : action === 'join' ? 'obJoinParentError' : 'obSignInError', `Erreur : ${e.message}`);
   }
 };
 
+// ── Après auth ────────────────────────────────────────────────
 async function obAfterAuth(user, action) {
+  localStorage.removeItem('rk_ob_action');
   if(action === 'create') {
     obGo('obCreateFamily');
   } else if(action === 'join') {
-    obGo('obJoinParentToken');
-  } else if(action === 'signin') {
-    // Reconnexion parent — chercher la famille associée au compte
-    obSetLoading('Recherche de votre famille…');
+    // Rejoindre en tant que parent — compléter l'inscription
+    obSetLoading('Finalisation…');
     try {
-      const cachedFamilyId = localStorage.getItem('rk_family_id');
-      if(cachedFamilyId) {
-        // Famille déjà connue sur cet appareil → vérifier que l'user en est owner
-        const fam = await FB.getFamily(cachedFamilyId);
-        if(fam && (fam.ownerIds || []).includes(user.uid)) {
-          localStorage.setItem('rk_family_id', cachedFamilyId);
-          currentFamilyId = cachedFamilyId;
-          showApp();
-          return;
-        }
-      }
-      // Pas de famille locale → demander de fournir le code famille
-      obGo('obSignInParentToken');
+      if(!obJoinData) throw new Error('Données de jointure manquantes');
+      await FB.joinFamilyAsParent(obJoinData.familyId, obJoinData.token, user.uid);
+      currentFamilyId = obJoinData.familyId;
+      localStorage.setItem('rk_family_id', currentFamilyId);
+      showApp();
     } catch(e) {
-      obGo('obSignInParent');
-      obShowError('obSignInParentError', `Erreur : ${e.message}`);
+      obGo('obJoinParentAuth');
+      obShowError('obJoinParentError', `Erreur : ${e.message}`);
+    }
+  } else if(action === 'child') {
+    // Enfant avec compte Google — associer au profil sélectionné
+    obSetLoading('Association du compte…');
+    try {
+      if(!obJoinData || !obChildId) throw new Error('Profil enfant non sélectionné');
+      await FB.joinFamilyAsChild(obJoinData.familyId, obJoinData.token);
+      currentFamilyId = obJoinData.familyId;
+      currentChildId  = obChildId;
+      localStorage.setItem('rk_family_id', currentFamilyId);
+      const profile = await FB.getProfile(currentFamilyId, currentChildId);
+      S.playerName    = profile?.displayName || '';
+      S.equipped.skin = profile?.avatarSkin  || 's0';
+      save();
+      showApp();
+    } catch(e) {
+      obGo('obJoinChildSelect');
+      obShowError('obJoinChildError', `Erreur : ${e.message}`);
+    }
+  } else if(action === 'signin') {
+    // Reconnexion — chercher la famille
+    obSetLoading('Recherche de votre espace…');
+    try {
+      const found = await FB.findFamilyByUser(user.uid);
+      if(found) {
+        currentFamilyId = found.familyId;
+        currentRole     = found.role;
+        localStorage.setItem('rk_family_id', found.familyId);
+        // Appareil inconnu → vérifier le nom de famille
+        obGo('obSignInVerify');
+      } else {
+        // Compte existant mais famille inconnue → proposer de rejoindre
+        obGo('obJoin');
+        obShowError('obJoinError', 'Famille non trouvée pour ce compte. Utilisez un code d\'invitation.');
+      }
+    } catch(e) {
+      obGo('obSignIn');
+      obShowError('obSignInError', `Erreur : ${e.message}`);
     }
   }
 }
 
-// Connexion parent existant avec saisie du familyId
-window.obSignInParentWithFamily = async function() {
-  const fid   = document.getElementById('obSignInParentFamilyId')?.value.trim();
-  const user  = FB.currentUser();
-  if(!user || !fid) return;
+// ── Vérification nom famille (reconnexion) ────────────────────
+window.obSignInVerify = async function() {
+  const nameInput = document.getElementById('obSignInFamilyName')?.value.trim();
+  if(!nameInput) return;
   obSetLoading('Vérification…');
   try {
-    const fam = await FB.getFamily(fid);
-    if(!fam) throw new Error('Famille introuvable');
-    if(!(fam.ownerIds || []).includes(user.uid)) throw new Error('Vous n\'êtes pas parent de cette famille');
-    localStorage.setItem('rk_family_id', fid);
-    currentFamilyId = fid;
+    await FB.verifyFamilyName(currentFamilyId, nameInput);
     showApp();
   } catch(e) {
-    obGo('obSignInParentToken');
-    obShowError('obSignInParentTokenError', `Erreur : ${e.message}`);
+    obGo('obSignInVerify');
+    obShowError('obSignInVerifyError', `Erreur : ${e.message}`);
   }
 };
 
-// Connexion enfant avec mot de passe
-window.obSignInChildWithPassword = async function() {
-  const fidRaw  = document.getElementById('obSignInFamilyId')?.value.trim();
-  const password = document.getElementById('obSignInPassword')?.value.trim();
-  if(!fidRaw || !password) {
-    obShowError('obSignInChildError', 'Remplissez tous les champs');
-    return;
-  }
-  obSetLoading('Connexion…');
-  try {
-    // Format accepté : fid:childId ou fid seul (on liste les enfants)
-    const parts = fidRaw.split(':');
-    const fid   = parts[0];
-    let childId = parts[1] || null;
-
-    if(!childId) {
-      // Pas de childId → afficher la liste des enfants pour choisir
-      const children = await FB.getChildren(fid);
-      if(!children.length) throw new Error('Aucun enfant dans cette famille');
-      // Essayer le mot de passe sur chaque enfant
-      let matched = null;
-      for(const child of children) {
-        try {
-          const result = await FB.loginChildWithPassword(fid, child.id, password);
-          matched = result;
-          break;
-        } catch(e) { /* Mauvais mot de passe pour cet enfant → continuer */ }
-      }
-      if(!matched) throw new Error('Mot de passe incorrect');
-      currentFamilyId = matched.familyId;
-      currentChildId  = matched.childId;
-    } else {
-      const result = await FB.loginChildWithPassword(fid, childId, password);
-      currentFamilyId = result.familyId;
-      currentChildId  = result.childId;
-    }
-
-    const profile = await FB.getProfile(currentFamilyId, currentChildId);
-    S.playerName    = profile?.displayName || '';
-    S.equipped.skin = profile?.avatarSkin  || 's0';
-    save();
-    showApp();
-  } catch(e) {
-    obGo('obSignInChild');
-    obShowError('obSignInChildError', `Erreur : ${e.message}`);
-  }
-};
-
-// Reprendre la session détectée sur l'appareil
-window.obResumeSession = function() {
-  showApp();
-};
-
-// Détecter une famille connue et afficher le bouton de reprise
-function detectKnownDevice() {
-  const session  = localStorage.getItem('rk_session');
-  const familyId = localStorage.getItem('rk_family_id');
-  if(!session && !familyId) return;
-
-  const knownEl = document.getElementById('obKnownDevice');
-  const label   = document.getElementById('obResumeLabel');
-  const hint    = document.getElementById('obResumeHint');
-  if(!knownEl) return;
-
-  if(session) {
-    try {
-      const s = JSON.parse(session);
-      label.textContent = `Reprendre en tant qu'enfant`;
-      hint.textContent  = `Famille : ${s.familyId?.slice(0,8)}…`;
-    } catch(e) {
-      label.textContent = 'Reprendre ma session';
-      hint.textContent  = 'Session enfant détectée';
-    }
-  } else if(familyId) {
-    label.textContent = 'Reprendre en tant que parent';
-    hint.textContent  = `Famille : ${familyId.slice(0,8)}…`;
-  }
-
-  knownEl.style.display = '';
-}
-
-// ── Créer la famille ─────────────────────────────────────────
+// ── CRÉER UNE FAMILLE ─────────────────────────────────────────
 window.obCreateFamily = async function() {
   const familyName = document.getElementById('obFamilyName').value.trim();
   const childName  = document.getElementById('obChildName').value.trim();
   if(familyName.length < 2 || childName.length < 2) return;
-
   obSetLoading('Création de la famille…');
   try {
     const user = FB.currentUser();
-    if(!user) throw new Error('Non connecté — veuillez vous reconnecter');
-
-    // Créer la famille (sans stocker rk_family_id pour l'instant)
+    if(!user) throw new Error('Non connecté');
     obFamilyId = await FB.createFamily(user.uid, familyName);
-
     obSetLoading('Ajout de l\'enfant…');
     obChildId = await FB.addChildToFamily(obFamilyId, childName, obSelAv);
-
     obSetLoading('Initialisation…');
     await FB.initDefaultCatalog(obFamilyId);
     await FB.initDefaultShop(obFamilyId);
-
-    // Générer le token enfant
-    const tokenData = await FB.generateInviteToken(obFamilyId, obChildId, 'child');
-    obToken = tokenData?.token;
-    if(!obToken) throw new Error('Impossible de générer le code d\'invitation');
-
-    // Tout s'est bien passé → stocker maintenant
+    // Générer une invitation initiale (15 min)
+    const inv = await FB.generateFamilyInvite(obFamilyId);
+    obToken     = inv.token;
+    obShortCode = inv.shortCode;
     localStorage.setItem('rk_family_id', obFamilyId);
-
     obGo('obFamilyCreated');
-    renderObToken(obToken, obFamilyId);
+    renderObInvite(obToken, obShortCode, obFamilyId);
   } catch(e) {
     console.error('[obCreateFamily]', e);
     obGo('obCreateFamily');
@@ -2032,174 +1911,221 @@ window.obCreateFamily = async function() {
   }
 };
 
-async function getLastChildToken(fid, childId) {
-  // Le token a été créé par addChildToFamily — on le retrouve via generateInviteToken
-  // qui retourne { token, tokenId, expiresAt }
-  // Comme on ne l'a pas stocké, on en génère un nouveau
-  return await FB.generateInviteToken(fid, childId, 'child');
+function renderObInvite(token, shortCode, fid) {
+  // Code court
+  const codeEl = document.getElementById('obShortCodeDisplay');
+  if(codeEl) { codeEl.textContent = shortCode; codeEl.dataset.code = shortCode; }
+
+  // QR code via Google Charts (URL complète avec fid + token)
+  const url   = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
+  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=180x180&chl=${encodeURIComponent(url)}&choe=UTF-8`;
+  const el    = document.getElementById('obQRDisplay');
+  if(el) el.innerHTML = `<img src="${qrUrl}" width="180" height="180" alt="QR code" style="display:block;margin:0 auto;border-radius:8px;">`;
 }
 
-function renderObToken(token, fid) {
-  // Stocker le token complet pour le bouton copier
-  const tokenEl = document.getElementById('obTokenDisplay');
-  tokenEl.textContent = token;
-  tokenEl.dataset.full = token;
-
-  // URL d'invitation — format fid:token pour faciliter le parsing
-  const inviteUrl = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
-
-  // QR code via Google Charts API (gratuit, fiable, pas de JS)
-  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=${encodeURIComponent(inviteUrl)}&choe=UTF-8`;
-    const canvas = document.getElementById('obQRCanvas');
-  if(canvas) {
-    // Remplacer le canvas par une image (plus simple et fiable)
-    const img = document.createElement('img');
-    img.src   = qrUrl;
-    img.width = 180;
-    img.height= 180;
-    img.alt   = 'QR code invitation';
-    img.style.display = 'block';
-    img.style.margin  = '0 auto';
-    img.onerror = () => { img.style.display = 'none'; };
-    canvas.replaceWith(img);
-  }
-}
-
-window.copyToken = function() {
-  const token = document.getElementById('obTokenDisplay').dataset.full
-    || document.getElementById('obTokenDisplay').textContent;
-  navigator.clipboard?.writeText(token).then(() =>
-    showToast('Code copié !','Partagez-le avec votre enfant 📋','📋')
-  ).catch(() => {
-    showToast('Code','Copiez manuellement le code','📋');
-  });
+window.copyShortCode = function() {
+  const code = document.getElementById('obShortCodeDisplay')?.dataset.code || '';
+  navigator.clipboard?.writeText(code).then(() =>
+    showToast('Code copié !', 'Partagez-le avec le membre à inviter 📋', '📋')
+  ).catch(() => showToast('Code', code, '📋'));
 };
 
 window.obFinishCreate = function() {
-  // Lancer l'app en mode parent
   currentFamilyId = obFamilyId;
-  currentRole = 'parent';
+  currentRole     = 'parent';
   launchApp(true);
 };
 
-// ── Rejoindre en tant que parent ─────────────────────────────
-window.obJoinParent = async function() {
-  const token = document.getElementById('obParentToken').value.trim();
-  if(!token) return;
-  obSetLoading('Vérification du code…');
+// ── REJOINDRE — Validation code ───────────────────────────────
+window.obValidateCode = async function() {
+  const code = document.getElementById('obJoinCode')?.value.trim().toUpperCase();
+  if(!code || code.length !== 6) {
+    obShowError('obJoinError', 'Le code doit contenir 6 caractères');
+    return;
+  }
+  // Le code court seul ne suffit pas — on a besoin du familyId
+  // Pour les codes courts : le QR contient fid+token, le code court est un fallback
+  // Pour la saisie manuelle on demande aussi le code famille (via obJoinVerify)
+  // Stocker le code pour utilisation après vérification
+  localStorage.setItem('rk_ob_shortcode', code);
+  obGo('obJoinVerify');
+};
+
+window.obVerifyFamilyName = async function() {
+  const nameInput = document.getElementById('obJoinFamilyName')?.value.trim();
+  const code      = localStorage.getItem('rk_ob_shortcode') || obShortCode;
+  if(!nameInput) return;
+  obSetLoading('Vérification…');
   try {
-    const user = FB.currentUser();
-    if(!user) throw new Error('Non connecté');
-
-    // Le token encode le familyId — pour la démo on demande le format fid:token
-    // Format attendu : token brut de 32 chars (le familyId est dans Firestore)
-    // On cherche dans toutes les familles → nécessite de passer le fid séparément
-    // Pour simplifier : le parent partage "fid:token" ou on lit le fid depuis le token
-    // Solution : encoder fid dans l'URL / afficher fid+token séparément
-    // Pour l'instant : token = 32 chars, fid = dans le localStorage de l'invitant
-    // On demande à l'utilisateur de coller le lien complet
-
-    const parts = token.split(':');
-    if(parts.length === 2) {
-      const [fid, tok] = parts;
-      await FB.joinFamilyAsParent(fid, tok, user.uid);
-      currentFamilyId = fid;
-      localStorage.setItem('rk_family_id', fid);
-      launchApp(true);
-    } else {
-      throw new Error('Format invalide — copiez le lien complet depuis l\'app du parent');
-    }
+    // On cherche la famille par nom — nécessite de connaître le familyId
+    // Le code court est lié à un familyId stocké dans Firestore
+    // Pour ce flow : on utilise le familyId stocké dans obJoinData si disponible
+    // sinon on demande le familyId explicitement (rare — cas saisie manuelle sans QR)
+    if(!obFamilyId) throw new Error('Scannez le QR code ou utilisez le lien complet pour saisir le code');
+    await FB.verifyFamilyName(obFamilyId, nameInput);
+    const tokenData = await FB.validateShortCode(obFamilyId, code);
+    obJoinData = { familyId: obFamilyId, ...tokenData };
+    // Afficher le nom de la famille dans l'écran de choix de rôle
+    const famData = await FB.getFamily(obFamilyId);
+    document.getElementById('obJoinRoleFamilyName').textContent = `Famille : ${famData?.name || ''}`;
+    obGo('obJoinRole');
   } catch(e) {
-    obGo('obJoinParentToken');
-    obShowError('obJoinParentTokenError', `Erreur : ${e.message}`);
+    obGo('obJoinVerify');
+    obShowError('obJoinVerifyError', `Erreur : ${e.message}`);
   }
 };
 
-// ── Rejoindre en tant qu'enfant ──────────────────────────────
-window.obValidateChildToken = async function() {
-  const token = document.getElementById('obChildToken').value.trim();
-  if(!token) return;
-  obSetLoading('Vérification du code…');
+// ── REJOINDRE — Via URL (QR code scanné) ─────────────────────
+function checkUrlToken() {
+  const params = new URLSearchParams(location.search);
+  const fid    = params.get('fid');
+  const t      = params.get('t');
+  if(!fid || !t) return false;
+  history.replaceState({}, '', location.pathname);
+  obFamilyId = fid;
+  // Pré-remplir le code et aller directement à la vérification du nom
+  obJoinData = null; // sera rempli après validation token
+  // Stocker pour validateShortCode après obJoinVerify
+  localStorage.setItem('rk_ob_fid', fid);
+  localStorage.setItem('rk_ob_token', t);
+  obGo('obJoinVerify');
+  return true;
+}
+
+// ── QR SCANNER ────────────────────────────────────────────────
+let qrScanner = null;
+
+window.obStartScan = async function() {
+  const readerEl = document.getElementById('obQRReader');
+  const scanBtn  = document.getElementById('obScanBtn');
+  if(!readerEl) return;
+
+  // Charger html5-qrcode si pas encore chargé
+  if(typeof Html5Qrcode === 'undefined') {
+    obSetLoading('Chargement du scanner…');
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    obGo('obJoin');
+  }
+
+  readerEl.style.display = '';
+  if(scanBtn) scanBtn.style.display = 'none';
+
+  qrScanner = new Html5Qrcode('obQRReader');
   try {
-    // Format token : fid:token ou token brut (32 chars avec fid encodé)
-    const parts = token.split(':');
-    let fid, tok;
-    if(parts.length === 2) { [fid, tok] = parts; }
-    else { throw new Error('Format invalide — copiez le code complet'); }
-
-    obFamilyId = fid;
-    // Valider le token
-    const tokenData = await FB.validateTokenForFamily(fid, tok);
-    if(tokenData.type !== 'child') throw new Error('Ce code est pour un parent');
-    obToken = tok;
-    obChildId = tokenData.targetId;
-
-    // Charger la liste des enfants pour sélection
-    obChildList = await FB.getChildren(fid);
-    renderObChildList(obChildList, obChildId);
-    obGo('obSelectChild');
+    await qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      async (decodedText) => {
+        await qrScanner.stop();
+        qrScanner = null;
+        readerEl.style.display = 'none';
+        if(scanBtn) scanBtn.style.display = '';
+        // Parser l'URL décodée
+        try {
+          const url    = new URL(decodedText);
+          const fid    = url.searchParams.get('fid');
+          const t      = url.searchParams.get('t');
+          if(fid && t) {
+            obFamilyId = fid;
+            localStorage.setItem('rk_ob_fid', fid);
+            localStorage.setItem('rk_ob_token', t);
+            obGo('obJoinVerify');
+          } else {
+            obShowError('obJoinError', 'QR code non reconnu');
+          }
+        } catch(e) {
+          obShowError('obJoinError', 'QR code invalide');
+        }
+      },
+      (err) => {} // erreurs de scan silencieuses
+    );
   } catch(e) {
-    obGo('obJoinChild');
+    readerEl.style.display = 'none';
+    if(scanBtn) scanBtn.style.display = '';
+    obShowError('obJoinError', `Caméra inaccessible : ${e.message}`);
+  }
+};
+
+// ── REJOINDRE — Sélection enfant ──────────────────────────────
+window.obJoinShowChildren = async function() {
+  obSetLoading('Chargement des profils…');
+  try {
+    const children = await FB.getChildren(obJoinData?.familyId || obFamilyId);
+    renderObChildList(children);
+    obGo('obJoinChildSelect');
+  } catch(e) {
+    obGo('obJoinRole');
     obShowError('obJoinChildError', `Erreur : ${e.message}`);
   }
 };
 
 let obSelectedChildId = null;
-
-function renderObChildList(children, preselect) {
+function renderObChildList(children) {
+  obSelectedChildId = children[0]?.id || null;
   const el = document.getElementById('obChildList');
-  obSelectedChildId = preselect || (children[0]?.id || null);
   el.innerHTML = children.map(c => {
     const ico = STARTERS.find(s=>s.id===c.avatarSkin)?.ico || '🧒';
-    const sel = c.id === obSelectedChildId;
-    return `<div class="ob-child-item ${sel?'selected':''}"
+    return `<div class="ob-child-item ${c.id===obSelectedChildId?'selected':''}"
       onclick="obSelectChildItem('${c.id}')">
       <div class="oci-ava">${ico}</div>
       <div class="oci-name">${c.displayName}</div>
-      ${sel?'<div style="margin-left:auto;color:var(--blue);font-size:18px;">✓</div>':''}
+      ${c.id===obSelectedChildId?'<div style="margin-left:auto;color:var(--blue);font-size:18px;">✓</div>':''}
     </div>`;
   }).join('');
-  document.getElementById('obSelectChildBtn').disabled = !obSelectedChildId;
+  const btn = document.getElementById('obJoinChildBtn');
+  if(btn) btn.disabled = !obSelectedChildId;
 }
 
 window.obSelectChildItem = function(id) {
   obSelectedChildId = id;
-  renderObChildList(obChildList, id);
+  obChildId = id;
+  const items = document.querySelectorAll('.ob-child-item');
+  items.forEach(el => {
+    const isSelected = el.getAttribute('onclick').includes(id);
+    el.classList.toggle('selected', isSelected);
+    const check = el.querySelector('[style*="✓"]');
+    if(isSelected && !check) el.innerHTML += '<div style="margin-left:auto;color:var(--blue);font-size:18px;">✓</div>';
+    if(!isSelected && check) check.remove();
+  });
+  const btn = document.getElementById('obJoinChildBtn');
+  if(btn) btn.disabled = false;
 };
 
-window.obJoinChild = async function() {
+// Confirmer enfant sans compte Google
+window.obConfirmChild = async function() {
   if(!obSelectedChildId) return;
-  obSetLoading('Connexion en cours…');
+  obSetLoading('Connexion…');
   try {
-    const result = await FB.joinFamilyAsChild(obFamilyId, obToken);
+    const fid   = obJoinData?.familyId || obFamilyId;
+    const token = obJoinData?.token || localStorage.getItem('rk_ob_token');
+    if(!token) throw new Error('Token manquant');
+    const result = await FB.joinFamilyAsChild(fid, token);
     currentFamilyId = result.familyId;
-    currentChildId  = result.childId;
-    currentRole     = 'child';
-
-    // Mot de passe optionnel
-    const pwd = document.getElementById('obChildPassword')?.value.trim();
-    if(pwd && pwd.length >= 4) {
-      await FB.setChildPassword(obFamilyId, currentChildId, pwd).catch(()=>{});
-    }
-
-    // Récupérer le profil enfant pour initialiser S
-    const profile = await FB.getProfile(obFamilyId, currentChildId);
-    S.playerName   = profile?.displayName || '';
-    S.equipped.skin = profile?.avatarSkin || 's0';
+    currentChildId  = obSelectedChildId;
+    localStorage.setItem('rk_family_id', currentFamilyId);
+    localStorage.setItem('rk_session', JSON.stringify({
+      familyId: currentFamilyId, childId: currentChildId, role: 'child'
+    }));
+    const profile   = await FB.getProfile(currentFamilyId, currentChildId);
+    S.playerName    = profile?.displayName || '';
+    S.equipped.skin = profile?.avatarSkin  || 's0';
     save();
-
-    launchApp(false);
+    showApp();
   } catch(e) {
-    obGo('obSelectChild');
-    obShowError('obSelectChildError', `Erreur : ${e.message}`);
+    obGo('obJoinChildSelect');
+    obShowError('obJoinChildError', `Erreur : ${e.message}`);
   }
 };
 
-// ── Mode démo ────────────────────────────────────────────────
+// ── MODE DÉMO ─────────────────────────────────────────────────
 window.obStartDemo = function() {
   const name = document.getElementById('obDemoName').value.trim();
   if(name.length < 2) return;
-  // Garder les valeurs par défaut famille_demo / enfant_demo
   currentFamilyId = 'famille_demo';
   currentChildId  = 'enfant_demo';
   currentRole     = 'child';
@@ -2209,9 +2135,8 @@ window.obStartDemo = function() {
   launchApp(false);
 };
 
-// ── Lancer l'app après onboarding ────────────────────────────
+// ── LANCER L'APP ──────────────────────────────────────────────
 function launchApp(asParent) {
-  // Cacher tous les écrans onboarding
   OB_SCREENS.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.classList.add('hidden');
@@ -2227,27 +2152,13 @@ function launchApp(asParent) {
   }
 }
 
-// ── Lire token dans l'URL (lien d'invitation) ─────────────────
-function checkUrlToken() {
-  const params = new URLSearchParams(location.search);
-  const fid    = params.get('fid');
-  const t      = params.get('t');
-  if(fid && t) {
-    // Pré-remplir le token enfant
-    obFamilyId = fid;
-    // Déterminer si c'est un token parent ou enfant impossible sans Firestore
-    // → aller sur l'écran de choix avec le token pré-rempli
-    const childEl = document.getElementById('obChildToken');
-    if(childEl) childEl.value = `${fid}:${t}`;
-    const parentEl = document.getElementById('obParentToken');
-    if(parentEl) parentEl.value = `${fid}:${t}`;
-    // Nettoyer l'URL
-    history.replaceState({}, '', location.pathname);
-    obGo('obJoinChoice');
-    return true;
-  }
-  return false;
+function showApp() {
+  document.getElementById('appShell').classList.remove('hidden');
+  const bnav = document.getElementById('bnav');
+  if(bnav) bnav.style.display = '';
+  bootApp();
 }
+
 
 // ── Modal nom ───────────────────────────────────────────────
 window.openNameModal = function() {
@@ -2621,7 +2532,7 @@ async function sha256(text) {
 // DRAWERS
 // ══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.5.0';
+const APP_VERSION = 'v0.7.0';
 
 function initDrawers() {
   ['childDrawerVersion','parentDrawerVersion'].forEach(id => {
@@ -2643,6 +2554,51 @@ function updateHeaderForRole() {
     burger.classList.remove('visible');
   }
 }
+
+// ── Panel invitation ─────────────────────────────────────────
+window.openInvitePanel = async function() {
+  if(!firebaseAvailable || !isOnline) {
+    showToast('Hors ligne', 'Connexion requise pour inviter', '⚠️'); return;
+  }
+  document.getElementById('inviteOverlay').classList.add('open');
+  const panel = document.getElementById('invitePanel');
+  panel.style.transform = 'translateX(-50%) translateY(0)';
+  // Générer une invitation
+  await refreshInvite();
+};
+
+window.closeInvitePanel = function() {
+  document.getElementById('inviteOverlay').classList.remove('open');
+  const panel = document.getElementById('invitePanel');
+  panel.style.transform = 'translateX(-50%) translateY(100%)';
+};
+
+window.refreshInvite = async function() {
+  document.getElementById('inviteCode').textContent = '……';
+  try {
+    const inv = await FB.generateFamilyInvite(currentFamilyId);
+    document.getElementById('inviteCode').textContent = inv.shortCode;
+    document.getElementById('inviteCode').dataset.code = inv.shortCode;
+    // Expiration
+    const exp = new Date(inv.expiresAt);
+    const min = Math.round((exp - Date.now()) / 60000);
+    document.getElementById('inviteExpiry').textContent = `Expire dans ${min} min`;
+    // QR code
+    const url   = `${location.origin}${location.pathname}?fid=${currentFamilyId}&t=${inv.token}`;
+    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=160x160&chl=${encodeURIComponent(url)}&choe=UTF-8`;
+    document.getElementById('inviteQR').innerHTML =
+      `<img src="${qrUrl}" width="160" height="160" style="display:block;border-radius:6px;">`;
+  } catch(e) {
+    showToast('Erreur', e.message, '❌');
+  }
+};
+
+window.copyInviteCode = function() {
+  const code = document.getElementById('inviteCode')?.dataset.code || '';
+  navigator.clipboard?.writeText(code).then(() =>
+    showToast('Code copié !', 'Partagez-le avec le membre à inviter 📋', '📋')
+  ).catch(() => showToast('Code', code, '📋'));
+};
 
 // ── Drawer enfant ────────────────────────────────────────────
 window.openChildDrawer = function() {
@@ -3289,17 +3245,16 @@ function getAuthUser() {
 }
 
 /**
- * Initialisation principale — remplace handleStartup
+ * Initialisation principale
  */
 async function bootOnboarding() {
   try {
-    // 1. Priorité absolue : lien d'invitation dans l'URL
+    // 1. Token dans l'URL (QR code scanné)
     if(checkUrlToken()) return;
 
-    // 2. Attendre que Firebase soit prêt (indispensable iOS/Safari)
+    // 2. Attendre Firebase Auth
     let user = null;
     if(firebaseAvailable) {
-      // Vérifier d'abord un retour de redirection Google/Apple
       const redirectResult = await FB.checkRedirectResult().catch(() => null);
       user = redirectResult || await getAuthUser();
     }
@@ -3307,49 +3262,47 @@ async function bootOnboarding() {
     const session  = localStorage.getItem('rk_session');
     const familyId = localStorage.getItem('rk_family_id');
 
-    // Cas A : utilisateur Firebase authentifié
+    // Cas A : retour de redirect OAuth (action en attente)
     if(user) {
       const pendingAction = localStorage.getItem('rk_ob_action');
       if(pendingAction) {
-        // Retour de redirect OAuth → reprendre le flux d'onboarding
         localStorage.removeItem('rk_ob_action');
         obPendingAction = pendingAction;
-        console.log('[Startup] Redirect auth → user:', user.uid, 'action:', pendingAction);
         await obAfterAuth(user, pendingAction);
         return;
       }
+      // Famille connue + même appareil → boot direct
       if(familyId) {
-        // Famille déjà connue → lancer l'app
         showApp();
         return;
       }
-      // Connecté mais pas de famille → créer
+      // Connecté, famille inconnue → chercher via Firebase
+      obSetLoading('Recherche de votre espace…');
+      const found = await FB.findFamilyByUser(user.uid).catch(() => null);
+      if(found) {
+        currentFamilyId = found.familyId;
+        currentRole     = found.role;
+        // Nouvel appareil → vérifier le nom de famille
+        obGo('obSignInVerify');
+        return;
+      }
+      // Aucune famille → créer
       obGo('obCreateFamily');
       return;
     }
 
-    // Cas B : session locale sans auth Firebase (mode démo ou session enfant)
+    // Cas B : session locale (enfant sans Google, mode démo)
     if(session || familyId || S.playerName?.trim()) {
       showApp();
       return;
     }
 
-    // Cas C : aucune session → accueil
+    // Cas C : rien → accueil
     obGo('obWelcome');
   } catch(err) {
     console.error('[Startup]', err);
     obGo('obWelcome');
   }
-}
-
-/**
- * Affiche l'interface principale
- */
-function showApp() {
-  document.getElementById('appShell').classList.remove('hidden');
-  const bnav = document.getElementById('bnav');
-  if(bnav) bnav.style.display = '';
-  bootApp();
 }
 
 if('serviceWorker' in navigator) {
