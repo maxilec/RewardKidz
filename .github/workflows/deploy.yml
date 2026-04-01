@@ -17,7 +17,7 @@ jobs:
 
       - name: Générer firebase.config.js depuis les secrets
         run: |
-          cat <<JSEOF > firebase.config.js
+          cat <<EOF > firebase.config.js
           export const firebaseConfig = {
             apiKey: "${{ secrets.FIREBASE_API_KEY }}",
             authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
@@ -26,7 +26,7 @@ jobs:
             messagingSenderId: "${{ secrets.FIREBASE_SENDER_ID }}",
             appId: "${{ secrets.FIREBASE_APP_ID }}"
           };
-          JSEOF
+          EOF
 
       - name: Vérifier firebase.config.js
         run: |

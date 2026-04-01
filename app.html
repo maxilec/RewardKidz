@@ -3187,24 +3187,30 @@ window.exitSimulation = function() {
 async function connectFirebase() {
   if(!firebaseAvailable || !isOnline) return;
 
-  // Récupérer la session depuis Firebase / localStorage
-  try {
-    const session = await FB.getMySession();
-    if(session) {
-      currentFamilyId = session.familyId;
-      currentRole     = session.role;
-      if(session.role === 'child') currentChildId = session.childId;
-      if(session.role === 'parent') {
-        if(sessionStorage.getItem('rk_parent')) {
-          parentMode = true;
-          updateHeaderForRole();
+  // En mode démo : currentFamilyId/currentChildId déjà définis
+  // On ne tente pas getMySession (famille_demo n'a pas de member doc à valider)
+  const isDemo = currentFamilyId === 'famille_demo';
+
+  if(!isDemo) {
+    try {
+      const session = await FB.getMySession();
+      if(session) {
+        currentFamilyId = session.familyId;
+        currentRole     = session.role;
+        if(session.role === 'child') currentChildId = session.childId;
+        if(session.role === 'parent') {
+          if(sessionStorage.getItem('rk_parent')) {
+            parentMode = true;
+            updateHeaderForRole();
+          }
         }
+        console.log(`[App] Session: ${session.role} — famille ${session.familyId}`);
       }
-      console.log(`[App] Session: ${session.role} — famille ${session.familyId}`);
+    } catch(e) {
+      console.warn('[App] Session:', e.message);
     }
-  } catch(e) {
-    console.warn('[App] Session non trouvée, mode démo:', e.message);
-    // Garder les valeurs par défaut (famille_demo / enfant_demo)
+  } else {
+    console.log('[App] Mode démo — famille_demo');
   }
 
   try {
@@ -3218,6 +3224,8 @@ async function connectFirebase() {
   if(unsubScore) unsubScore();
   if(unsubEcon)  unsubEcon();
   if(unsubMiss)  unsubMiss();
+
+  console.log(`[App] Listeners → ${currentFamilyId} / ${currentChildId}`);
   unsubScore = FB.listenScore(data    => { if(data) { scoreCache = data; updateScoreUI(data.value, data.state); if(document.getElementById('scStats')?.classList.contains('active')) renderStats(); } },
     currentFamilyId, currentChildId);
   unsubEcon  = FB.listenEconomy(data  => { if(data) updateCurUI(data.stars, data.marbles, data.transactions); },
