@@ -65,16 +65,16 @@ export async function getUser(uid) {
   return snap.exists() ? snap.data() : null;
 }
 
-// Création du user uniquement quand on connaît rôle + famille
+// Création / mise à jour du profil user
 export async function createUserProfile(uid, { role, familyId, displayName }) {
   const ref = doc(db, "users", uid);
   await setDoc(ref, {
     uid,
-    role,
-    familyId,
-    displayName,
+    role: role ?? null,
+    familyId: familyId ?? null,
+    displayName: displayName ?? null,
     createdAt: Date.now()
-  });
+  }, { merge: true });
 }
 
 // ---------------------------------------------------------

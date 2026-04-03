@@ -4,6 +4,7 @@ import {
   loginAsChild,
   onUserStateChanged,
   getUser,
+  createUserProfile,
   createFamily,
   joinFamily,
   resolveInvite,
@@ -103,6 +104,7 @@ onUserStateChanged(async (user) => {
 
   let userDoc = await getUser(user.uid);
 
+  // Si le user n'existe pas → on le crée minimalement
   if (!userDoc) {
     await createUserProfile(user.uid, {
       role: null,
@@ -112,6 +114,7 @@ onUserStateChanged(async (user) => {
     userDoc = await getUser(user.uid);
   }
 
+  // Si pas de famille → onboarding
   if (!userDoc.familyId) {
     navigate("create-family");
     return;
@@ -119,7 +122,6 @@ onUserStateChanged(async (user) => {
 
   navigate(userDoc.role === "parent" ? "parent" : "child");
 });
-
 
 // ---------------------------------------------------------
 // PAGES
@@ -173,7 +175,13 @@ async function initParent() {
   if (!userDoc) return;
 
   // Nom de la famille (privé)
-  const familyInfo = await getFamilyPrivateInfo(userDoc.familyId);
+  let familyInfo = null;
+  try {
+    familyInfo = await getFamilyPrivateInfo(userDoc.familyId);
+  } catch (e) {
+    console.warn("Impossible de lire le nom de famille :", e.message);
+  }
+
   const familyTitle = document.getElementById("familyTitle");
   if (familyTitle && familyInfo) {
     familyTitle.textContent = familyInfo.familyName;
