@@ -8,7 +8,8 @@ import {
   getUser,
   createFamily,
   joinFamily,
-  logout // ← IMPORTANT
+  logout,
+  auth
 } from "./firebase.js";
 
 // ---------------------------------------------------------
