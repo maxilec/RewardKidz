@@ -17,24 +17,20 @@ service cloud.firestore {
     // (on utilise les invitations pour rejoindre)
     // -----------------------------------------------------
     match /families/{familyId} {
-
-      // Lecture interdite (on passe par les invites)
-      allow read: if false;
-
-      // Écriture réservée aux owners
-      allow write: if request.auth != null
-                   && request.auth.uid in resource.data.ownerIds;
-
-      // Suppression réservée aux owners
-      allow delete: if request.auth != null
-                    && request.auth.uid in resource.data.ownerIds;
+      // Doc public minimal
+      allow read, write, delete: if request.auth != null
+                                 && request.auth.uid in resource.data.ownerIds;
 
       // Membres
       match /members/{memberId} {
-
-        // Un membre peut lire/écrire uniquement son propre doc
         allow read, write: if request.auth != null
                            && request.auth.uid == memberId;
+      }
+
+      // Privé (nom de famille)
+      match /private/{doc} {
+        allow read, write: if request.auth != null
+                           && request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.ownerIds;
       }
     }
 

@@ -1,5 +1,5 @@
 <div class="page parent">
-  <h1>Espace parent</h1>
+  <h1 id="familyTitle">Espace parent</h1>
 
   <div class="card">
     <h2>🔑 Code d’invitation (nouvel enfant)</h2>
@@ -10,10 +10,15 @@
   </div>
 
   <div class="card">
+    <h2>👧👦 Enfants</h2>
+    <ul id="childrenList" class="children-list">
+      <li>Chargement…</li>
+    </ul>
+  </div>
+
+  <div class="card">
     <h2>🔁 Code de reconnexion enfant</h2>
-    <p class="hint">
-      POC : tu dois saisir l’UID de l’enfant (visible dans Firestore).
-    </p>
+    <p class="hint">POC : saisir l’UID de l’enfant (visible dans Firestore).</p>
     <button id="generateReconnect" class="secondary-btn">
       Générer un code de connexion temporaire
     </button>
@@ -26,7 +31,6 @@
       Supprimer la famille
     </button>
   </div>
-
 
   <button id="logoutBtn" class="danger-btn">
     Se déconnecter

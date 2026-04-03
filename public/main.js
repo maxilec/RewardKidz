@@ -3,20 +3,21 @@ import {
   loginWithGoogle,
   loginAsChild,
   onUserStateChanged,
-  ensureUserDocument,
   getUser,
   createFamily,
   joinFamily,
   resolveInvite,
   createInvite,
   createReconnectInvite,
+  getFamilyChildren,
+  getFamilyPrivateInfo,
+  deleteFamily,
   logout
 } from "./firebase.js";
 
 // ---------------------------------------------------------
 // Router + Guard
 // ---------------------------------------------------------
-
 function navigate(page) {
   window.location.hash = page;
   loadPage(page);
@@ -24,35 +25,32 @@ function navigate(page) {
 
 async function loadPage(page) {
   const user = auth.currentUser;
+  const app = document.getElementById("app");
 
   if (!user) {
-    const container = document.getElementById("app");
-    if (container) container.innerHTML = "";
+    if (app) app.innerHTML = "";
     return;
   }
 
   const userDoc = await getUser(user.uid);
 
-  if (!userDoc.familyId &&
-      page !== "create-family" &&
-      page !== "join-family") {
-    navigate("create-family");
-    return;
+  // Si user existe et a une famille → on force parent/child
+  if (userDoc && userDoc.familyId) {
+    if (userDoc.role === "parent" && page !== "parent") {
+      page = "parent";
+    }
+    if (userDoc.role === "child" && page !== "child") {
+      page = "child";
+    }
+  } else {
+    // Pas de famille → onboarding
+    if (page !== "create-family" && page !== "join-family") {
+      page = "create-family";
+    }
   }
 
-  if (userDoc.role === "parent" && page === "child") {
-    navigate("parent");
-    return;
-  }
-
-  if (userDoc.role === "child" && page === "parent") {
-    navigate("child");
-    return;
-  }
-
-  const container = document.getElementById("app");
   const html = await fetch(`./pages/${page}.html`).then(r => r.text());
-  container.innerHTML = html;
+  app.innerHTML = html;
 
   if (page === "create-family") initCreateFamily();
   if (page === "join-family") initJoinFamily();
@@ -68,19 +66,19 @@ window.addEventListener("hashchange", () => {
 // ---------------------------------------------------------
 // LOGIN SCREEN
 // ---------------------------------------------------------
-
 document.getElementById("login").addEventListener("click", async () => {
   const user = await loginWithGoogle();
-  await ensureUserDocument(user);
+  // On ne crée pas encore le user : on attend create-family
+  navigate("create-family");
 });
 
 document.getElementById("loginChild").addEventListener("click", async () => {
   const user = await loginAsChild();
-  await ensureUserDocument(user);
+  // On ne crée pas encore le user : on attend join-family
   navigate("join-family");
 });
 
-// Reconnexion enfant via code temporaire
+// Reconnexion enfant
 document.getElementById("loginChildReconnect").addEventListener("click", () => {
   document.getElementById("childReconnectPanel").style.display = "block";
 });
@@ -91,13 +89,8 @@ document.getElementById("childReconnectBtn").addEventListener("click", async () 
 
   try {
     const invite = await resolveInvite(code);
-
     const anon = await loginAsChild();
-    await ensureUserDocument(anon);
-
-    // Pour l’instant, on ne réutilise pas targetUid (pas de données enfant persistantes)
     await joinFamily(anon, invite.familyId, "Enfant");
-
     navigate("child");
   } catch (e) {
     alert(e.message);
@@ -107,14 +100,12 @@ document.getElementById("childReconnectBtn").addEventListener("click", async () 
 // ---------------------------------------------------------
 // AUTH STATE
 // ---------------------------------------------------------
-
 onUserStateChanged(async (user) => {
   if (!user) return;
 
-  await ensureUserDocument(user);
   const userDoc = await getUser(user.uid);
 
-  if (!userDoc.familyId) {
+  if (!userDoc || !userDoc.familyId) {
     navigate("create-family");
     return;
   }
@@ -123,21 +114,22 @@ onUserStateChanged(async (user) => {
 });
 
 // ---------------------------------------------------------
-// PAGE LOGIC
+// PAGES
 // ---------------------------------------------------------
-
 function initCreateFamily() {
   const btn = document.getElementById("createFamilyBtn");
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
-    const name = document.getElementById("familyName").value.trim();
+    const familyName = document.getElementById("familyName").value.trim();
+    const parentName = document.getElementById("parentName").value.trim();
     const user = auth.currentUser;
 
-    if (!name) return alert("Nom requis");
+    if (!familyName) return alert("Nom de famille requis");
+    if (!parentName) return alert("Votre prénom est requis");
     if (!user) return alert("Utilisateur non connecté");
 
-    await createFamily(user, name);
+    await createFamily(user, familyName, parentName);
     navigate("parent");
   });
 }
@@ -170,10 +162,31 @@ async function initParent() {
   if (!user) return;
 
   const userDoc = await getUser(user.uid);
+  if (!userDoc) return;
 
+  // Nom de la famille (privé)
+  const familyInfo = await getFamilyPrivateInfo(userDoc.familyId);
+  const familyTitle = document.getElementById("familyTitle");
+  if (familyTitle && familyInfo) {
+    familyTitle.textContent = familyInfo.familyName;
+  }
+
+  // Liste des enfants
+  const childrenList = document.getElementById("childrenList");
+  if (childrenList) {
+    const children = await getFamilyChildren(userDoc.familyId);
+    if (children.length === 0) {
+      childrenList.innerHTML = "<li>Aucun enfant pour le moment</li>";
+    } else {
+      childrenList.innerHTML = children
+        .map(c => `<li>${c.name} <span class="uid">(${c.uid})</span></li>`)
+        .join("");
+    }
+  }
+
+  // Invitation générale
   const inviteBtn = document.getElementById("generateInvite");
   const inviteCode = document.getElementById("inviteCode");
-
   if (inviteBtn && inviteCode) {
     inviteBtn.addEventListener("click", async () => {
       const code = await createInvite(userDoc.familyId);
@@ -181,33 +194,32 @@ async function initParent() {
     });
   }
 
+  // Reconnexion enfant
   const reconnectBtn = document.getElementById("generateReconnect");
   if (reconnectBtn) {
     reconnectBtn.addEventListener("click", async () => {
-      const childUid = prompt("UID de l’enfant à reconnecter (POC) ?");
+      const childUid = prompt("UID de l’enfant à reconnecter ?");
       if (!childUid) return;
       const code = await createReconnectInvite(userDoc.familyId, childUid);
       alert("Code de reconnexion : " + code);
     });
   }
 
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => logout());
-  }
-
+  // Suppression famille
   const deleteBtn = document.getElementById("deleteFamilyBtn");
   if (deleteBtn) {
     deleteBtn.addEventListener("click", async () => {
-      if (!confirm("Supprimer la famille ? Cette action est définitive.")) return;
-
+      if (!confirm("Supprimer la famille ? Action définitive.")) return;
       await deleteFamily(userDoc.familyId);
-
-      // Déconnecter le parent
       await logout();
     });
   }
 
+  // Logout
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => logout());
+  }
 }
 
 function initChild() {

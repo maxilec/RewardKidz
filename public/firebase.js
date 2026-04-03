@@ -21,8 +21,10 @@ import {
   doc,
   getDoc,
   setDoc,
-  serverTimestamp,
-  collection
+  deleteDoc,
+  collection,
+  getDocs,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ---------------------------------------------------------
@@ -34,9 +36,8 @@ export const db = getFirestore(app);
 export const provider = new GoogleAuthProvider();
 
 // ---------------------------------------------------------
-// AUTH HELPERS
+// AUTH
 // ---------------------------------------------------------
-
 export async function loginWithGoogle() {
   const result = await signInWithPopup(auth, provider);
   return result.user;
@@ -56,55 +57,56 @@ export function onUserStateChanged(callback) {
 }
 
 // ---------------------------------------------------------
-// USER HELPERS
+// USERS
 // ---------------------------------------------------------
-
 export async function getUser(uid) {
   const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
   return snap.exists() ? snap.data() : null;
 }
 
-export async function ensureUserDocument(user) {
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      uid: user.uid,
-      email: user.email || null,
-      displayName: user.displayName || null,
-      familyId: null,
-      role: "none",
-      childName: null,
-      createdAt: Date.now()
-    });
-  }
+// Création du user uniquement quand on connaît rôle + famille
+export async function createUserProfile(uid, { role, familyId, displayName }) {
+  const ref = doc(db, "users", uid);
+  await setDoc(ref, {
+    uid,
+    role,
+    familyId,
+    displayName,
+    createdAt: Date.now()
+  });
 }
 
 // ---------------------------------------------------------
-// FAMILY HELPERS
+// FAMILIES
 // ---------------------------------------------------------
-
-export async function createFamily(user, familyName) {
+export async function createFamily(user, familyName, parentDisplayName) {
   const familyId = crypto.randomUUID();
 
+  // Doc public minimal
   await setDoc(doc(db, "families", familyId), {
-    name: familyName,
     ownerIds: [user.uid],
     createdAt: Date.now()
   });
 
+  // Doc privé avec le nom de la famille
+  await setDoc(doc(db, "families", familyId, "private", "info"), {
+    familyName
+  });
+
+  // Membre parent
   await setDoc(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "parent",
-    displayName: user.displayName || "Parent"
+    displayName: parentDisplayName
   });
 
-  await setDoc(doc(db, "users", user.uid), {
+  // Profil user
+  await createUserProfile(user.uid, {
+    role: "parent",
     familyId,
-    role: "parent"
-  }, { merge: true });
+    displayName: parentDisplayName
+  });
 
   return familyId;
 }
@@ -116,16 +118,17 @@ export async function joinFamily(user, familyId, childName) {
     displayName: childName
   });
 
-  await setDoc(doc(db, "users", user.uid), {
-    familyId,
+  await createUserProfile(user.uid, {
     role: "child",
-    childName
-  }, { merge: true });
+    familyId,
+    displayName: childName
+  });
 
   return familyId;
 }
 
 export async function deleteFamily(familyId) {
+  // POC : on ne supprime que le doc racine
   await deleteDoc(doc(db, "families", familyId));
 }
 
@@ -134,22 +137,24 @@ export async function getFamilyChildren(familyId) {
   const snap = await getDocs(col);
 
   const children = [];
-  snap.forEach(doc => {
-    const data = doc.data();
+  snap.forEach(d => {
+    const data = d.data();
     if (data.role === "child") {
-      children.push({
-        uid: data.uid,
-        name: data.displayName
-      });
+      children.push({ uid: data.uid, name: data.displayName });
     }
   });
-
   return children;
 }
-// ---------------------------------------------------------
-// INVITATIONS (general + reconnect, shortCode 6 chars)
-// ---------------------------------------------------------
 
+export async function getFamilyPrivateInfo(familyId) {
+  const ref = doc(db, "families", familyId, "private", "info");
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+
+// ---------------------------------------------------------
+// INVITATIONS (general + reconnect)
+// ---------------------------------------------------------
 function generateShortCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const arr = new Uint8Array(6);
@@ -157,10 +162,10 @@ function generateShortCode() {
   return Array.from(arr).map(b => chars[b % chars.length]).join("");
 }
 
-// Invitation générale (nouvel enfant)
+// Nouvel enfant
 export async function createInvite(familyId) {
   const shortCode = generateShortCode();
-  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 min
+  const expiresAt = Date.now() + 15 * 60 * 1000;
 
   await setDoc(doc(db, "invites", "general", shortCode), {
     familyId,
@@ -174,10 +179,10 @@ export async function createInvite(familyId) {
   return shortCode;
 }
 
-// Invitation ciblée (reconnexion enfant existant)
+// Reconnexion enfant existant
 export async function createReconnectInvite(familyId, childUid) {
   const shortCode = generateShortCode();
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 min
+  const expiresAt = Date.now() + 10 * 60 * 1000;
 
   await setDoc(doc(db, "invites", "reconnect", shortCode), {
     familyId,
@@ -191,9 +196,9 @@ export async function createReconnectInvite(familyId, childUid) {
   return shortCode;
 }
 
-// Résolution d’un code (cherche d’abord dans general, puis reconnect)
+// Résolution d’un code
 export async function resolveInvite(shortCode) {
-  // 1) general
+  // general
   let ref = doc(db, "invites", "general", shortCode);
   let snap = await getDoc(ref);
 
@@ -205,7 +210,7 @@ export async function resolveInvite(shortCode) {
     return { ...data, type: "general" };
   }
 
-  // 2) reconnect
+  // reconnect
   ref = doc(db, "invites", "reconnect", shortCode);
   snap = await getDoc(ref);
 
