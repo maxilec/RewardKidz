@@ -142,7 +142,19 @@ function initJoinFamily() {
   });
 }
 
-function initParent() {
+async function initParent() {
+  const user = auth.currentUser;
+  const userDoc = await getUser(user.uid);
+
+    // Afficher le code famille
+  document.getElementById("familyCodeDisplay").textContent = userDoc.familyId;
+
+    // Copier le code
+  document.getElementById("copyFamilyCode").addEventListener("click", () => {
+    navigator.clipboard.writeText(userDoc.familyId);
+    alert("Code copié !");
+  });
+  
   document.getElementById("logoutBtn").addEventListener("click", () => {
     logout();
   });
