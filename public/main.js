@@ -1,56 +1,145 @@
-// --- Import Firebase depuis CDN (ESM) ---
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+// ---------------------------------------------------------
+// Imports
+// ---------------------------------------------------------
 import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  loginWithGoogle,
+  onUserStateChanged,
+  ensureUserDocument,
+  getUser,
+  createFamily,
+  joinFamily,
+  logout // ← IMPORTANT
+} from "./firebase.js";
 
-// --- Config Firebase générée par ton workflow ---
-import { firebaseConfig } from "./firebase.config.js";
+// ---------------------------------------------------------
+// Simple SPA Router (hash-based)
+// ---------------------------------------------------------
 
-// --- Initialisation ---
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
-// --- Login Google ---
-async function login() {
-  const result = await signInWithPopup(auth, provider);
-  const user = result.user;
-
-  console.log("Connecté :", user.email);
-
-  // Créer le document user si inexistant
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      familyId: null,
-      role: "none",
-      createdAt: Date.now()
-    });
-  }
+function navigate(page) {
+  window.location.hash = page;
+  loadPage(page);
 }
 
-// --- Listener bouton ---
-document.getElementById("login").addEventListener("click", login);
+async function loadPage(page) {
+  const container = document.getElementById("app");
 
-// --- Listener session ---
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    console.log("Session restaurée :", user.email);
+  const html = await fetch(`./pages/${page}.html`).then(r => r.text());
+  container.innerHTML = html;
+
+  // Bind page-specific logic
+  if (page === "create-family") initCreateFamily();
+  if (page === "join-family") initJoinFamily();
+  if (page === "parent") initParent();
+  if (page === "child") initChild();
+}
+
+window.addEventListener("hashchange", () => {
+  const page = location.hash.replace("#", "") || "create-family";
+  loadPage(page);
+});
+
+// ---------------------------------------------------------
+// LOGIN BUTTON (in index.html)
+// ---------------------------------------------------------
+
+document.getElementById("login").addEventListener("click", async () => {
+  const user = await loginWithGoogle();
+  console.log("Connecté :", user.email);
+  await ensureUserDocument(user);
+});
+
+// ---------------------------------------------------------
+// ON AUTH STATE CHANGED
+// ---------------------------------------------------------
+
+onUserStateChanged(async (user) => {
+  if (!user) return;
+
+  console.log("Session restaurée :", user.email);
+
+  await ensureUserDocument(user);
+  const userDoc = await getUser(user.uid);
+
+  if (!userDoc.familyId) {
+    navigate("create-family");
+    return;
+  }
+
+  if (userDoc.role === "parent") {
+    navigate("parent");
+  } else {
+    navigate("child");
   }
 });
+
+// ---------------------------------------------------------
+// PAGE LOGIC
+// ---------------------------------------------------------
+
+function initCreateFamily() {
+  const btn = document.getElementById("createFamilyBtn");
+  btn.addEventListener("click", async () => {
+    const name = document.getElementById("familyName").value.trim();
+    const user = auth.currentUser;
+
+    if (!name) return alert("Nom requis");
+
+    const familyId = await createFamily(user, name);
+    console.log("Famille créée :", familyId);
+
+    navigate("parent");
+  });
+}
+
+function initJoinFamily() {
+  const btn = document.getElementById("joinFamilyBtn");
+  btn.addEventListener("click", async () => {
+    const code = document.getElementById("familyCode").value.trim();
+    const user = auth.currentUser;
+
+    try {
+      await joinFamily(user, code);
+      navigate("child");
+    } catch (e) {
+      alert("Famille introuvable");
+    }
+  });
+}
+
+function initParent() {
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    logout();
+  });
+
+  document.getElementById("btnFamily").addEventListener("click", () => {
+    alert("À venir : gestion famille");
+  });
+
+  document.getElementById("btnMissions").addEventListener("click", () => {
+    alert("À venir : missions");
+  });
+
+  document.getElementById("btnShop").addEventListener("click", () => {
+    alert("À venir : boutique");
+  });
+}
+
+function initChild() {
+  console.log("Page enfant chargée");
+
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    logout();
+  });
+
+  document.getElementById("btnChildMissions").addEventListener("click", () => {
+    alert("À venir : missions enfant");
+  });
+
+  document.getElementById("btnChildShop").addEventListener("click", () => {
+    alert("À venir : boutique enfant");
+  });
+
+  document.getElementById("btnChildScore").addEventListener("click", () => {
+    alert("À venir : score du jour");
+  });
+}
