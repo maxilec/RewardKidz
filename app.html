@@ -1684,6 +1684,11 @@ let obPendingAction = null;
 
 // ── Navigation ────────────────────────────────────────────────
 window.obGo = function(screenId) {
+  // Arrêter le scanner QR si on quitte l'écran obJoin
+  if(screenId !== 'obJoin') {
+    obStopScan();
+  }
+  
   OB_SCREENS.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.classList.toggle('hidden', id !== screenId);
@@ -1918,7 +1923,7 @@ function renderObInvite(token, shortCode, fid) {
 
   // QR code via Google Charts (URL complète avec fid + token)
   const url   = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
-  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=180x180&chl=${encodeURIComponent(url)}&choe=UTF-8`;
+  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=180x180&chl=${encodeURIComponent(url)}&choe=UTF-8&chld=L|0`;
   const el    = document.getElementById('obQRDisplay');
   if(el) el.innerHTML = `<img src="${qrUrl}" width="180" height="180" alt="QR code" style="display:block;margin:0 auto;border-radius:8px;">`;
 }
@@ -1954,24 +1959,47 @@ window.obValidateCode = async function() {
 window.obVerifyFamilyName = async function() {
   const nameInput = document.getElementById('obJoinFamilyName')?.value.trim();
   const code      = localStorage.getItem('rk_ob_shortcode') || obShortCode;
-  if(!nameInput) return;
+  
+  // Valider les inputs
+  if(!nameInput) {
+    obShowError('obJoinVerifyError', 'Saisir le nom de la famille');
+    return;
+  }
+  
+  if(!code || code.length !== 6) {
+    obShowError('obJoinVerifyError', 'Code invalide — Scannez le QR code ou entrez un code à 6 caractères');
+    return;
+  }
+  
   obSetLoading('Vérification…');
   try {
     // On cherche la famille par nom — nécessite de connaître le familyId
     // Le code court est lié à un familyId stocké dans Firestore
-    // Pour ce flow : on utilise le familyId stocké dans obJoinData si disponible
-    // sinon on demande le familyId explicitement (rare — cas saisie manuelle sans QR)
     if(!obFamilyId) throw new Error('Scannez le QR code ou utilisez le lien complet pour saisir le code');
+    
+    // Vérifier le nom de la famille d'abord
     await FB.verifyFamilyName(obFamilyId, nameInput);
+    
+    // Puis valider le code
     const tokenData = await FB.validateShortCode(obFamilyId, code);
     obJoinData = { familyId: obFamilyId, ...tokenData };
+    
     // Afficher le nom de la famille dans l'écran de choix de rôle
     const famData = await FB.getFamily(obFamilyId);
     document.getElementById('obJoinRoleFamilyName').textContent = `Famille : ${famData?.name || ''}`;
     obGo('obJoinRole');
   } catch(e) {
     obGo('obJoinVerify');
-    obShowError('obJoinVerifyError', `Erreur : ${e.message}`);
+    // Messages d'erreur plus clairs selon le type de problème
+    let errorMsg = e.message;
+    if(errorMsg.includes('Nom de famille incorrect')) {
+      errorMsg = 'Nom de famille incorrect — Vérifiez le nom saisi';
+    } else if(errorMsg.includes('Code invalide') || errorMsg.includes('expiré')) {
+      errorMsg = 'Code invalide ou expiré — Scannez un nouveau QR code';
+    } else if(errorMsg.includes('Famille introuvable')) {
+      errorMsg = 'Famille introuvable — Scannez le QR code depuis le début';
+    }
+    obShowError('obJoinVerifyError', `Erreur : ${errorMsg}`);
   }
 };
 
@@ -1994,6 +2022,20 @@ function checkUrlToken() {
 
 // ── QR SCANNER ────────────────────────────────────────────────
 let qrScanner = null;
+
+// Arrêter proprement le scanner (appelé quand on quitte le modal)
+async function obStopScan() {
+  if(qrScanner) {
+    try {
+      await qrScanner.stop();
+    } catch(e) { /* déjà arrêté */ }
+    qrScanner = null;
+  }
+  const readerEl = document.getElementById('obQRReader');
+  const scanBtn  = document.getElementById('obScanBtn');
+  if(readerEl) readerEl.style.display = 'none';
+  if(scanBtn) scanBtn.style.display = '';
+}
 
 window.obStartScan = async function() {
   const readerEl = document.getElementById('obQRReader');
@@ -2021,10 +2063,7 @@ window.obStartScan = async function() {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       async (decodedText) => {
-        await qrScanner.stop();
-        qrScanner = null;
-        readerEl.style.display = 'none';
-        if(scanBtn) scanBtn.style.display = '';
+        await obStopScan();
         // Parser l'URL décodée
         try {
           const url    = new URL(decodedText);
@@ -2045,8 +2084,7 @@ window.obStartScan = async function() {
       (err) => {} // erreurs de scan silencieuses
     );
   } catch(e) {
-    readerEl.style.display = 'none';
-    if(scanBtn) scanBtn.style.display = '';
+    await obStopScan();
     obShowError('obJoinError', `Caméra inaccessible : ${e.message}`);
   }
 };

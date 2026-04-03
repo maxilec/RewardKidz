@@ -74,6 +74,35 @@ export async function findFamilyByUser(uid) {
     } catch(e) { /* cache invalide */ }
     localStorage.removeItem('rk_family_id');
   }
+  
+  // FALLBACK: Chercher dans Firestore si cache manquant/invalide
+  // Rechercher les familles où uid est dans ownerIds (parent)
+  try {
+    const parentFams = await getDocs(
+      query(collection(db, 'families'), where('ownerIds', 'array-contains', uid))
+    );
+    if(!parentFams.empty) {
+      const familyId = parentFams.docs[0].id;
+      localStorage.setItem('rk_family_id', familyId);
+      return { familyId, role: 'parent' };
+    }
+  } catch(e) { /* accès refusé */ }
+  
+  // Rechercher si uid est un membre enfant (scannable mais plus lent)
+  // Note: Sans index composite, cette requête peut être lente
+  // On cherche dans une collection "userFamilies" indexée si possible
+  try {
+    const memberDocs = await getDocs(
+      query(collection(db, 'families'), where('memberUserIds', 'array-contains', uid))
+    );
+    if(!memberDocs.empty) {
+      const familyId = memberDocs.docs[0].id;
+      localStorage.setItem('rk_family_id', familyId);
+      const mSnap = await getDoc(memberRef(familyId, uid));
+      if(mSnap.exists()) return { familyId, role: mSnap.data().role };
+    }
+  } catch(e) { /* query pas disponible */ }
+  
   return null;
 }
 
