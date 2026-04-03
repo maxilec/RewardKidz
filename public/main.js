@@ -101,15 +101,25 @@ document.getElementById("childReconnectBtn").addEventListener("click", async () 
 onUserStateChanged(async (user) => {
   if (!user) return;
 
-  const userDoc = await getUser(user.uid);
+  let userDoc = await getUser(user.uid);
 
-  if (!userDoc || !userDoc.familyId) {
+  if (!userDoc) {
+    await createUserProfile(user.uid, {
+      role: null,
+      familyId: null,
+      displayName: null
+    });
+    userDoc = await getUser(user.uid);
+  }
+
+  if (!userDoc.familyId) {
     navigate("create-family");
     return;
   }
 
   navigate(userDoc.role === "parent" ? "parent" : "child");
 });
+
 
 // ---------------------------------------------------------
 // PAGES

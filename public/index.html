@@ -36,31 +36,18 @@
   <script type="module">
     import { auth } from "./firebase.js";
 
-    onUserStateChanged(async (user) => {
-      if (!user) return;
+    auth.onAuthStateChanged((user) => {
+      const loginScreen = document.getElementById("login-screen");
+      const app = document.getElementById("app");
 
-      let userDoc = await getUser(user.uid);
-
-      // Si le user n'existe pas encore → on le crée minimalement
-      if (!userDoc) {
-        await createUserProfile(user.uid, {
-          role: null,
-          familyId: null,
-          displayName: null
-        });
-        userDoc = await getUser(user.uid);
+      if (user) {
+        loginScreen.style.display = "none";
+        app.style.display = "block";
+      } else {
+        loginScreen.style.display = "block";
+        app.style.display = "none";
       }
-
-      // Si pas de famille → onboarding
-      if (!userDoc.familyId) {
-        navigate("create-family");
-        return;
-      }
-
-      // Sinon → espace parent/enfant
-      navigate(userDoc.role === "parent" ? "parent" : "child");
     });
-
   </script>
 
   <script type="module" src="./main.js"></script>
