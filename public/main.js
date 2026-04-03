@@ -67,14 +67,12 @@ window.addEventListener("hashchange", () => {
 // LOGIN SCREEN
 // ---------------------------------------------------------
 document.getElementById("login").addEventListener("click", async () => {
-  const user = await loginWithGoogle();
-  // On ne crée pas encore le user : on attend create-family
+  await loginWithGoogle();
   navigate("create-family");
 });
 
 document.getElementById("loginChild").addEventListener("click", async () => {
-  const user = await loginAsChild();
-  // On ne crée pas encore le user : on attend join-family
+  await loginAsChild();
   navigate("join-family");
 });
 
