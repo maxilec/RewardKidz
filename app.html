@@ -1158,7 +1158,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <div class="ob-screen" id="obWelcome">
   <div class="ob-top">
     <div class="ob-logo">Reward<span>Kidz</span></div>
-    <div class="ob-tagline">La récompense du comportement ✨</div>
+    <div class="ob-tagline">La reconnaissance au quotidien ✨</div>
   </div>
   <!-- Famille détectée sur cet appareil -->
   <div id="obKnownDevice" style="display:none;width:100%;max-width:340px;margin-bottom:16px;">
@@ -2630,17 +2630,22 @@ window.refreshInvite = async function() {
     payload.searchParams.set('fid', currentFamilyId);
     payload.searchParams.set('t', inv.token);
 
-    // QR code Google Chart
-    const qrUrl =
-      `https://chart.googleapis.com/chart?cht=qr&chs=160x160&chl=${encodeURIComponent(payload.toString())}&choe=UTF-8&chld=L|0`;
+    // Reset du conteneur
+    document.getElementById('inviteQR').innerHTML = "";
 
-    document.getElementById('inviteQR').innerHTML =
-      `<img src="${qrUrl}" width="160" height="160" style="display:block;border-radius:6px;">`;
+    // Génération du QR
+    new QRCode(document.getElementById("inviteQR"), {
+      text: payload.toString(),  
+      width: 180,
+      height: 180,
+      correctLevel: QRCode.CorrectLevel.L
+    });
 
   } catch(e) {
     showToast('Erreur', e.message, '❌');
   }
 };
+
 
 
 window.copyInviteCode = function() {
