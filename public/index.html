@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#4a90e2" />
   <link rel="manifest" href="./manifest.json" />
 
@@ -18,21 +17,28 @@
   <!-- LOGIN SCREEN -->
   <div id="login-screen">
     <h1>RewardKidz</h1>
-    <p>Choisis comment te connecter</p>
 
     <button id="login" class="primary-btn">
-      Connexion Google 
+      Connexion Google (Parent)
     </button>
 
     <button id="loginChild" class="secondary-btn">
-      Je suis un enfant
+      Je suis un enfant (nouveau)
     </button>
+
+    <button id="loginChildReconnect" class="secondary-btn">
+      J’ai déjà un code enfant
+    </button>
+
+    <div id="childReconnectPanel" style="display:none; margin-top:1rem;">
+      <input id="childReconnectCode" placeholder="Code enfant" maxlength="6">
+      <button id="childReconnectBtn">Se reconnecter</button>
+    </div>
   </div>
 
-  <!-- APP CONTAINER (SPA) -->
+  <!-- APP CONTAINER -->
   <div id="app" style="display:none;"></div>
 
-  <!-- Gestion affichage login/app -->
   <script type="module">
     import { auth } from "./firebase.js";
 

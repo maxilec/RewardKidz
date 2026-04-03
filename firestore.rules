@@ -18,14 +18,18 @@ service cloud.firestore {
     // -----------------------------------------------------
     match /families/{familyId} {
 
-      // Lecture interdite pour le POC
+      // Lecture interdite (on passe par les invites)
       allow read: if false;
 
-      // Écriture réservée aux owners (parents)
+      // Écriture réservée aux owners
       allow write: if request.auth != null
                    && request.auth.uid in resource.data.ownerIds;
 
-      // Membres de la famille
+      // Suppression réservée aux owners
+      allow delete: if request.auth != null
+                    && request.auth.uid in resource.data.ownerIds;
+
+      // Membres
       match /members/{memberId} {
 
         // Un membre peut lire/écrire uniquement son propre doc
@@ -35,18 +39,15 @@ service cloud.firestore {
     }
 
     // -----------------------------------------------------
-    // INVITATIONS (shortCode 6 caractères)
-    // Permet de rejoindre une famille sans lire families/{id}
+    // INVITES (general + reconnect)
     // -----------------------------------------------------
-    match /invites/{code} {
+    match /invites/general/{code} {
+      allow create, get: if request.auth != null;
+      allow update, delete: if false;
+    }
 
-      // Un utilisateur authentifié peut créer un code
-      allow create: if request.auth != null;
-
-      // Un utilisateur authentifié peut lire un code
-      allow get: if request.auth != null;
-
-      // Pas de mise à jour ni suppression pour le POC
+    match /invites/reconnect/{code} {
+      allow create, get: if request.auth != null;
       allow update, delete: if false;
     }
 

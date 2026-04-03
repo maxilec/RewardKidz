@@ -21,8 +21,8 @@ import {
   doc,
   getDoc,
   setDoc,
-  collection,
-  serverTimestamp
+  serverTimestamp,
+  collection
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ---------------------------------------------------------
@@ -76,6 +76,7 @@ export async function ensureUserDocument(user) {
       displayName: user.displayName || null,
       familyId: null,
       role: "none",
+      childName: null,
       createdAt: Date.now()
     });
   }
@@ -108,26 +109,47 @@ export async function createFamily(user, familyName) {
   return familyId;
 }
 
-export async function joinFamily(user, familyId) {
+export async function joinFamily(user, familyId, childName) {
   await setDoc(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "child",
-    displayName: user.displayName || "Enfant"
+    displayName: childName
   });
 
   await setDoc(doc(db, "users", user.uid), {
     familyId,
-    role: "child"
+    role: "child",
+    childName
   }, { merge: true });
 
   return familyId;
 }
 
+export async function deleteFamily(familyId) {
+  await deleteDoc(doc(db, "families", familyId));
+}
+
+export async function getFamilyChildren(familyId) {
+  const col = collection(db, "families", familyId, "members");
+  const snap = await getDocs(col);
+
+  const children = [];
+  snap.forEach(doc => {
+    const data = doc.data();
+    if (data.role === "child") {
+      children.push({
+        uid: data.uid,
+        name: data.displayName
+      });
+    }
+  });
+
+  return children;
+}
 // ---------------------------------------------------------
-// INVITATION SYSTEM (shortCode 6 chars + expiration)
+// INVITATIONS (general + reconnect, shortCode 6 chars)
 // ---------------------------------------------------------
 
-// 6-char alphanumeric code (no ambiguous chars)
 function generateShortCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const arr = new Uint8Array(6);
@@ -135,33 +157,65 @@ function generateShortCode() {
   return Array.from(arr).map(b => chars[b % chars.length]).join("");
 }
 
-// Create an invitation valid for 15 minutes
+// Invitation générale (nouvel enfant)
 export async function createInvite(familyId) {
   const shortCode = generateShortCode();
-  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 min
 
-  await setDoc(doc(db, "invites", shortCode), {
+  await setDoc(doc(db, "invites/general", shortCode), {
     familyId,
     shortCode,
     createdAt: serverTimestamp(),
     expiresAt,
-    active: true
+    active: true,
+    targetUid: null
   });
 
   return shortCode;
 }
 
-// Resolve an invitation code → returns familyId
+// Invitation ciblée (reconnexion enfant existant)
+export async function createReconnectInvite(familyId, childUid) {
+  const shortCode = generateShortCode();
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 min
+
+  await setDoc(doc(db, "invites/reconnect", shortCode), {
+    familyId,
+    shortCode,
+    createdAt: serverTimestamp(),
+    expiresAt,
+    active: true,
+    targetUid: childUid
+  });
+
+  return shortCode;
+}
+
+// Résolution d’un code (cherche d’abord dans general, puis reconnect)
 export async function resolveInvite(shortCode) {
-  const ref = doc(db, "invites", shortCode);
-  const snap = await getDoc(ref);
+  // 1) general
+  let ref = doc(db, "invites/general", shortCode);
+  let snap = await getDoc(ref);
 
-  if (!snap.exists()) throw new Error("Code invalide");
+  if (snap.exists()) {
+    const data = snap.data();
+    if (!data.active || Date.now() > data.expiresAt) {
+      throw new Error("Code expiré");
+    }
+    return { ...data, type: "general" };
+  }
 
-  const data = snap.data();
+  // 2) reconnect
+  ref = doc(db, "invites/reconnect", shortCode);
+  snap = await getDoc(ref);
 
-  if (!data.active) throw new Error("Code expiré");
-  if (Date.now() > data.expiresAt) throw new Error("Code expiré");
+  if (snap.exists()) {
+    const data = snap.data();
+    if (!data.active || Date.now() > data.expiresAt) {
+      throw new Error("Code expiré");
+    }
+    return { ...data, type: "reconnect" };
+  }
 
-  return data.familyId;
+  throw new Error("Code invalide");
 }
