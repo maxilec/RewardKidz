@@ -10,6 +10,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <title>RewardKidz</title>
 <style>
 /* ══ RESET & ANTI-ZOOM ══════════════════════════════════════ */
@@ -1921,11 +1922,20 @@ function renderObInvite(token, shortCode, fid) {
   const codeEl = document.getElementById('obShortCodeDisplay');
   if(codeEl) { codeEl.textContent = shortCode; codeEl.dataset.code = shortCode; }
 
-  // QR code via Google Charts (URL complète avec fid + token)
-  const url   = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
-  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=180x180&chl=${encodeURIComponent(url)}&choe=UTF-8&chld=L|0`;
-  const el    = document.getElementById('obQRDisplay');
-  if(el) el.innerHTML = `<img src="${qrUrl}" width="180" height="180" alt="QR code" style="display:block;margin:0 auto;border-radius:8px;">`;
+  // QR code via qrcodejs
+  const url = `${location.origin}${location.pathname}?fid=${fid}&t=${token}`;
+  const el  = document.getElementById('obQRDisplay');
+  if(el) {
+    el.innerHTML = ''; // Vider avant de recréer
+    new QRCode(el, {
+      text: url,
+      width: 180,
+      height: 180,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
 }
 
 window.copyShortCode = function() {
@@ -2621,11 +2631,20 @@ window.refreshInvite = async function() {
     const exp = new Date(inv.expiresAt);
     const min = Math.round((exp - Date.now()) / 60000);
     document.getElementById('inviteExpiry').textContent = `Expire dans ${min} min`;
-    // QR code
+    // QR code via qrcodejs
     const url   = `${location.origin}${location.pathname}?fid=${currentFamilyId}&t=${inv.token}`;
-    const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=160x160&chl=${encodeURIComponent(url)}&choe=UTF-8&chld=L|0`;
-    document.getElementById('inviteQR').innerHTML =
-      `<img src="${qrUrl}" width="160" height="160" style="display:block;border-radius:6px;">`;
+    const qrEl  = document.getElementById('inviteQR');
+    if(qrEl) {
+      qrEl.innerHTML = ''; // Vider avant de recréer
+      new QRCode(qrEl, {
+        text: url,
+        width: 160,
+        height: 160,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
   } catch(e) {
     showToast('Erreur', e.message, '❌');
   }
