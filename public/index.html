@@ -1,17 +1,51 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="RewardKidz">
-<meta name="theme-color" content="#e8f4fd">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<title>RewardKidz</title>
+  <meta charset="UTF-8" />
+
+  <!-- PWA -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#4a90e2" />
+
+  <link rel="manifest" href="./manifest.json" />
+
+  <title>RewardKidz - POC</title>
+
+  <link rel="stylesheet" href="./css/style.css" />
 </head>
+
 <body>
-<button id="login">Connexion Google</button>
-<script type="module" src="./main.js"></script>
+
+  <!-- LOGIN SCREEN (visible uniquement si pas connecté) -->
+  <div id="login-screen">
+    <h1>RewardKidz</h1>
+    <p>Connecte-toi pour commencer</p>
+    <button id="login" class="primary-btn">Connexion Google</button>
+  </div>
+
+  <!-- APP CONTAINER (SPA) -->
+  <div id="app" style="display:none;"></div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { auth } from "./firebase.js";
+
+    // Masquer/afficher login vs app
+    auth.onAuthStateChanged((user) => {
+      const loginScreen = document.getElementById("login-screen");
+      const app = document.getElementById("app");
+
+      if (user) {
+        loginScreen.style.display = "none";
+        app.style.display = "block";
+      } else {
+        loginScreen.style.display = "block";
+        app.style.display = "none";
+      }
+    });
+  </script>
+
+  <script type="module" src="./main.js"></script>
 </body>
 </html>

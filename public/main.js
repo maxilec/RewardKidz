@@ -21,17 +21,52 @@ function navigate(page) {
 }
 
 async function loadPage(page) {
-  const container = document.getElementById("app");
+  const user = auth.currentUser;
 
+  // --- 1) Pas connecté → retour login ---
+  if (!user && page !== "login") {
+    document.getElementById("app").innerHTML = "";
+    return; // on laisse l'écran de login visible
+  }
+
+  // --- 2) Connecté → on récupère son profil ---
+  let userDoc = null;
+  if (user) {
+    userDoc = await getUser(user.uid);
+  }
+
+  // --- 3) Pas de famille → accès uniquement à create-family ou join-family ---
+  if (user && !userDoc.familyId) {
+    if (page !== "create-family" && page !== "join-family") {
+      navigate("create-family");
+      return;
+    }
+  }
+
+  // --- 4) Parent ne peut pas aller sur child ---
+  if (userDoc && userDoc.role === "parent" && page === "child") {
+    navigate("parent");
+    return;
+  }
+
+  // --- 5) Enfant ne peut pas aller sur parent ---
+  if (userDoc && userDoc.role === "child" && page === "parent") {
+    navigate("child");
+    return;
+  }
+
+  // --- 6) Chargement de la page ---
+  const container = document.getElementById("app");
   const html = await fetch(`./pages/${page}.html`).then(r => r.text());
   container.innerHTML = html;
 
-  // Bind page-specific logic
+  // --- 7) Bind page-specific logic ---
   if (page === "create-family") initCreateFamily();
   if (page === "join-family") initJoinFamily();
   if (page === "parent") initParent();
   if (page === "child") initChild();
 }
+
 
 window.addEventListener("hashchange", () => {
   const page = location.hash.replace("#", "") || "create-family";
