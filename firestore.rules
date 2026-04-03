@@ -2,12 +2,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── USERS ─────────────────────────────────────────────
-    // Chaque utilisateur peut lire/écrire uniquement son propre document
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // -----------------------------------------------------
+    // USERS
+    // Chaque utilisateur ne peut lire/écrire que son propre doc
+    // -----------------------------------------------------
+    match /users/{uid} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
     }
 
+    // -----------------------------------------------------
+    // FAMILIES
+    // On verrouille complètement la lecture directe des familles
+    // (on utilise les invitations pour rejoindre)
+    // -----------------------------------------------------
+    match /families/{familyId} {
+
+      // Lecture interdite pour le POC
+      allow read: if false;
+
+      // Écriture réservée aux owners (parents)
+      allow write: if request.auth != null
+                   && request.auth.uid in resource.data.ownerIds;
+
+      // Membres de la famille
+      match /members/{memberId} {
+
+        // Un membre peut lire/écrire uniquement son propre doc
+        allow read, write: if request.auth != null
+                           && request.auth.uid == memberId;
+      }
+    }
+
+    // -----------------------------------------------------
+    // INVITATIONS (shortCode 6 caractères)
+    // Permet de rejoindre une famille sans lire families/{id}
+    // -----------------------------------------------------
+    match /invites/{code} {
+
+      // Un utilisateur authentifié peut créer un code
+      allow create: if request.auth != null;
+
+      // Un utilisateur authentifié peut lire un code
+      allow get: if request.auth != null;
+
+      // Pas de mise à jour ni suppression pour le POC
+      allow update, delete: if false;
+    }
 
     // ── Helpers ─────────────────────────────────────────────
     function isAuth() {
