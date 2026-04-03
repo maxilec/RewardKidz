@@ -12,16 +12,16 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
   onAuthStateChanged,
-  signOut
+  signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 import {
   getFirestore,
   doc,
   getDoc,
-  setDoc,
-  collection
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // --- Init Firebase ---
@@ -36,6 +36,11 @@ export const provider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
   const result = await signInWithPopup(auth, provider);
+  return result.user;
+}
+
+export async function loginAsChild() {
+  const result = await signInAnonymously(auth);
   return result.user;
 }
 
@@ -64,8 +69,8 @@ export async function ensureUserDocument(user) {
   if (!snap.exists()) {
     await setDoc(ref, {
       uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
+      email: user.email || null,
+      displayName: user.displayName || null,
       familyId: null,
       role: "none",
       createdAt: Date.now()
@@ -80,21 +85,18 @@ export async function ensureUserDocument(user) {
 export async function createFamily(user, familyName) {
   const familyId = crypto.randomUUID();
 
-  // Create family root
   await setDoc(doc(db, "families", familyId), {
     name: familyName,
     ownerIds: [user.uid],
     createdAt: Date.now()
   });
 
-  // Add parent as member
   await setDoc(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "parent",
-    displayName: user.displayName
+    displayName: user.displayName || "Parent"
   });
 
-  // Update user
   await setDoc(doc(db, "users", user.uid), {
     familyId,
     role: "parent"
@@ -112,7 +114,7 @@ export async function joinFamily(user, familyId) {
   await setDoc(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "child",
-    displayName: user.displayName
+    displayName: user.displayName || "Enfant"
   });
 
   await setDoc(doc(db, "users", user.uid), {

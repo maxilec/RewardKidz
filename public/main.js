@@ -2,18 +2,19 @@
 // Imports
 // ---------------------------------------------------------
 import {
+  auth,
   loginWithGoogle,
+  loginAsChild,
   onUserStateChanged,
   ensureUserDocument,
   getUser,
   createFamily,
   joinFamily,
-  logout,
-  auth
+  logout
 } from "./firebase.js";
 
 // ---------------------------------------------------------
-// Simple SPA Router (hash-based)
+// Simple SPA Router (hash-based) + Guard
 // ---------------------------------------------------------
 
 function navigate(page) {
@@ -24,50 +25,47 @@ function navigate(page) {
 async function loadPage(page) {
   const user = auth.currentUser;
 
-  // --- 1) Pas connecté → retour login ---
-  if (!user && page !== "login") {
-    document.getElementById("app").innerHTML = "";
-    return; // on laisse l'écran de login visible
+  // 1) Pas connecté → on laisse l'écran de login
+  if (!user) {
+    const container = document.getElementById("app");
+    if (container) container.innerHTML = "";
+    return;
   }
 
-  // --- 2) Connecté → on récupère son profil ---
-  let userDoc = null;
-  if (user) {
-    userDoc = await getUser(user.uid);
+  // 2) Récupérer le profil utilisateur
+  const userDoc = await getUser(user.uid);
+
+  // 3) Pas de famille → accès uniquement à create-family / join-family
+  if (!userDoc.familyId &&
+      page !== "create-family" &&
+      page !== "join-family") {
+    navigate("create-family");
+    return;
   }
 
-  // --- 3) Pas de famille → accès uniquement à create-family ou join-family ---
-  if (user && !userDoc.familyId) {
-    if (page !== "create-family" && page !== "join-family") {
-      navigate("create-family");
-      return;
-    }
-  }
-
-  // --- 4) Parent ne peut pas aller sur child ---
-  if (userDoc && userDoc.role === "parent" && page === "child") {
+  // 4) Parent ne va pas sur child
+  if (userDoc.role === "parent" && page === "child") {
     navigate("parent");
     return;
   }
 
-  // --- 5) Enfant ne peut pas aller sur parent ---
-  if (userDoc && userDoc.role === "child" && page === "parent") {
+  // 5) Enfant ne va pas sur parent
+  if (userDoc.role === "child" && page === "parent") {
     navigate("child");
     return;
   }
 
-  // --- 6) Chargement de la page ---
+  // 6) Chargement de la page
   const container = document.getElementById("app");
   const html = await fetch(`./pages/${page}.html`).then(r => r.text());
   container.innerHTML = html;
 
-  // --- 7) Bind page-specific logic ---
+  // 7) Bind page-specific logic
   if (page === "create-family") initCreateFamily();
   if (page === "join-family") initJoinFamily();
   if (page === "parent") initParent();
   if (page === "child") initChild();
 }
-
 
 window.addEventListener("hashchange", () => {
   const page = location.hash.replace("#", "") || "create-family";
@@ -75,7 +73,7 @@ window.addEventListener("hashchange", () => {
 });
 
 // ---------------------------------------------------------
-// LOGIN BUTTON (in index.html)
+// LOGIN BUTTONS (in index.html)
 // ---------------------------------------------------------
 
 document.getElementById("login").addEventListener("click", async () => {
@@ -84,14 +82,24 @@ document.getElementById("login").addEventListener("click", async () => {
   await ensureUserDocument(user);
 });
 
+document.getElementById("loginChild").addEventListener("click", async () => {
+  const user = await loginAsChild();
+  console.log("Enfant connecté anonymement :", user.uid);
+  await ensureUserDocument(user);
+  navigate("join-family");
+});
+
 // ---------------------------------------------------------
 // ON AUTH STATE CHANGED
 // ---------------------------------------------------------
 
 onUserStateChanged(async (user) => {
-  if (!user) return;
+  if (!user) {
+    console.log("Aucun utilisateur connecté");
+    return;
+  }
 
-  console.log("Session restaurée :", user.email);
+  console.log("Session restaurée :", user.email || user.uid);
 
   await ensureUserDocument(user);
   const userDoc = await getUser(user.uid);
@@ -114,11 +122,15 @@ onUserStateChanged(async (user) => {
 
 function initCreateFamily() {
   const btn = document.getElementById("createFamilyBtn");
+  if (!btn) return;
+
   btn.addEventListener("click", async () => {
-    const name = document.getElementById("familyName").value.trim();
+    const nameInput = document.getElementById("familyName");
+    const name = nameInput.value.trim();
     const user = auth.currentUser;
 
     if (!name) return alert("Nom requis");
+    if (!user) return alert("Utilisateur non connecté");
 
     const familyId = await createFamily(user, name);
     console.log("Famille créée :", familyId);
@@ -129,14 +141,21 @@ function initCreateFamily() {
 
 function initJoinFamily() {
   const btn = document.getElementById("joinFamilyBtn");
+  if (!btn) return;
+
   btn.addEventListener("click", async () => {
-    const code = document.getElementById("familyCode").value.trim();
+    const codeInput = document.getElementById("familyCode");
+    const code = codeInput.value.trim();
     const user = auth.currentUser;
+
+    if (!code) return alert("Code requis");
+    if (!user) return alert("Utilisateur non connecté");
 
     try {
       await joinFamily(user, code);
       navigate("child");
     } catch (e) {
+      console.error(e);
       alert("Famille introuvable");
     }
   });
@@ -144,50 +163,55 @@ function initJoinFamily() {
 
 async function initParent() {
   const user = auth.currentUser;
+  if (!user) return;
+
   const userDoc = await getUser(user.uid);
 
-    // Afficher le code famille
-  document.getElementById("familyCodeDisplay").textContent = userDoc.familyId;
+  const codeDisplay = document.getElementById("familyCodeDisplay");
+  const copyBtn = document.getElementById("copyFamilyCode");
 
-    // Copier le code
-  document.getElementById("copyFamilyCode").addEventListener("click", () => {
-    navigator.clipboard.writeText(userDoc.familyId);
-    alert("Code copié !");
-  });
-  
-  document.getElementById("logoutBtn").addEventListener("click", () => {
-    logout();
-  });
+  if (codeDisplay) {
+    codeDisplay.textContent = userDoc.familyId || "Aucune famille";
+  }
 
-  document.getElementById("btnFamily").addEventListener("click", () => {
-    alert("À venir : gestion famille");
-  });
+  if (copyBtn && userDoc.familyId) {
+    copyBtn.addEventListener("click", () => {
+      navigator.clipboard.writeText(userDoc.familyId);
+      alert("Code famille copié !");
+    });
+  }
 
-  document.getElementById("btnMissions").addEventListener("click", () => {
-    alert("À venir : missions");
-  });
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      logout();
+    });
+  }
 
-  document.getElementById("btnShop").addEventListener("click", () => {
-    alert("À venir : boutique");
-  });
+  const btnFamily = document.getElementById("btnFamily");
+  const btnMissions = document.getElementById("btnMissions");
+  const btnShop = document.getElementById("btnShop");
+
+  if (btnFamily) btnFamily.addEventListener("click", () => alert("À venir : gestion famille"));
+  if (btnMissions) btnMissions.addEventListener("click", () => alert("À venir : missions"));
+  if (btnShop) btnShop.addEventListener("click", () => alert("À venir : boutique"));
 }
 
 function initChild() {
   console.log("Page enfant chargée");
 
-  document.getElementById("logoutBtn").addEventListener("click", () => {
-    logout();
-  });
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      logout();
+    });
+  }
 
-  document.getElementById("btnChildMissions").addEventListener("click", () => {
-    alert("À venir : missions enfant");
-  });
+  const btnChildMissions = document.getElementById("btnChildMissions");
+  const btnChildShop = document.getElementById("btnChildShop");
+  const btnChildScore = document.getElementById("btnChildScore");
 
-  document.getElementById("btnChildShop").addEventListener("click", () => {
-    alert("À venir : boutique enfant");
-  });
-
-  document.getElementById("btnChildScore").addEventListener("click", () => {
-    alert("À venir : score du jour");
-  });
+  if (btnChildMissions) btnChildMissions.addEventListener("click", () => alert("À venir : missions enfant"));
+  if (btnChildShop) btnChildShop.addEventListener("click", () => alert("À venir : boutique enfant"));
+  if (btnChildScore) btnChildScore.addEventListener("click", () => alert("À venir : score du jour"));
 }

@@ -17,21 +17,27 @@
 
 <body>
 
-  <!-- LOGIN SCREEN (visible uniquement si pas connecté) -->
+  <!-- LOGIN SCREEN -->
   <div id="login-screen">
     <h1>RewardKidz</h1>
-    <p>Connecte-toi pour commencer</p>
-    <button id="login" class="primary-btn">Connexion Google</button>
+    <p>Choisis comment te connecter</p>
+
+    <button id="login" class="primary-btn">
+      Connexion Google
+    </button>
+
+    <button id="loginChild" class="secondary-btn">
+      Je suis un enfant
+    </button>
   </div>
 
   <!-- APP CONTAINER (SPA) -->
   <div id="app" style="display:none;"></div>
 
-  <!-- Scripts -->
+  <!-- Gestion affichage login/app -->
   <script type="module">
     import { auth } from "./firebase.js";
 
-    // Masquer/afficher login vs app
     auth.onAuthStateChanged((user) => {
       const loginScreen = document.getElementById("login-screen");
       const app = document.getElementById("app");
