@@ -1,8 +1,9 @@
-name: Deploy RewardKidz to Firebase Hosting
+name: Deploy RewardKidz POC to Firebase Hosting
 
 on:
   push:
-    branches: [ '**' ]
+    branches:
+      - 'feature/2.0/POC'
 
 jobs:
   deploy:
@@ -12,12 +13,15 @@ jobs:
       id-token: write
 
     steps:
+      # 1. Checkout du dépôt
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2. Génération du fichier firebase.config.js dans /public
       - name: Générer firebase.config.js depuis les secrets
         run: |
-          cat <<EOF > firebase.config.js
+          mkdir -p public
+          cat <<EOF > public/firebase.config.js
           export const firebaseConfig = {
             apiKey: "${{ secrets.FIREBASE_API_KEY }}",
             authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
@@ -28,27 +32,18 @@ jobs:
           };
           EOF
 
+      # 3. Vérification du fichier généré
       - name: Vérifier firebase.config.js
         run: |
-          echo "=== Taille ===" && wc -c firebase.config.js
-          echo "=== Clés ===" && grep -o '^[^:]*' firebase.config.js
+          echo "=== Taille ===" && wc -c public/firebase.config.js
+          echo "=== Contenu (clés uniquement) ==="
+          grep -o '^[^:]*' public/firebase.config.js
 
-      - name: Préparer le déploiement (bypass gitignore)
-        if: github.ref == 'refs/heads/main'
-        run: sed -i '/firebase.config.js/d' .gitignore
-
-      - name: Deploy to Firebase Hosting
-        if: github.ref == 'refs/heads/main'
+      # 4. Déploiement sur le channel POC
+      - name: Deploy to Firebase Hosting (POC channel)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           projectId: rewardkidz-4fe68
-          channelId: live
-
-      - name: Build check (hors main)
-        if: github.ref != 'refs/heads/main'
-        run: |
-          echo "✅ Branch: ${{ github.ref_name }}"
-          echo "✅ firebase.config.js généré ($(wc -c < firebase.config.js) bytes)"
-          echo "✅ Build OK — déploiement réservé à main"
+          channelId: poc

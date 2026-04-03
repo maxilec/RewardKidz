@@ -1,43 +1,16 @@
 {
   "hosting": {
-    "public": ".",
+    "public": "public",
     "ignore": [
       "firebase.json",
-      ".firebaserc",
-      "firestore.rules",
-      ".gitignore",
-      ".github/**",
-      "*.md",
-      "firebase.config.example.js"
+      "**/.*",
+      "**/node_modules/**"
     ],
     "rewrites": [
       {
-        "source": "/app",
-        "destination": "/app.html"
+        "source": "**",
+        "destination": "/index.html"
       }
-    ],
-    "headers": [
-      {
-        "source": "**/*.@(js)",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-        ]
-      },
-      {
-        "source": "**/*.html",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
-        ]
-      },
-      {
-        "source": "sw.js",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache" },
-          { "key": "Service-Worker-Allowed", "value": "/" }
-        ]
-      }
-    ],
-    "cleanUrls": true,
-    "trailingSlash": false
+    ]
   }
 }
