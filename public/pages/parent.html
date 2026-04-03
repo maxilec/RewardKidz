@@ -2,35 +2,35 @@
 
   <h1>Espace Parent</h1>
 
-  <p class="subtitle">
-    Bienvenue dans votre tableau de bord parent.
-  </p>
+  <div class="card">
+    <h2>🔑 Code d’invitation</h2>
 
-  <div class="card-list">
+    <p id="inviteCode" class="invite-code">
+      Aucun code généré
+    </p>
 
-    <div class="card">
-      <h2>👨‍👩‍👧‍👦 Famille</h2>
-      <p>Gérer les membres de la famille.</p>
-      <button class="secondary-btn" id="btnFamily">Voir la famille</button>
+    <button id="generateInvite" class="secondary-btn">
+      Générer un code
+    </button>
+  </div>
+
+  <div class="parent-section">
+
+    <div class="parent-card">
+      <h2>👨‍👩‍👧 Gestion famille</h2>
+      <button class="secondary-btn" id="btnFamily">Gérer</button>
     </div>
 
-    <div class="card">
+    <div class="parent-card">
       <h2>⭐ Missions</h2>
-      <p>Créer et gérer les missions quotidiennes.</p>
-      <button class="secondary-btn" id="btnMissions">Gérer les missions</button>
+      <button class="secondary-btn" id="btnMissions">Configurer</button>
     </div>
 
-    <div class="card">
-      <h2>🛒 Boutique</h2>
-      <p>Configurer les récompenses disponibles.</p>
-      <button class="secondary-btn" id="btnShop">Gérer la boutique</button>
+    <div class="parent-card">
+      <h2>🎁 Boutique</h2>
+      <button class="secondary-btn" id="btnShop">Configurer</button>
     </div>
 
-    <div class="card">
-        <h2>🔑 Code famille</h2>
-        <p id="familyCodeDisplay">Chargement...</p>
-        <button class="secondary-btn" id="copyFamilyCode">Copier le code</button>
-    </div>
   </div>
 
   <button class="danger-btn" id="logoutBtn">

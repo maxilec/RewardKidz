@@ -1,7 +1,6 @@
 // ---------------------------------------------------------
-// Firebase initialization + helpers
+// Firebase initialization
 // ---------------------------------------------------------
-
 import { firebaseConfig } from "./firebase.config.js";
 
 import {
@@ -21,10 +20,14 @@ import {
   getFirestore,
   doc,
   getDoc,
-  setDoc
+  setDoc,
+  collection,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// --- Init Firebase ---
+// ---------------------------------------------------------
+// Init Firebase
+// ---------------------------------------------------------
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
@@ -106,11 +109,6 @@ export async function createFamily(user, familyName) {
 }
 
 export async function joinFamily(user, familyId) {
-  const ref = doc(db, "families", familyId);
-  const snap = await getDoc(ref);
-
-  if (!snap.exists()) throw new Error("Famille introuvable");
-
   await setDoc(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "child",
@@ -123,4 +121,47 @@ export async function joinFamily(user, familyId) {
   }, { merge: true });
 
   return familyId;
+}
+
+// ---------------------------------------------------------
+// INVITATION SYSTEM (shortCode 6 chars + expiration)
+// ---------------------------------------------------------
+
+// 6-char alphanumeric code (no ambiguous chars)
+function generateShortCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const arr = new Uint8Array(6);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => chars[b % chars.length]).join("");
+}
+
+// Create an invitation valid for 15 minutes
+export async function createInvite(familyId) {
+  const shortCode = generateShortCode();
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+  await setDoc(doc(db, "invites", shortCode), {
+    familyId,
+    shortCode,
+    createdAt: serverTimestamp(),
+    expiresAt,
+    active: true
+  });
+
+  return shortCode;
+}
+
+// Resolve an invitation code → returns familyId
+export async function resolveInvite(shortCode) {
+  const ref = doc(db, "invites", shortCode);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) throw new Error("Code invalide");
+
+  const data = snap.data();
+
+  if (!data.active) throw new Error("Code expiré");
+  if (Date.now() > data.expiresAt) throw new Error("Code expiré");
+
+  return data.familyId;
 }

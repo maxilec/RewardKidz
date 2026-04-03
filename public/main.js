@@ -10,6 +10,8 @@ import {
   getUser,
   createFamily,
   joinFamily,
+  resolveInvite,
+  createInvite,
   logout
 } from "./firebase.js";
 
@@ -144,19 +146,18 @@ function initJoinFamily() {
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
-    const codeInput = document.getElementById("familyCode");
-    const code = codeInput.value.trim();
+    const code = document.getElementById("familyCode").value.trim().toUpperCase();
     const user = auth.currentUser;
 
     if (!code) return alert("Code requis");
     if (!user) return alert("Utilisateur non connecté");
 
     try {
-      await joinFamily(user, code);
+      const familyId = await resolveInvite(code);
+      await joinFamily(user, familyId);
       navigate("child");
     } catch (e) {
-      console.error(e);
-      alert("Famille introuvable");
+      alert(e.message);
     }
   });
 }
@@ -167,34 +168,22 @@ async function initParent() {
 
   const userDoc = await getUser(user.uid);
 
-  const codeDisplay = document.getElementById("familyCodeDisplay");
-  const copyBtn = document.getElementById("copyFamilyCode");
+  // Génération d’un code d’invitation
+  const inviteBtn = document.getElementById("generateInvite");
+  const inviteCode = document.getElementById("inviteCode");
 
-  if (codeDisplay) {
-    codeDisplay.textContent = userDoc.familyId || "Aucune famille";
-  }
-
-  if (copyBtn && userDoc.familyId) {
-    copyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(userDoc.familyId);
-      alert("Code famille copié !");
+  if (inviteBtn && inviteCode) {
+    inviteBtn.addEventListener("click", async () => {
+      const code = await createInvite(userDoc.familyId);
+      inviteCode.textContent = code;
     });
   }
 
+  // Logout
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      logout();
-    });
+    logoutBtn.addEventListener("click", () => logout());
   }
-
-  const btnFamily = document.getElementById("btnFamily");
-  const btnMissions = document.getElementById("btnMissions");
-  const btnShop = document.getElementById("btnShop");
-
-  if (btnFamily) btnFamily.addEventListener("click", () => alert("À venir : gestion famille"));
-  if (btnMissions) btnMissions.addEventListener("click", () => alert("À venir : missions"));
-  if (btnShop) btnShop.addEventListener("click", () => alert("À venir : boutique"));
 }
 
 function initChild() {
@@ -202,16 +191,6 @@ function initChild() {
 
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      logout();
-    });
+    logoutBtn.addEventListener("click", () => logout());
   }
-
-  const btnChildMissions = document.getElementById("btnChildMissions");
-  const btnChildShop = document.getElementById("btnChildShop");
-  const btnChildScore = document.getElementById("btnChildScore");
-
-  if (btnChildMissions) btnChildMissions.addEventListener("click", () => alert("À venir : missions enfant"));
-  if (btnChildShop) btnChildShop.addEventListener("click", () => alert("À venir : boutique enfant"));
-  if (btnChildScore) btnChildScore.addEventListener("click", () => alert("À venir : score du jour"));
 }
