@@ -28,12 +28,12 @@ service cloud.firestore {
     }
 
     // INVITES
-    match /invites/general/{code} {
+    match /_invites/general/{code} {
       allow create, get: if request.auth != null;
       allow update, delete: if false;
     }
 
-    match /invites/reconnect/{code} {
+    match /_invites/reconnect/{code} {
       allow create, get: if request.auth != null;
       allow update, delete: if false;
     }
@@ -139,7 +139,7 @@ service cloud.firestore {
     // ── Tokens d'invitation ──────────────────────────────────
     // Lecture publique pour validation (token = seul accès possible)
     // Écriture réservée aux parents de la famille
-    match /families/{familyId}/invites/{tokenId} {
+    match /families/{familyId}/_invites/{tokenId} {
       allow read:   if true;   // Nécessaire pour valider un token sans être authentifié
       allow create: if isParentOf(familyId) || isAuth(); // Création famille = pas encore parent
       allow update: if isAuth(); // Consommation du token

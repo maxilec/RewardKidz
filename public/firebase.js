@@ -167,7 +167,7 @@ export async function createInvite(familyId) {
   const shortCode = generateShortCode();
   const expiresAt = Date.now() + 15 * 60 * 1000;
 
-  await setDoc(doc(db, "invites", "general", shortCode), {
+  await setDoc(doc(db, "_invites", "general", shortCode), {
     familyId,
     shortCode,
     createdAt: serverTimestamp(),
@@ -184,7 +184,7 @@ export async function createReconnectInvite(familyId, childUid) {
   const shortCode = generateShortCode();
   const expiresAt = Date.now() + 10 * 60 * 1000;
 
-  await setDoc(doc(db, "invites", "reconnect", shortCode), {
+  await setDoc(doc(db, "_invites", "reconnect", shortCode), {
     familyId,
     shortCode,
     createdAt: serverTimestamp(),
@@ -199,7 +199,7 @@ export async function createReconnectInvite(familyId, childUid) {
 // Résolution d’un code
 export async function resolveInvite(shortCode) {
   // general
-  let ref = doc(db, "invites", "general", shortCode);
+  let ref = doc(db, "_invites", "general", shortCode);
   let snap = await getDoc(ref);
 
   if (snap.exists()) {
@@ -211,7 +211,7 @@ export async function resolveInvite(shortCode) {
   }
 
   // reconnect
-  ref = doc(db, "invites", "reconnect", shortCode);
+  ref = doc(db, "_invites", "reconnect", shortCode);
   snap = await getDoc(ref);
 
   if (snap.exists()) {
