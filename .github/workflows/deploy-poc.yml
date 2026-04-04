@@ -3,7 +3,7 @@ name: Deploy RewardKidz POC to Firebase Hosting
 on:
   push:
     branches:
-      - 'feature/2.0/POC'
+      - 'fix/2.0/POC'
 
 jobs:
   deploy:
