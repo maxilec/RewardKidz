@@ -1,0 +1,65 @@
+<div class="page join-family">
+
+  <a id="backToLogin" class="back-link">← Retour</a>
+
+  <h1>Espace Enfant</h1>
+
+  <!-- Mode selector -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabJoin">Première connexion</button>
+    <button class="mode-tab" id="tabReconnect">Je reviens</button>
+  </div>
+
+  <!-- MODE : Rejoindre (première fois) -->
+  <div id="modeJoin">
+    <p class="subtitle">
+      Entre le code d'invitation de ta famille, ton prénom et un code secret à 4 chiffres.
+    </p>
+
+    <div class="form-group">
+      <label for="inviteCode">Code d'invitation (6 caractères)</label>
+      <input id="inviteCode" type="text" maxlength="6" placeholder="Ex : AB4F9Z" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label for="joinChildName">Ton prénom</label>
+      <input id="joinChildName" type="text" placeholder="Ex : Lucas" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label for="joinChildPin">Code secret (4 chiffres)</label>
+      <input id="joinChildPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="new-password">
+    </div>
+
+    <button id="joinFamilyBtn" class="primary-btn">
+      Rejoindre la famille
+    </button>
+  </div>
+
+  <!-- MODE : Reconnexion -->
+  <div id="modeReconnect" style="display:none;">
+    <p class="subtitle">
+      Entre le code permanent de ta famille, ton prénom et ton code secret.
+    </p>
+
+    <div class="form-group">
+      <label for="familyCodePermanent">Code famille (8 caractères)</label>
+      <input id="familyCodePermanent" type="text" maxlength="8" placeholder="Ex : A3BF92KL" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label for="reconnectChildName">Ton prénom</label>
+      <input id="reconnectChildName" type="text" placeholder="Ex : Lucas" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label for="reconnectChildPin">Code secret (4 chiffres)</label>
+      <input id="reconnectChildPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="current-password">
+    </div>
+
+    <button id="reconnectFamilyBtn" class="primary-btn">
+      Me reconnecter
+    </button>
+  </div>
+
+</div>
