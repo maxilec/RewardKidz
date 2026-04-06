@@ -127,6 +127,22 @@ function bindLogoutButton() {
   if (btn) btn.addEventListener("click", () => logout());
 }
 
+function renderQRCode(code) {
+  const container = document.getElementById("inviteQRCode");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!code) { container.style.display = "none"; return; }
+  new QRCode(container, {
+    text: code,
+    width: 120,
+    height: 120,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  container.style.display = "block";
+}
+
 // ---------------------------------------------------------
 // PAGE LOGIC
 // ---------------------------------------------------------
@@ -194,7 +210,10 @@ async function initParent() {
   if (inviteBtn && inviteCode) {
     try {
       const existing = await getActiveInvite(userDoc.familyId);
-      if (existing) inviteCode.textContent = existing;
+      if (existing) {
+        inviteCode.textContent = existing;
+        renderQRCode(existing);
+      }
     } catch (e) {
       console.error("Impossible de récupérer le code d'invitation :", e);
     }
@@ -204,6 +223,7 @@ async function initParent() {
         const active = await getActiveInvite(userDoc.familyId);
         const code = active ?? await createInvite(userDoc.familyId);
         inviteCode.textContent = code;
+        renderQRCode(code);
       } catch (e) {
         console.error("Erreur code d'invitation :", e);
         alert("Erreur lors de la génération du code : " + e.message);
