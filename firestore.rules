@@ -114,8 +114,8 @@ service cloud.firestore {
     // ── Tokens d'invitation (top-level, lookup par code sans connaître familyId) ──
     match /invites/{tokenId} {
       allow read:   if true; // Lecture publique pour valider un code sans être authentifié
-      allow create: if isAuth() && isParentOf(request.resource.data.familyId);
-      allow delete: if isAuth() && isParentOf(resource.data.familyId);
+      allow create: if isAuth() && isMemberOf(request.resource.data.familyId);
+      allow delete: if isAuth() && isMemberOf(resource.data.familyId);
     }
 
     // ── Tokens d'invitation (imbriqués, héritage legacy) ────────────────────────

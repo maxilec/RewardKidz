@@ -192,14 +192,22 @@ async function initParent() {
   const inviteCode = document.getElementById("inviteCode");
 
   if (inviteBtn && inviteCode) {
-    const existing = await getActiveInvite(userDoc.familyId);
-    if (existing) inviteCode.textContent = existing;
+    try {
+      const existing = await getActiveInvite(userDoc.familyId);
+      if (existing) inviteCode.textContent = existing;
+    } catch (e) {
+      console.error("Impossible de récupérer le code d'invitation :", e);
+    }
 
     inviteBtn.addEventListener("click", async () => {
-      // Ne recréer que si aucun code actif n'existe déjà
-      const active = await getActiveInvite(userDoc.familyId);
-      const code = active ?? await createInvite(userDoc.familyId);
-      inviteCode.textContent = code;
+      try {
+        const active = await getActiveInvite(userDoc.familyId);
+        const code = active ?? await createInvite(userDoc.familyId);
+        inviteCode.textContent = code;
+      } catch (e) {
+        console.error("Erreur code d'invitation :", e);
+        alert("Erreur lors de la génération du code : " + e.message);
+      }
     });
   }
 
@@ -214,7 +222,7 @@ async function initParent() {
 
       try {
         await deleteFamily(userDoc.familyId);
-        navigate("onboarding");
+        await logout(); // Déconnexion après suppression — onUserStateChanged(null) ramène le login
       } catch (e) {
         alert("Erreur lors de la suppression : " + e.message);
       }
