@@ -25,6 +25,8 @@ import {
   deleteDoc,
   writeBatch,
   collection,
+  query,
+  where,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -154,11 +156,36 @@ function generateShortCode() {
   return Array.from(arr).map(b => chars[b % chars.length]).join("");
 }
 
-// Create an invitation valid for 15 minutes
-export async function createInvite(familyId) {
-  const shortCode = generateShortCode();
-  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+// Returns the shortCode of an active, non-expired invite for this family, or null
+export async function getActiveInvite(familyId) {
+  const snap = await getDocs(query(collection(db, "invites"), where("familyId", "==", familyId)));
+  const now = Date.now();
+  for (const d of snap.docs) {
+    const data = d.data();
+    if (data.active && data.expiresAt > now) return data.shortCode;
+  }
+  return null;
+}
 
+// Create an invitation valid for 15 minutes.
+// Deletes expired invites for this family first. Creates a new one.
+export async function createInvite(familyId) {
+  // Nettoyage des invites expirées
+  const snap = await getDocs(query(collection(db, "invites"), where("familyId", "==", familyId)));
+  const now = Date.now();
+  const cleanupBatch = writeBatch(db);
+  let hasCleanup = false;
+  snap.forEach(d => {
+    if (!d.data().active || d.data().expiresAt <= now) {
+      cleanupBatch.delete(d.ref);
+      hasCleanup = true;
+    }
+  });
+  if (hasCleanup) await cleanupBatch.commit();
+
+  // Création du nouveau code
+  const shortCode = generateShortCode();
+  const expiresAt = now + 15 * 60 * 1000;
   await setDoc(doc(db, "invites", shortCode), {
     familyId,
     shortCode,

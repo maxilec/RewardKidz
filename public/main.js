@@ -12,6 +12,7 @@ import {
   joinFamily,
   deleteFamily,
   resolveInvite,
+  getActiveInvite,
   createInvite,
   logout
 } from "./firebase.js";
@@ -21,8 +22,14 @@ import {
 // ---------------------------------------------------------
 
 function navigate(page) {
-  window.location.hash = page;
-  loadPage(page);
+  const current = location.hash.replace("#", "") || "onboarding";
+  if (current === page) {
+    // Le hash ne changera pas → hashchange ne se déclenchera pas → appel direct
+    loadPage(page);
+  } else {
+    // Changement de hash → hashchange déclenchera loadPage (un seul appel)
+    window.location.hash = page;
+  }
 }
 
 async function loadPage(page) {
@@ -180,13 +187,18 @@ async function initParent() {
     if (familyDoc) familyNameEl.textContent = `Famille ${familyDoc.name}`;
   }
 
-  // Génération d'un code d'invitation
+  // Code d'invitation : afficher le code actif existant, ou en créer un nouveau
   const inviteBtn = document.getElementById("generateInvite");
   const inviteCode = document.getElementById("inviteCode");
 
   if (inviteBtn && inviteCode) {
+    const existing = await getActiveInvite(userDoc.familyId);
+    if (existing) inviteCode.textContent = existing;
+
     inviteBtn.addEventListener("click", async () => {
-      const code = await createInvite(userDoc.familyId);
+      // Ne recréer que si aucun code actif n'existe déjà
+      const active = await getActiveInvite(userDoc.familyId);
+      const code = active ?? await createInvite(userDoc.familyId);
       inviteCode.textContent = code;
     });
   }
