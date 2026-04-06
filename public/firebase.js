@@ -70,20 +70,23 @@ export async function getUser(uid) {
   return snap.exists() ? snap.data() : null;
 }
 
-export async function ensureUserDocument(user) {
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
+// ---------------------------------------------------------
+// PIN HELPERS
+// ---------------------------------------------------------
 
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      uid: user.uid,
-      email: user.email || null,
-      displayName: user.displayName || null,
-      familyId: null,
-      role: "none",
-      createdAt: Date.now()
-    });
-  }
+// Hash a PIN using SHA-256 with familyId as salt
+async function hashPin(familyId, pin) {
+  const data = new TextEncoder().encode(familyId + ":" + pin);
+  const buf = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Generate a permanent family code (8 chars)
+function generateFamilyCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => chars[b % chars.length]).join("");
 }
 
 // ---------------------------------------------------------
@@ -98,13 +101,18 @@ export async function getFamily(familyId) {
 
 export async function createFamily(user, familyName) {
   const familyId = crypto.randomUUID();
+  const familyCode = generateFamilyCode();
   const batch = writeBatch(db);
 
-  // Création atomique : famille + membre + user doc en un seul commit
+  // Famille + code permanent + membre parent + user doc en un seul commit
   batch.set(doc(db, "families", familyId), {
     name: familyName,
+    familyCode,
     ownerIds: [user.uid],
     createdAt: Date.now()
+  });
+  batch.set(doc(db, "familyCodes", familyCode), {
+    familyId
   });
   batch.set(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
@@ -124,26 +132,119 @@ export async function createFamily(user, familyName) {
   return familyId;
 }
 
-export async function joinFamily(user, familyId) {
+export async function joinFamily(user, familyId, displayName, pin) {
+  const memberId = crypto.randomUUID();
+  const childPasswordHash = await hashPin(familyId, pin);
   const batch = writeBatch(db);
 
-  // Création atomique : membre + user doc en un seul commit
-  batch.set(doc(db, "families", familyId, "members", user.uid), {
-    uid: user.uid,
+  batch.set(doc(db, "families", familyId, "members", memberId), {
+    memberId,
+    linkedAuthUid: user.uid,
     role: "child",
-    displayName: user.displayName || "Enfant"
+    displayName,
+    childPasswordHash
+  });
+  batch.set(doc(db, "families", familyId, "reconnectPublic", memberId), {
+    displayName,
+    childPasswordHash
   });
   batch.set(doc(db, "users", user.uid), {
     uid: user.uid,
-    email: user.email || null,
-    displayName: user.displayName || null,
+    email: null,
+    displayName,
     familyId,
+    memberId,
     role: "child",
     createdAt: Date.now()
   });
 
   await batch.commit();
-  return familyId;
+  return memberId;
+}
+
+// Reconnect an existing child on a new device / new anonymous session
+export async function reconnectChild(user, familyId, displayName, pin) {
+  // 1. Find member by displayName in reconnectPublic
+  const snap = await getDocs(query(
+    collection(db, "families", familyId, "reconnectPublic"),
+    where("displayName", "==", displayName)
+  ));
+  if (snap.empty) throw new Error("Aucun membre trouvé avec ce prénom");
+
+  // 2. Verify PIN client-side
+  const hash = await hashPin(familyId, pin);
+  const match = snap.docs.find(d => d.data().childPasswordHash === hash);
+  if (!match) throw new Error("PIN incorrect");
+
+  const memberId = match.id;
+  const memberRef = doc(db, "families", familyId, "members", memberId);
+  const memberSnap = await getDoc(memberRef);
+  const oldUid = memberSnap.data().linkedAuthUid;
+
+  // 3. Atomic update: linkedAuthUid + user docs
+  const batch = writeBatch(db);
+  batch.update(memberRef, { linkedAuthUid: user.uid });
+  if (oldUid && oldUid !== user.uid) {
+    batch.delete(doc(db, "users", oldUid));
+  }
+  batch.set(doc(db, "users", user.uid), {
+    uid: user.uid,
+    email: null,
+    displayName,
+    familyId,
+    memberId,
+    role: "child",
+    createdAt: Date.now()
+  });
+  await batch.commit();
+  return memberId;
+}
+
+// Resolve a permanent family code → returns familyId
+export async function resolveByFamilyCode(permanentCode) {
+  const ref = doc(db, "familyCodes", permanentCode.toUpperCase());
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Code famille invalide");
+  return snap.data().familyId;
+}
+
+// Get all members of a family
+export async function getFamilyMembers(familyId) {
+  const snap = await getDocs(collection(db, "families", familyId, "members"));
+  return snap.docs.map(d => d.data());
+}
+
+// Delete a family, all its members' user documents, reconnectPublic docs, invitations and familyCode index
+export async function deleteFamily(familyId) {
+  const [membersSnap, invitesSnap, reconnectSnap, familyDoc] = await Promise.all([
+    getDocs(collection(db, "families", familyId, "members")),
+    getDocs(query(collection(db, "invites"), where("familyId", "==", familyId))),
+    getDocs(collection(db, "families", familyId, "reconnectPublic")),
+    getDoc(doc(db, "families", familyId))
+  ]);
+
+  // Batch 1: delete user docs + invites + reconnectPublic docs
+  // (while family still exists so isParentOf() rule evaluates correctly)
+  const cleanupBatch = writeBatch(db);
+  membersSnap.forEach(memberDoc => {
+    const uid = memberDoc.data().linkedAuthUid || memberDoc.data().uid || memberDoc.id;
+    cleanupBatch.delete(doc(db, "users", uid));
+  });
+  invitesSnap.forEach(inviteDoc => cleanupBatch.delete(inviteDoc.ref));
+  reconnectSnap.forEach(reconnectDoc => cleanupBatch.delete(reconnectDoc.ref));
+
+  // Delete familyCode index
+  const familyCode = familyDoc.exists() ? familyDoc.data().familyCode : null;
+  if (familyCode) {
+    cleanupBatch.delete(doc(db, "familyCodes", familyCode));
+  }
+  await cleanupBatch.commit();
+
+  // Batch 2: delete member docs + family
+  const familyBatch = writeBatch(db);
+  membersSnap.forEach(memberDoc => familyBatch.delete(memberDoc.ref));
+  familyBatch.delete(doc(db, "families", familyId));
+  await familyBatch.commit();
 }
 
 // ---------------------------------------------------------
@@ -197,27 +298,6 @@ export async function createInvite(familyId) {
   });
 
   return shortCode;
-}
-
-// Delete a family, all its members' user documents, and all linked invitations
-export async function deleteFamily(familyId) {
-  const [membersSnap, invitesSnap] = await Promise.all([
-    getDocs(collection(db, "families", familyId, "members")),
-    getDocs(query(collection(db, "invites"), where("familyId", "==", familyId)))
-  ]);
-
-  // Batch 1 : suppression des user docs + invitations pendant que la famille et ses
-  // membres existent encore (isMemberOf() dans les rules s'évalue correctement)
-  const cleanupBatch = writeBatch(db);
-  membersSnap.forEach(memberDoc => cleanupBatch.delete(doc(db, "users", memberDoc.id)));
-  invitesSnap.forEach(inviteDoc => cleanupBatch.delete(inviteDoc.ref));
-  await cleanupBatch.commit();
-
-  // Batch 2 : suppression des docs membre + famille
-  const familyBatch = writeBatch(db);
-  membersSnap.forEach(memberDoc => familyBatch.delete(memberDoc.ref));
-  familyBatch.delete(doc(db, "families", familyId));
-  await familyBatch.commit();
 }
 
 // Resolve an invitation code → returns familyId

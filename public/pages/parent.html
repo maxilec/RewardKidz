@@ -4,7 +4,9 @@
   <p id="familyName" class="subtitle"></p>
 
   <div class="card">
-    <h2>🔑 Code d’invitation</h2>
+    <h2>🔑 Code d'invitation</h2>
+
+    <p class="hint">Code temporaire (15 min) pour qu'un enfant rejoigne la famille pour la première fois.</p>
 
     <p id="inviteCode" class="invite-code">
       Aucun code généré
@@ -15,6 +17,17 @@
     <button id="generateInvite" class="secondary-btn">
       Générer un code
     </button>
+  </div>
+
+  <div class="card">
+    <h2>🏠 Code famille permanent</h2>
+    <p class="hint">Ce code ne change jamais. L'enfant l'utilise pour se reconnecter depuis un nouvel appareil.</p>
+    <p id="permanentFamilyCode" class="invite-code">—</p>
+  </div>
+
+  <div class="card">
+    <h2>👨‍👩‍👧 Membres</h2>
+    <div id="childrenList"><p>Chargement...</p></div>
   </div>
 
   <div class="parent-section">

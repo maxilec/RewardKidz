@@ -23,21 +23,15 @@ service cloud.firestore {
         request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.ownerIds;
     }
 
+    // isMemberOf via user doc (compatible avec memberId ≠ UID)
     function isMemberOf(familyId) {
       return isAuth() &&
-        exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
-    }
-
-    function isChildOwner(familyId, docId) {
-      return isAuth() &&
-        exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'child' &&
-        request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)/members/$(docId)).data.linkedAuthUid;
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.familyId == familyId;
     }
 
     // ── TRANSITION DÉMO ──────────────────────────────────────
     // famille_demo reste accessible sans auth pendant la transition
-    // vers le Lot 0-SEC complet (onboarding multi-famille)
     // À SUPPRIMER une fois l'onboarding implémenté
     match /families/famille_demo/{document=**} {
       allow read, write: if true;
@@ -54,14 +48,25 @@ service cloud.firestore {
     }
 
     // ── Membres ──────────────────────────────────────────────
-    match /families/{familyId}/members/{userId} {
+    match /families/{familyId}/members/{memberId} {
       allow read:   if isParentOf(familyId) || isMemberOf(familyId);
       allow create: if isAuth();
       allow update: if isParentOf(familyId) ||
-        // Enfant peut mettre à jour uniquement son propre profil (avatar, mdp)
-        (isAuth() && request.auth.uid ==
-          get(/databases/$(database)/documents/families/$(familyId)/members/$(userId)).data.linkedAuthUid &&
-          request.resource.data.keys().hasOnly(['avatarSkin','childPasswordHash','updatedAt']));
+        // Enfant met à jour son profil (avatar, PIN)
+        (isAuth() && request.auth.uid == resource.data.linkedAuthUid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['avatarSkin','childPasswordHash','updatedAt'])) ||
+        // Reconnexion : update uniquement linkedAuthUid
+        (isAuth() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']) &&
+         exists(/databases/$(database)/documents/families/$(familyId)/reconnectPublic/$(memberId)));
+      allow delete: if isParentOf(familyId);
+    }
+
+    // ── Reconnexion publique ─────────────────────────────────
+    match /families/{familyId}/reconnectPublic/{memberId} {
+      allow read:   if true; // Lecture publique pour valider prénom + PIN
+      allow create: if isAuth();
       allow delete: if isParentOf(familyId);
     }
 
@@ -87,8 +92,7 @@ service cloud.firestore {
     match /families/{familyId}/avatars/{userId} {
       allow read:   if isParentOf(familyId) || isMemberOf(familyId);
       allow write:  if isParentOf(familyId) ||
-        (isAuth() && request.auth.uid ==
-          get(/databases/$(database)/documents/families/$(familyId)/members/$(userId)).data.linkedAuthUid);
+        (isAuth() && request.auth.uid == resource.data.linkedAuthUid);
     }
 
     // ── Catalogue missions — parent gère, tous lisent ────────
@@ -124,6 +128,13 @@ service cloud.firestore {
       allow create: if isParentOf(familyId) || isAuth();
       allow update: if isAuth();
       allow delete: if isParentOf(familyId);
+    }
+
+    // ── Index codes famille permanents ────────────────────────
+    match /familyCodes/{code} {
+      allow read:   if true; // Lecture publique pour résoudre un code famille
+      allow create: if isAuth();
+      allow delete: if isAuth() && isMemberOf(resource.data.familyId);
     }
   }
 }

@@ -10,6 +10,9 @@ import {
   getFamily,
   createFamily,
   joinFamily,
+  reconnectChild,
+  getFamilyMembers,
+  resolveByFamilyCode,
   deleteFamily,
   resolveInvite,
   getActiveInvite,
@@ -170,24 +173,71 @@ function initCreateFamily() {
 }
 
 function initJoinFamily() {
-  const btn = document.getElementById("joinFamilyBtn");
-  if (!btn) return;
+  // Tab switching
+  const tabJoin = document.getElementById("tabJoin");
+  const tabReconnect = document.getElementById("tabReconnect");
+  const modeJoin = document.getElementById("modeJoin");
+  const modeReconnect = document.getElementById("modeReconnect");
 
-  btn.addEventListener("click", async () => {
-    const code = document.getElementById("familyCode").value.trim().toUpperCase();
-    const user = auth.currentUser;
-
-    if (!code) return alert("Code requis");
-    if (!user) return alert("Utilisateur non connecté");
-
-    try {
-      const familyId = await resolveInvite(code);
-      await joinFamily(user, familyId);
-      navigate("child");
-    } catch (e) {
-      alert(e.message);
-    }
+  tabJoin?.addEventListener("click", () => {
+    tabJoin.classList.add("active");
+    tabReconnect.classList.remove("active");
+    modeJoin.style.display = "";
+    modeReconnect.style.display = "none";
   });
+
+  tabReconnect?.addEventListener("click", () => {
+    tabReconnect.classList.add("active");
+    tabJoin.classList.remove("active");
+    modeReconnect.style.display = "";
+    modeJoin.style.display = "none";
+  });
+
+  // JOIN (first time)
+  const joinBtn = document.getElementById("joinFamilyBtn");
+  if (joinBtn) {
+    joinBtn.addEventListener("click", async () => {
+      const code = document.getElementById("inviteCode").value.trim().toUpperCase();
+      const name = document.getElementById("joinChildName").value.trim();
+      const pin  = document.getElementById("joinChildPin").value.trim();
+      const user = auth.currentUser;
+
+      if (!code || !name || !pin) return alert("Tous les champs sont requis");
+      if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
+      if (!user) return alert("Utilisateur non connecté");
+
+      try {
+        const familyId = await resolveInvite(code);
+        await joinFamily(user, familyId, name, pin);
+        navigate("child");
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  }
+
+  // RECONNECT
+  const reconnectBtn = document.getElementById("reconnectFamilyBtn");
+  if (reconnectBtn) {
+    reconnectBtn.addEventListener("click", async () => {
+      const permanentCode = document.getElementById("familyCodePermanent").value.trim().toUpperCase();
+      const name = document.getElementById("reconnectChildName").value.trim();
+      const pin  = document.getElementById("reconnectChildPin").value.trim();
+      const user = auth.currentUser;
+
+      if (!permanentCode || !name || !pin) return alert("Tous les champs sont requis");
+      if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
+      if (!user) return alert("Utilisateur non connecté");
+
+      try {
+        const familyId = await resolveByFamilyCode(permanentCode);
+        await reconnectChild(user, familyId, name, pin);
+        navigate("child");
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+  }
 }
 
 async function initParent() {
@@ -196,22 +246,41 @@ async function initParent() {
 
   const userDoc = await getUser(user.uid);
 
-  // Nom de la famille
-  const familyNameEl = document.getElementById("familyName");
-  if (familyNameEl && userDoc.familyId) {
+  // Nom de la famille + code permanent
+  if (userDoc.familyId) {
     const familyDoc = await getFamily(userDoc.familyId);
-    if (familyDoc) familyNameEl.textContent = `Famille ${familyDoc.name}`;
+    if (familyDoc) {
+      const familyNameEl = document.getElementById("familyName");
+      if (familyNameEl) familyNameEl.textContent = `Famille ${familyDoc.name}`;
+
+      const permanentCodeEl = document.getElementById("permanentFamilyCode");
+      if (permanentCodeEl) permanentCodeEl.textContent = familyDoc.familyCode || "—";
+    }
+  }
+
+  // Liste des enfants
+  try {
+    const members = await getFamilyMembers(userDoc.familyId);
+    const children = members.filter(m => m.role === "child");
+    const list = document.getElementById("childrenList");
+    if (list) {
+      list.innerHTML = children.length === 0
+        ? "<p>Aucun enfant n'a encore rejoint la famille.</p>"
+        : children.map(c => `<div class="child-item">👦 ${c.displayName}</div>`).join("");
+    }
+  } catch (e) {
+    console.error("Impossible de charger les membres :", e);
   }
 
   // Code d'invitation : afficher le code actif existant, ou en créer un nouveau
   const inviteBtn = document.getElementById("generateInvite");
-  const inviteCode = document.getElementById("inviteCode");
+  const inviteCodeEl = document.getElementById("inviteCode");
 
-  if (inviteBtn && inviteCode) {
+  if (inviteBtn && inviteCodeEl) {
     try {
       const existing = await getActiveInvite(userDoc.familyId);
       if (existing) {
-        inviteCode.textContent = existing;
+        inviteCodeEl.textContent = existing;
         renderQRCode(existing);
       }
     } catch (e) {
@@ -222,7 +291,7 @@ async function initParent() {
       try {
         const active = await getActiveInvite(userDoc.familyId);
         const code = active ?? await createInvite(userDoc.familyId);
-        inviteCode.textContent = code;
+        inviteCodeEl.textContent = code;
         renderQRCode(code);
       } catch (e) {
         console.error("Erreur code d'invitation :", e);
@@ -253,6 +322,5 @@ async function initParent() {
 }
 
 function initChild() {
-  console.log("Page enfant chargée");
   bindLogoutButton();
 }
