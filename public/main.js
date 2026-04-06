@@ -38,11 +38,10 @@ async function loadPage(page) {
   // 2) Récupérer le profil utilisateur
   const userDoc = await getUser(user.uid);
 
-  // 3) Pas de famille → accès uniquement à create-family / join-family
-  if (!userDoc.familyId &&
-      page !== "create-family" &&
-      page !== "join-family") {
-    navigate("create-family");
+  // 3) Pas de famille → accès uniquement à onboarding / create-family / join-family
+  const noFamilyPages = ["onboarding", "create-family", "join-family"];
+  if (!userDoc.familyId && !noFamilyPages.includes(page)) {
+    navigate("onboarding");
     return;
   }
 
@@ -64,6 +63,7 @@ async function loadPage(page) {
   container.innerHTML = html;
 
   // 7) Bind page-specific logic
+  if (page === "onboarding") initOnboarding();
   if (page === "create-family") initCreateFamily();
   if (page === "join-family") initJoinFamily();
   if (page === "parent") initParent();
@@ -71,7 +71,7 @@ async function loadPage(page) {
 }
 
 window.addEventListener("hashchange", () => {
-  const page = location.hash.replace("#", "") || "create-family";
+  const page = location.hash.replace("#", "") || "onboarding";
   loadPage(page);
 });
 
@@ -89,7 +89,7 @@ document.getElementById("loginChild").addEventListener("click", async () => {
   const user = await loginAsChild();
   console.log("Enfant connecté anonymement :", user.uid);
   await ensureUserDocument(user);
-  navigate("join-family");
+  // onUserStateChanged prend le relais et redirige vers join-family (anonyme sans famille)
 });
 
 // ---------------------------------------------------------
@@ -108,7 +108,9 @@ onUserStateChanged(async (user) => {
   const userDoc = await getUser(user.uid);
 
   if (!userDoc.familyId) {
-    navigate("create-family");
+    // Utilisateur anonyme (enfant) → directement sur join-family
+    // Utilisateur identifié → onboarding pour choisir
+    navigate(user.isAnonymous ? "join-family" : "onboarding");
     return;
   }
 
@@ -131,6 +133,11 @@ function bindLogoutButton() {
 // ---------------------------------------------------------
 // PAGE LOGIC
 // ---------------------------------------------------------
+
+function initOnboarding() {
+  document.getElementById("goCreateFamily")?.addEventListener("click", () => navigate("create-family"));
+  document.getElementById("goJoinFamily")?.addEventListener("click", () => navigate("join-family"));
+}
 
 function initCreateFamily() {
   const btn = document.getElementById("createFamilyBtn");
