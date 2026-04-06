@@ -98,21 +98,20 @@ export async function getFamily(familyId) {
 
 export async function createFamily(user, familyName) {
   const familyId = crypto.randomUUID();
+  const batch = writeBatch(db);
 
-  await setDoc(doc(db, "families", familyId), {
+  // Création atomique : famille + membre + user doc en un seul commit
+  batch.set(doc(db, "families", familyId), {
     name: familyName,
     ownerIds: [user.uid],
     createdAt: Date.now()
   });
-
-  await setDoc(doc(db, "families", familyId, "members", user.uid), {
+  batch.set(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "parent",
     displayName: user.displayName || "Parent"
   });
-
-  // User doc créé ici — jamais avant (pas de collecte de données prématurée)
-  await setDoc(doc(db, "users", user.uid), {
+  batch.set(doc(db, "users", user.uid), {
     uid: user.uid,
     email: user.email || null,
     displayName: user.displayName || null,
@@ -121,18 +120,20 @@ export async function createFamily(user, familyName) {
     createdAt: Date.now()
   });
 
+  await batch.commit();
   return familyId;
 }
 
 export async function joinFamily(user, familyId) {
-  await setDoc(doc(db, "families", familyId, "members", user.uid), {
+  const batch = writeBatch(db);
+
+  // Création atomique : membre + user doc en un seul commit
+  batch.set(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "child",
     displayName: user.displayName || "Enfant"
   });
-
-  // User doc créé ici — jamais avant (pas de collecte de données prématurée)
-  await setDoc(doc(db, "users", user.uid), {
+  batch.set(doc(db, "users", user.uid), {
     uid: user.uid,
     email: user.email || null,
     displayName: user.displayName || null,
@@ -141,6 +142,7 @@ export async function joinFamily(user, familyId) {
     createdAt: Date.now()
   });
 
+  await batch.commit();
   return familyId;
 }
 
@@ -199,17 +201,23 @@ export async function createInvite(familyId) {
 
 // Delete a family and all its members' user documents
 export async function deleteFamily(familyId) {
-  const batch = writeBatch(db);
-
   const membersSnap = await getDocs(collection(db, "families", familyId, "members"));
+
+  // Batch 1 : suppression des user docs pendant que la famille existe encore
+  // (isParentOf() dans les rules peut lire le doc famille sans conflit)
+  const userBatch = writeBatch(db);
   membersSnap.forEach(memberDoc => {
-    batch.delete(doc(db, "users", memberDoc.id)); // Suppression du compte utilisateur
-    batch.delete(memberDoc.ref);                  // Suppression du membre
+    userBatch.delete(doc(db, "users", memberDoc.id));
   });
+  await userBatch.commit();
 
-  batch.delete(doc(db, "families", familyId));
-
-  await batch.commit();
+  // Batch 2 : suppression des docs membre + famille
+  const familyBatch = writeBatch(db);
+  membersSnap.forEach(memberDoc => {
+    familyBatch.delete(memberDoc.ref);
+  });
+  familyBatch.delete(doc(db, "families", familyId));
+  await familyBatch.commit();
 }
 
 // Resolve an invitation code → returns familyId
