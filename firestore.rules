@@ -6,6 +6,11 @@ service cloud.firestore {
     // Chaque utilisateur peut lire/écrire uniquement son propre document
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Un parent peut réinitialiser le familyId/role d'un membre lors d'une suppression de famille
+      allow update: if isAuth() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['familyId', 'role']) &&
+        resource.data.familyId != null &&
+        isParentOf(resource.data.familyId);
     }
 
 

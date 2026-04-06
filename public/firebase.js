@@ -88,6 +88,12 @@ export async function ensureUserDocument(user) {
 // FAMILY HELPERS
 // ---------------------------------------------------------
 
+export async function getFamily(familyId) {
+  const ref = doc(db, "families", familyId);
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
+}
+
 export async function createFamily(user, familyName) {
   const familyId = crypto.randomUUID();
 

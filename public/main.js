@@ -8,6 +8,7 @@ import {
   onUserStateChanged,
   ensureUserDocument,
   getUser,
+  getFamily,
   createFamily,
   joinFamily,
   deleteFamily,
@@ -184,6 +185,13 @@ async function initParent() {
   if (!user) return;
 
   const userDoc = await getUser(user.uid);
+
+  // Nom de la famille
+  const familyNameEl = document.getElementById("familyName");
+  if (familyNameEl && userDoc.familyId) {
+    const familyDoc = await getFamily(userDoc.familyId);
+    if (familyDoc) familyNameEl.textContent = `Famille ${familyDoc.name}`;
+  }
 
   // Génération d’un code d’invitation
   const inviteBtn = document.getElementById("generateInvite");
