@@ -7,9 +7,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       // Un parent peut supprimer le doc d'un membre lors de la suppression de la famille
-      allow delete: if isAuth() &&
-        resource.data.familyId != null &&
-        isParentOf(resource.data.familyId);
+      // Un enfant qui se reconnecte peut supprimer son ancienne session anonyme :
+      //   le doc reconnectPublic pointe encore vers l'ancien UID au moment du batch
+      allow delete: if isAuth() && resource.data.familyId != null && (
+        isParentOf(resource.data.familyId) ||
+        (resource.data.memberId != null &&
+         exists(/databases/$(database)/documents/families/$(resource.data.familyId)/reconnectPublic/$(resource.data.memberId)) &&
+         get(/databases/$(database)/documents/families/$(resource.data.familyId)/reconnectPublic/$(resource.data.memberId)).data.linkedAuthUid == userId)
+      );
     }
 
 
