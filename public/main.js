@@ -4,12 +4,15 @@
 import {
   auth,
   loginWithGoogle,
+  loginWithEmail,
+  registerWithEmail,
   loginAsChild,
   onUserStateChanged,
   getUser,
   getFamily,
   createFamily,
   joinFamily,
+  joinFamilyAsAuthenticated,
   reconnectChild,
   getFamilyMembers,
   resolveByFamilyCode,
@@ -22,16 +25,20 @@ import {
 } from "./firebase.js";
 
 // ---------------------------------------------------------
-// Simple SPA Router (hash-based) + Guard
+// Pending-join state (Google or email registration flows)
+// ---------------------------------------------------------
+let pendingJoinCode     = null;
+let pendingDisplayName  = null;
+
+// ---------------------------------------------------------
+// SPA Router (hash-based)
 // ---------------------------------------------------------
 
 function navigate(page) {
   const current = location.hash.replace("#", "") || "onboarding";
   if (current === page) {
-    // Le hash ne changera pas → hashchange ne se déclenchera pas → appel direct
     loadPage(page);
   } else {
-    // Changement de hash → hashchange déclenchera loadPage (un seul appel)
     window.location.hash = page;
   }
 }
@@ -39,46 +46,32 @@ function navigate(page) {
 async function loadPage(page) {
   const user = auth.currentUser;
 
-  // 1) Pas connecté → on laisse l'écran de login
   if (!user) {
     const container = document.getElementById("app");
     if (container) container.innerHTML = "";
     return;
   }
 
-  // 2) Récupérer le profil utilisateur (peut être null avant création de famille)
   const userDoc = await getUser(user.uid);
 
-  // 3) Pas de famille → accès uniquement à onboarding / create-family / join-family
   const noFamilyPages = ["onboarding", "create-family", "join-family"];
   if ((!userDoc || !userDoc.familyId) && !noFamilyPages.includes(page)) {
     navigate("onboarding");
     return;
   }
 
-  // 4) Parent ne va pas sur child
-  if (userDoc?.role === "parent" && page === "child") {
-    navigate("parent");
-    return;
-  }
+  if (userDoc?.role === "parent" && page === "child") { navigate("parent"); return; }
+  if (userDoc?.role === "child"  && page === "parent") { navigate("child");  return; }
 
-  // 5) Enfant ne va pas sur parent
-  if (userDoc?.role === "child" && page === "parent") {
-    navigate("child");
-    return;
-  }
-
-  // 6) Chargement de la page
   const container = document.getElementById("app");
   const html = await fetch(`./pages/${page}.html`, { cache: "no-store" }).then(r => r.text());
   container.innerHTML = html;
 
-  // 7) Bind page-specific logic
-  if (page === "onboarding") initOnboarding();
+  if (page === "onboarding")    initOnboarding();
   if (page === "create-family") initCreateFamily();
-  if (page === "join-family") initJoinFamily();
-  if (page === "parent") initParent();
-  if (page === "child") initChild();
+  if (page === "join-family")   initJoinFamily();
+  if (page === "parent")        initParent();
+  if (page === "child")         initChild();
 }
 
 window.addEventListener("hashchange", () => {
@@ -87,48 +80,106 @@ window.addEventListener("hashchange", () => {
 });
 
 // ---------------------------------------------------------
-// LOGIN BUTTONS (in index.html)
+// LOGIN SCREEN HANDLERS (index.html buttons)
 // ---------------------------------------------------------
 
-document.getElementById("login").addEventListener("click", async () => {
-  await loginWithGoogle();
-  // onUserStateChanged prend le relais — pas de user doc créé ici
+// S'identifier — Google
+document.getElementById("loginGoogle").addEventListener("click", () => {
+  loginWithGoogle().catch(e => alert(e.message));
 });
 
-document.getElementById("loginChild").addEventListener("click", async () => {
+// S'identifier — email/password
+document.getElementById("formSignin").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await loginWithEmail(
+      document.getElementById("signinEmail").value.trim(),
+      document.getElementById("signinPassword").value
+    );
+  } catch (e) {
+    alert(translateAuthError(e));
+  }
+});
+
+// Rejoindre — Google
+document.getElementById("joinGoogle").addEventListener("click", () => {
+  const code = document.getElementById("joinInviteCode").value.trim().toUpperCase();
+  if (!code) return alert("Entre le code d'invitation");
+  pendingJoinCode = code;
+  loginWithGoogle().catch(err => {
+    pendingJoinCode = null;
+    alert(err.message);
+  });
+});
+
+// Rejoindre — email/password (creation de compte)
+document.getElementById("formJoin").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = document.getElementById("joinInviteCode").value.trim().toUpperCase();
+  const name = document.getElementById("joinDisplayName").value.trim();
+  const email = document.getElementById("joinEmail").value.trim();
+  const pass  = document.getElementById("joinPassword").value;
+
+  if (!code) return alert("Entre le code d'invitation");
+  if (!name) return alert("Entre ton prénom");
+  if (!email || !pass) return alert("Email et mot de passe requis");
+
+  pendingJoinCode    = code;
+  pendingDisplayName = name;
+  try {
+    await registerWithEmail(email, pass, name);
+    // onUserStateChanged prend le relais avec pendingJoinCode
+  } catch (err) {
+    pendingJoinCode    = null;
+    pendingDisplayName = null;
+    alert(translateAuthError(err));
+  }
+});
+
+// Jeune enfant sans compte (anonyme + PIN)
+document.getElementById("goChildAnon").addEventListener("click", async () => {
   await loginAsChild();
-  // onUserStateChanged prend le relais et redirige vers join-family
 });
 
 // ---------------------------------------------------------
-// ON AUTH STATE CHANGED
+// ON AUTH STATE CHANGED — routing + pending join
 // ---------------------------------------------------------
 
 onUserStateChanged(async (user) => {
   if (!user) return;
 
+  // Traitement d'une jointure en attente (via Google ou email)
+  if (pendingJoinCode) {
+    const code = pendingJoinCode;
+    const name = pendingDisplayName || user.displayName || "Membre";
+    pendingJoinCode    = null;
+    pendingDisplayName = null;
+    try {
+      const familyId = await resolveInvite(code);
+      await joinFamilyAsAuthenticated(user, familyId, name);
+    } catch (err) {
+      alert(err.message || "Impossible de rejoindre la famille");
+      await logout();
+      return;
+    }
+  }
+
   const userDoc = await getUser(user.uid);
 
-  // Pas de user doc ou pas de famille → routing initial
   if (!userDoc || !userDoc.familyId) {
     navigate(user.isAnonymous ? "join-family" : "onboarding");
     return;
   }
 
-  if (userDoc.role === "parent") {
-    navigate("parent");
-  } else {
-    navigate("child");
-  }
+  navigate(userDoc.role === "parent" ? "parent" : "child");
 });
 
 // ---------------------------------------------------------
-// SHARED UI HELPERS
+// SHARED HELPERS
 // ---------------------------------------------------------
 
 function bindLogoutButton() {
-  const btn = document.getElementById("logoutBtn");
-  if (btn) btn.addEventListener("click", () => logout());
+  document.getElementById("logoutBtn")?.addEventListener("click", () => logout());
 }
 
 function renderQRCode(code) {
@@ -147,6 +198,20 @@ function renderQRCode(code) {
   container.style.display = "block";
 }
 
+// Human-readable Firebase Auth error messages
+function translateAuthError(err) {
+  const map = {
+    "auth/email-already-in-use": "Cet email est déjà utilisé.",
+    "auth/invalid-email": "Adresse email invalide.",
+    "auth/weak-password": "Mot de passe trop court (6 caractères minimum).",
+    "auth/user-not-found": "Aucun compte trouvé pour cet email.",
+    "auth/wrong-password": "Mot de passe incorrect.",
+    "auth/invalid-credential": "Email ou mot de passe incorrect.",
+    "auth/popup-closed-by-user": "Connexion annulée."
+  };
+  return map[err.code] || err.message;
+}
+
 // ---------------------------------------------------------
 // PAGE LOGIC
 // ---------------------------------------------------------
@@ -161,23 +226,27 @@ function initCreateFamily() {
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
-    const nameInput = document.getElementById("familyName");
-    const name = nameInput.value.trim();
-    const user = auth.currentUser;
-
-    if (!name) return alert("Nom requis");
-    if (!user) return alert("Utilisateur non connecté");
-
-    await createFamily(user, name);
-    navigate("parent");
+    try {
+      const name = document.getElementById("familyName").value.trim();
+      const user = auth.currentUser;
+      if (!name) return alert("Nom requis");
+      if (!user)  return alert("Utilisateur non connecté");
+      await createFamily(user, name);
+      navigate("parent");
+    } catch (e) {
+      alert(e.message);
+    }
   });
 }
 
 function initJoinFamily() {
+  // Bouton retour → déconnexion de l'utilisateur anonyme
+  document.getElementById("backToLogin")?.addEventListener("click", () => logout());
+
   // Tab switching
-  const tabJoin = document.getElementById("tabJoin");
+  const tabJoin      = document.getElementById("tabJoin");
   const tabReconnect = document.getElementById("tabReconnect");
-  const modeJoin = document.getElementById("modeJoin");
+  const modeJoin     = document.getElementById("modeJoin");
   const modeReconnect = document.getElementById("modeReconnect");
 
   tabJoin?.addEventListener("click", () => {
@@ -194,61 +263,55 @@ function initJoinFamily() {
     modeJoin.style.display = "none";
   });
 
-  // JOIN (first time)
-  const joinBtn = document.getElementById("joinFamilyBtn");
-  if (joinBtn) {
-    joinBtn.addEventListener("click", async () => {
-      try {
-        const codeEl = document.getElementById("inviteCode");
-        const nameEl = document.getElementById("joinChildName");
-        const pinEl  = document.getElementById("joinChildPin");
-        if (!codeEl || !nameEl || !pinEl) throw new Error("Formulaire introuvable, rechargez la page");
+  // JOIN (première fois, via invite code)
+  document.getElementById("joinFamilyBtn")?.addEventListener("click", async () => {
+    try {
+      const codeEl = document.getElementById("inviteCode");
+      const nameEl = document.getElementById("joinChildName");
+      const pinEl  = document.getElementById("joinChildPin");
+      if (!codeEl || !nameEl || !pinEl) throw new Error("Formulaire introuvable, rechargez la page");
 
-        const code = codeEl.value.trim().toUpperCase();
-        const name = nameEl.value.trim();
-        const pin  = pinEl.value.trim();
-        const user = auth.currentUser;
+      const code = codeEl.value.trim().toUpperCase();
+      const name = nameEl.value.trim();
+      const pin  = pinEl.value.trim();
+      const user = auth.currentUser;
 
-        if (!code || !name || !pin) return alert("Tous les champs sont requis");
-        if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
-        if (!user) return alert("Utilisateur non connecté");
+      if (!code || !name || !pin) return alert("Tous les champs sont requis");
+      if (!/^\d{4}$/.test(pin))   return alert("Le code secret doit contenir 4 chiffres");
+      if (!user)                  return alert("Utilisateur non connecté");
 
-        const familyId = await resolveInvite(code);
-        await joinFamily(user, familyId, name, pin);
-        navigate("child");
-      } catch (e) {
-        alert(e.message || "Une erreur est survenue");
-      }
-    });
-  }
+      const familyId = await resolveInvite(code);
+      await joinFamily(user, familyId, name, pin);
+      navigate("child");
+    } catch (e) {
+      alert(e.message || "Une erreur est survenue");
+    }
+  });
 
-  // RECONNECT
-  const reconnectBtn = document.getElementById("reconnectFamilyBtn");
-  if (reconnectBtn) {
-    reconnectBtn.addEventListener("click", async () => {
-      try {
-        const permCodeEl = document.getElementById("familyCodePermanent");
-        const nameEl     = document.getElementById("reconnectChildName");
-        const pinEl      = document.getElementById("reconnectChildPin");
-        if (!permCodeEl || !nameEl || !pinEl) throw new Error("Formulaire introuvable, rechargez la page");
+  // RECONNECT (retour sur un nouvel appareil, via code famille permanent)
+  document.getElementById("reconnectFamilyBtn")?.addEventListener("click", async () => {
+    try {
+      const permCodeEl = document.getElementById("familyCodePermanent");
+      const nameEl     = document.getElementById("reconnectChildName");
+      const pinEl      = document.getElementById("reconnectChildPin");
+      if (!permCodeEl || !nameEl || !pinEl) throw new Error("Formulaire introuvable, rechargez la page");
 
-        const permanentCode = permCodeEl.value.trim().toUpperCase();
-        const name = nameEl.value.trim();
-        const pin  = pinEl.value.trim();
-        const user = auth.currentUser;
+      const permanentCode = permCodeEl.value.trim().toUpperCase();
+      const name = nameEl.value.trim();
+      const pin  = pinEl.value.trim();
+      const user = auth.currentUser;
 
-        if (!permanentCode || !name || !pin) return alert("Tous les champs sont requis");
-        if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
-        if (!user) return alert("Utilisateur non connecté");
+      if (!permanentCode || !name || !pin) return alert("Tous les champs sont requis");
+      if (!/^\d{4}$/.test(pin))            return alert("Le code secret doit contenir 4 chiffres");
+      if (!user)                           return alert("Utilisateur non connecté");
 
-        const familyId = await resolveByFamilyCode(permanentCode);
-        await reconnectChild(user, familyId, name, pin);
-        navigate("child");
-      } catch (e) {
-        alert(e.message || "Une erreur est survenue");
-      }
-    });
-  }
+      const familyId = await resolveByFamilyCode(permanentCode);
+      await reconnectChild(user, familyId, name, pin);
+      navigate("child");
+    } catch (e) {
+      alert(e.message || "Une erreur est survenue");
+    }
+  });
 }
 
 async function initParent() {
@@ -256,9 +319,10 @@ async function initParent() {
   if (!user) return;
 
   const userDoc = await getUser(user.uid);
+  if (!userDoc?.familyId) return;
 
   // Nom de la famille + code permanent
-  if (userDoc.familyId) {
+  try {
     const familyDoc = await getFamily(userDoc.familyId);
     if (familyDoc) {
       const familyNameEl = document.getElementById("familyName");
@@ -266,15 +330,13 @@ async function initParent() {
 
       let familyCode = familyDoc.familyCode;
       if (!familyCode) {
-        try {
-          familyCode = await migrateFamilyCode(userDoc.familyId);
-        } catch (e) {
-          console.error("Migration familyCode échouée :", e);
-        }
+        familyCode = await migrateFamilyCode(userDoc.familyId);
       }
       const permanentCodeEl = document.getElementById("permanentFamilyCode");
       if (permanentCodeEl) permanentCodeEl.textContent = familyCode || "—";
     }
+  } catch (e) {
+    console.error("Erreur chargement famille :", e);
   }
 
   // Liste des enfants
@@ -291,8 +353,8 @@ async function initParent() {
     console.error("Impossible de charger les membres :", e);
   }
 
-  // Code d'invitation : afficher le code actif existant, ou en créer un nouveau
-  const inviteBtn = document.getElementById("generateInvite");
+  // Code d'invitation temporaire
+  const inviteBtn    = document.getElementById("generateInvite");
   const inviteCodeEl = document.getElementById("inviteCode");
 
   if (inviteBtn && inviteCodeEl) {
@@ -309,33 +371,25 @@ async function initParent() {
     inviteBtn.addEventListener("click", async () => {
       try {
         const active = await getActiveInvite(userDoc.familyId);
-        const code = active ?? await createInvite(userDoc.familyId);
+        const code   = active ?? await createInvite(userDoc.familyId);
         inviteCodeEl.textContent = code;
         renderQRCode(code);
       } catch (e) {
-        console.error("Erreur code d'invitation :", e);
         alert("Erreur lors de la génération du code : " + e.message);
       }
     });
   }
 
   // Suppression de la famille
-  const deleteFamilyBtn = document.getElementById("deleteFamilyBtn");
-  if (deleteFamilyBtn) {
-    deleteFamilyBtn.addEventListener("click", async () => {
-      const confirmed = confirm(
-        "Supprimer la famille ? Cette action est irréversible et supprimera tous les membres."
-      );
-      if (!confirmed) return;
-
-      try {
-        await deleteFamily(userDoc.familyId);
-        await logout(); // Déconnexion après suppression — onUserStateChanged(null) ramène le login
-      } catch (e) {
-        alert("Erreur lors de la suppression : " + e.message);
-      }
-    });
-  }
+  document.getElementById("deleteFamilyBtn")?.addEventListener("click", async () => {
+    if (!confirm("Supprimer la famille ? Cette action est irréversible et supprimera tous les membres.")) return;
+    try {
+      await deleteFamily(userDoc.familyId);
+      await logout();
+    } catch (e) {
+      alert("Erreur lors de la suppression : " + e.message);
+    }
+  });
 
   bindLogoutButton();
 }

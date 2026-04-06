@@ -2,44 +2,79 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#4a90e2" />
   <link rel="manifest" href="./manifest.json" />
-
-  <title>RewardKidz - POC</title>
-
+  <title>RewardKidz</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
-
 <body>
 
   <!-- LOGIN SCREEN -->
   <div id="login-screen">
-    <h1>RewardKidz</h1>
-    <p>Choisis comment te connecter</p>
+    <div class="login-header">
+      <h1>RewardKidz</h1>
+      <p class="login-tagline">La famille qui avance ensemble</p>
+    </div>
 
-    <button id="login" class="primary-btn">
-      Connexion Google 
-    </button>
+    <div class="auth-panels">
 
-    <button id="loginChild" class="secondary-btn">
-      Je suis un enfant
-    </button>
+      <!-- Panneau S'identifier -->
+      <div class="auth-panel" id="panel-signin">
+        <h2>S'identifier</h2>
+        <p class="panel-hint">Tu as déjà un compte</p>
+
+        <button id="loginGoogle" class="google-btn">
+          <span class="google-icon">G</span> Continuer avec Google
+        </button>
+
+        <div class="separator"><span>ou</span></div>
+
+        <form id="formSignin" novalidate>
+          <input id="signinEmail" type="email" placeholder="Email" required autocomplete="email">
+          <input id="signinPassword" type="password" placeholder="Mot de passe" required autocomplete="current-password">
+          <button type="submit" class="primary-btn">Se connecter</button>
+        </form>
+      </div>
+
+      <!-- Panneau Rejoindre une famille -->
+      <div class="auth-panel" id="panel-join">
+        <h2>Rejoindre une famille</h2>
+        <p class="panel-hint">Tu as reçu un code d'invitation</p>
+
+        <div class="form-group">
+          <input id="joinInviteCode" type="text" maxlength="6" placeholder="Code d'invitation (6 cars)" autocomplete="off" style="text-transform:uppercase">
+        </div>
+
+        <button id="joinGoogle" class="google-btn">
+          <span class="google-icon">G</span> Continuer avec Google
+        </button>
+
+        <div class="separator"><span>ou</span></div>
+
+        <form id="formJoin" novalidate>
+          <input id="joinDisplayName" type="text" placeholder="Ton prénom" required autocomplete="given-name">
+          <input id="joinEmail" type="email" placeholder="Email" required autocomplete="email">
+          <input id="joinPassword" type="password" placeholder="Mot de passe (6 cars min)" required autocomplete="new-password">
+          <button type="submit" class="primary-btn">Créer un compte et rejoindre</button>
+        </form>
+
+        <a id="goChildAnon" class="child-link">Je suis un jeune enfant (sans compte) →</a>
+      </div>
+
+    </div>
   </div>
 
   <!-- APP CONTAINER (SPA) -->
   <div id="app" style="display:none;"></div>
 
-  <!-- Gestion affichage login/app -->
+  <!-- Affichage login/app selon auth state -->
   <script type="module">
     import { auth } from "./firebase.js";
-
     auth.onAuthStateChanged((user) => {
       const loginScreen = document.getElementById("login-screen");
       const app = document.getElementById("app");
-
       if (user) {
         loginScreen.style.display = "none";
         app.style.display = "block";

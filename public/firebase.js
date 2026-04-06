@@ -13,7 +13,10 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-  signInAnonymously
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 import {
@@ -50,6 +53,17 @@ export async function loginWithGoogle() {
 
 export async function loginAsChild() {
   const result = await signInAnonymously(auth);
+  return result.user;
+}
+
+export async function loginWithEmail(email, password) {
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
+}
+
+export async function registerWithEmail(email, password, displayName) {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  if (displayName) await updateProfile(result.user, { displayName });
   return result.user;
 }
 
@@ -147,7 +161,8 @@ export async function joinFamily(user, familyId, displayName, pin) {
   });
   batch.set(doc(db, "families", familyId, "reconnectPublic", memberId), {
     displayName,
-    childPasswordHash
+    childPasswordHash,
+    linkedAuthUid: user.uid
   });
   batch.set(doc(db, "users", user.uid), {
     uid: user.uid,
@@ -161,6 +176,28 @@ export async function joinFamily(user, familyId, displayName, pin) {
 
   await batch.commit();
   return memberId;
+}
+
+// Join a family as a Google / email-authenticated user (no PIN needed)
+export async function joinFamilyAsAuthenticated(user, familyId, displayName) {
+  const name = displayName || user.displayName || "Membre";
+  const batch = writeBatch(db);
+  batch.set(doc(db, "families", familyId, "members", user.uid), {
+    memberId: user.uid,
+    linkedAuthUid: user.uid,
+    role: "child",
+    displayName: name
+  });
+  batch.set(doc(db, "users", user.uid), {
+    uid: user.uid,
+    email: user.email || null,
+    displayName: name,
+    familyId,
+    memberId: user.uid,
+    role: "child",
+    createdAt: Date.now()
+  });
+  await batch.commit();
 }
 
 // Reconnect an existing child on a new device / new anonymous session
@@ -179,12 +216,14 @@ export async function reconnectChild(user, familyId, displayName, pin) {
 
   const memberId = match.id;
   const memberRef = doc(db, "families", familyId, "members", memberId);
-  const memberSnap = await getDoc(memberRef);
-  const oldUid = memberSnap.data().linkedAuthUid;
+  // oldUid is read from reconnectPublic (public read) — avoid reading members doc
+  // which requires isParentOf/isMemberOf (not yet satisfied by the reconnecting user)
+  const oldUid = match.data().linkedAuthUid;
 
-  // 3. Atomic update: linkedAuthUid + user docs
+  // 3. Atomic update: linkedAuthUid + user docs + reconnectPublic
   const batch = writeBatch(db);
   batch.update(memberRef, { linkedAuthUid: user.uid });
+  batch.update(match.ref, { linkedAuthUid: user.uid });
   if (oldUid && oldUid !== user.uid) {
     batch.delete(doc(db, "users", oldUid));
   }
