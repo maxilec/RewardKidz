@@ -84,12 +84,12 @@ window.addEventListener("hashchange", () => {
 // ---------------------------------------------------------
 
 // S'identifier — Google
-document.getElementById("loginGoogle").addEventListener("click", () => {
-  loginWithGoogle().catch(e => alert(e.message));
+document.getElementById("loginGoogle")?.addEventListener("click", () => {
+  loginWithGoogle().catch(e => alert(translateAuthError(e)));
 });
 
 // S'identifier — email/password
-document.getElementById("formSignin").addEventListener("submit", async (e) => {
+document.getElementById("formSignin")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     await loginWithEmail(
@@ -102,18 +102,18 @@ document.getElementById("formSignin").addEventListener("submit", async (e) => {
 });
 
 // Rejoindre — Google
-document.getElementById("joinGoogle").addEventListener("click", () => {
+document.getElementById("joinGoogle")?.addEventListener("click", () => {
   const code = document.getElementById("joinInviteCode").value.trim().toUpperCase();
   if (!code) return alert("Entre le code d'invitation");
   pendingJoinCode = code;
   loginWithGoogle().catch(err => {
     pendingJoinCode = null;
-    alert(err.message);
+    alert(translateAuthError(err));
   });
 });
 
 // Rejoindre — email/password (creation de compte)
-document.getElementById("formJoin").addEventListener("submit", async (e) => {
+document.getElementById("formJoin")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const code = document.getElementById("joinInviteCode").value.trim().toUpperCase();
   const name = document.getElementById("joinDisplayName").value.trim();
@@ -137,7 +137,7 @@ document.getElementById("formJoin").addEventListener("submit", async (e) => {
 });
 
 // Jeune enfant sans compte (anonyme + PIN)
-document.getElementById("goChildAnon").addEventListener("click", async () => {
+document.getElementById("goChildAnon")?.addEventListener("click", async () => {
   await loginAsChild();
 });
 

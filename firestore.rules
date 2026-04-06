@@ -67,6 +67,9 @@ service cloud.firestore {
     match /families/{familyId}/reconnectPublic/{memberId} {
       allow read:   if true; // Lecture publique pour valider prénom + PIN
       allow create: if isAuth();
+      // Reconnexion : mise à jour de linkedAuthUid par le nouvel utilisateur anonyme
+      allow update: if isAuth() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']);
       allow delete: if isParentOf(familyId);
     }
 
@@ -118,8 +121,10 @@ service cloud.firestore {
     // ── Tokens d'invitation (top-level, lookup par code sans connaître familyId) ──
     match /invites/{tokenId} {
       allow read:   if true; // Lecture publique pour valider un code sans être authentifié
-      allow create: if isAuth() && isMemberOf(request.resource.data.familyId);
-      allow delete: if isAuth() && isMemberOf(resource.data.familyId);
+      allow create: if isAuth() && (isParentOf(request.resource.data.familyId) ||
+                                    isMemberOf(request.resource.data.familyId));
+      allow delete: if isAuth() && (isParentOf(resource.data.familyId) ||
+                                    isMemberOf(resource.data.familyId));
     }
 
     // ── Tokens d'invitation (imbriqués, héritage legacy) ────────────────────────
