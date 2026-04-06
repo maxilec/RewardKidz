@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'fix/2.0/POC'
+      - 'claude/secure-dev-branch-Apa2M'
 
 jobs:
   deploy:

@@ -21,6 +21,9 @@ import {
   doc,
   getDoc,
   setDoc,
+  getDocs,
+  deleteDoc,
+  writeBatch,
   collection,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -149,6 +152,23 @@ export async function createInvite(familyId) {
   });
 
   return shortCode;
+}
+
+// Delete a family and reset all its members' user documents
+export async function deleteFamily(familyId) {
+  const batch = writeBatch(db);
+
+  // Reset each member's user document and delete their membership
+  const membersSnap = await getDocs(collection(db, "families", familyId, "members"));
+  membersSnap.forEach(memberDoc => {
+    batch.set(doc(db, "users", memberDoc.id), { familyId: null, role: "none" }, { merge: true });
+    batch.delete(memberDoc.ref);
+  });
+
+  // Delete the family document
+  batch.delete(doc(db, "families", familyId));
+
+  await batch.commit();
 }
 
 // Resolve an invitation code → returns familyId

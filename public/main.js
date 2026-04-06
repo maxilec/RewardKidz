@@ -10,6 +10,7 @@ import {
   getUser,
   createFamily,
   joinFamily,
+  deleteFamily,
   resolveInvite,
   createInvite,
   logout
@@ -119,6 +120,15 @@ onUserStateChanged(async (user) => {
 });
 
 // ---------------------------------------------------------
+// SHARED UI HELPERS
+// ---------------------------------------------------------
+
+function bindLogoutButton() {
+  const btn = document.getElementById("logoutBtn");
+  if (btn) btn.addEventListener("click", () => logout());
+}
+
+// ---------------------------------------------------------
 // PAGE LOGIC
 // ---------------------------------------------------------
 
@@ -179,18 +189,28 @@ async function initParent() {
     });
   }
 
-  // Logout
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => logout());
+  // Suppression de la famille
+  const deleteFamilyBtn = document.getElementById("deleteFamilyBtn");
+  if (deleteFamilyBtn) {
+    deleteFamilyBtn.addEventListener("click", async () => {
+      const confirmed = confirm(
+        "Supprimer la famille ? Cette action est irréversible et déconnectera tous les membres."
+      );
+      if (!confirmed) return;
+
+      try {
+        await deleteFamily(userDoc.familyId);
+        navigate("create-family");
+      } catch (e) {
+        alert("Erreur lors de la suppression : " + e.message);
+      }
+    });
   }
+
+  bindLogoutButton();
 }
 
 function initChild() {
   console.log("Page enfant chargée");
-
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => logout());
-  }
+  bindLogoutButton();
 }
