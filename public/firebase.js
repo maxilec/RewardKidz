@@ -109,10 +109,15 @@ export async function createFamily(user, familyName) {
     displayName: user.displayName || "Parent"
   });
 
+  // User doc créé ici — jamais avant (pas de collecte de données prématurée)
   await setDoc(doc(db, "users", user.uid), {
+    uid: user.uid,
+    email: user.email || null,
+    displayName: user.displayName || null,
     familyId,
-    role: "parent"
-  }, { merge: true });
+    role: "parent",
+    createdAt: Date.now()
+  });
 
   return familyId;
 }
@@ -124,10 +129,15 @@ export async function joinFamily(user, familyId) {
     displayName: user.displayName || "Enfant"
   });
 
+  // User doc créé ici — jamais avant (pas de collecte de données prématurée)
   await setDoc(doc(db, "users", user.uid), {
+    uid: user.uid,
+    email: user.email || null,
+    displayName: user.displayName || null,
     familyId,
-    role: "child"
-  }, { merge: true });
+    role: "child",
+    createdAt: Date.now()
+  });
 
   return familyId;
 }
@@ -160,18 +170,16 @@ export async function createInvite(familyId) {
   return shortCode;
 }
 
-// Delete a family and reset all its members' user documents
+// Delete a family and all its members' user documents
 export async function deleteFamily(familyId) {
   const batch = writeBatch(db);
 
-  // Reset each member's user document and delete their membership
   const membersSnap = await getDocs(collection(db, "families", familyId, "members"));
   membersSnap.forEach(memberDoc => {
-    batch.set(doc(db, "users", memberDoc.id), { familyId: null, role: "none" }, { merge: true });
-    batch.delete(memberDoc.ref);
+    batch.delete(doc(db, "users", memberDoc.id)); // Suppression du compte utilisateur
+    batch.delete(memberDoc.ref);                  // Suppression du membre
   });
 
-  // Delete the family document
   batch.delete(doc(db, "families", familyId));
 
   await batch.commit();

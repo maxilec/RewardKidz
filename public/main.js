@@ -6,7 +6,6 @@ import {
   loginWithGoogle,
   loginAsChild,
   onUserStateChanged,
-  ensureUserDocument,
   getUser,
   getFamily,
   createFamily,
@@ -36,24 +35,24 @@ async function loadPage(page) {
     return;
   }
 
-  // 2) Récupérer le profil utilisateur
+  // 2) Récupérer le profil utilisateur (peut être null avant création de famille)
   const userDoc = await getUser(user.uid);
 
   // 3) Pas de famille → accès uniquement à onboarding / create-family / join-family
   const noFamilyPages = ["onboarding", "create-family", "join-family"];
-  if (!userDoc.familyId && !noFamilyPages.includes(page)) {
+  if ((!userDoc || !userDoc.familyId) && !noFamilyPages.includes(page)) {
     navigate("onboarding");
     return;
   }
 
   // 4) Parent ne va pas sur child
-  if (userDoc.role === "parent" && page === "child") {
+  if (userDoc?.role === "parent" && page === "child") {
     navigate("parent");
     return;
   }
 
   // 5) Enfant ne va pas sur parent
-  if (userDoc.role === "child" && page === "parent") {
+  if (userDoc?.role === "child" && page === "parent") {
     navigate("child");
     return;
   }
@@ -81,16 +80,13 @@ window.addEventListener("hashchange", () => {
 // ---------------------------------------------------------
 
 document.getElementById("login").addEventListener("click", async () => {
-  const user = await loginWithGoogle();
-  console.log("Connecté :", user.email);
-  await ensureUserDocument(user);
+  await loginWithGoogle();
+  // onUserStateChanged prend le relais — pas de user doc créé ici
 });
 
 document.getElementById("loginChild").addEventListener("click", async () => {
-  const user = await loginAsChild();
-  console.log("Enfant connecté anonymement :", user.uid);
-  await ensureUserDocument(user);
-  // onUserStateChanged prend le relais et redirige vers join-family (anonyme sans famille)
+  await loginAsChild();
+  // onUserStateChanged prend le relais et redirige vers join-family
 });
 
 // ---------------------------------------------------------
@@ -98,19 +94,12 @@ document.getElementById("loginChild").addEventListener("click", async () => {
 // ---------------------------------------------------------
 
 onUserStateChanged(async (user) => {
-  if (!user) {
-    console.log("Aucun utilisateur connecté");
-    return;
-  }
+  if (!user) return;
 
-  console.log("Session restaurée :", user.email || user.uid);
-
-  await ensureUserDocument(user);
   const userDoc = await getUser(user.uid);
 
-  if (!userDoc.familyId) {
-    // Utilisateur anonyme (enfant) → directement sur join-family
-    // Utilisateur identifié → onboarding pour choisir
+  // Pas de user doc ou pas de famille → routing initial
+  if (!userDoc || !userDoc.familyId) {
     navigate(user.isAnonymous ? "join-family" : "onboarding");
     return;
   }
@@ -152,9 +141,7 @@ function initCreateFamily() {
     if (!name) return alert("Nom requis");
     if (!user) return alert("Utilisateur non connecté");
 
-    const familyId = await createFamily(user, name);
-    console.log("Famille créée :", familyId);
-
+    await createFamily(user, name);
     navigate("parent");
   });
 }
@@ -193,7 +180,7 @@ async function initParent() {
     if (familyDoc) familyNameEl.textContent = `Famille ${familyDoc.name}`;
   }
 
-  // Génération d’un code d’invitation
+  // Génération d'un code d'invitation
   const inviteBtn = document.getElementById("generateInvite");
   const inviteCode = document.getElementById("inviteCode");
 
@@ -209,13 +196,13 @@ async function initParent() {
   if (deleteFamilyBtn) {
     deleteFamilyBtn.addEventListener("click", async () => {
       const confirmed = confirm(
-        "Supprimer la famille ? Cette action est irréversible et déconnectera tous les membres."
+        "Supprimer la famille ? Cette action est irréversible et supprimera tous les membres."
       );
       if (!confirmed) return;
 
       try {
         await deleteFamily(userDoc.familyId);
-        navigate("create-family");
+        navigate("onboarding");
       } catch (e) {
         alert("Erreur lors de la suppression : " + e.message);
       }
