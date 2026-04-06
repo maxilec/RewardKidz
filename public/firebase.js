@@ -24,6 +24,7 @@ import {
   getDocs,
   deleteDoc,
   writeBatch,
+  updateDoc,
   collection,
   query,
   where,
@@ -212,6 +213,16 @@ export async function resolveByFamilyCode(permanentCode) {
 export async function getFamilyMembers(familyId) {
   const snap = await getDocs(collection(db, "families", familyId, "members"));
   return snap.docs.map(d => d.data());
+}
+
+// Generate and save a permanent familyCode for families created before this feature
+export async function migrateFamilyCode(familyId) {
+  const familyCode = generateFamilyCode();
+  const batch = writeBatch(db);
+  batch.update(doc(db, "families", familyId), { familyCode });
+  batch.set(doc(db, "familyCodes", familyCode), { familyId });
+  await batch.commit();
+  return familyCode;
 }
 
 // Delete a family, all its members' user documents, reconnectPublic docs, invitations and familyCode index

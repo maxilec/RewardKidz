@@ -13,6 +13,7 @@ import {
   reconnectChild,
   getFamilyMembers,
   resolveByFamilyCode,
+  migrateFamilyCode,
   deleteFamily,
   resolveInvite,
   getActiveInvite,
@@ -69,7 +70,7 @@ async function loadPage(page) {
 
   // 6) Chargement de la page
   const container = document.getElementById("app");
-  const html = await fetch(`./pages/${page}.html`).then(r => r.text());
+  const html = await fetch(`./pages/${page}.html`, { cache: "no-store" }).then(r => r.text());
   container.innerHTML = html;
 
   // 7) Bind page-specific logic
@@ -197,21 +198,26 @@ function initJoinFamily() {
   const joinBtn = document.getElementById("joinFamilyBtn");
   if (joinBtn) {
     joinBtn.addEventListener("click", async () => {
-      const code = document.getElementById("inviteCode").value.trim().toUpperCase();
-      const name = document.getElementById("joinChildName").value.trim();
-      const pin  = document.getElementById("joinChildPin").value.trim();
-      const user = auth.currentUser;
-
-      if (!code || !name || !pin) return alert("Tous les champs sont requis");
-      if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
-      if (!user) return alert("Utilisateur non connecté");
-
       try {
+        const codeEl = document.getElementById("inviteCode");
+        const nameEl = document.getElementById("joinChildName");
+        const pinEl  = document.getElementById("joinChildPin");
+        if (!codeEl || !nameEl || !pinEl) throw new Error("Formulaire introuvable, rechargez la page");
+
+        const code = codeEl.value.trim().toUpperCase();
+        const name = nameEl.value.trim();
+        const pin  = pinEl.value.trim();
+        const user = auth.currentUser;
+
+        if (!code || !name || !pin) return alert("Tous les champs sont requis");
+        if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
+        if (!user) return alert("Utilisateur non connecté");
+
         const familyId = await resolveInvite(code);
         await joinFamily(user, familyId, name, pin);
         navigate("child");
       } catch (e) {
-        alert(e.message);
+        alert(e.message || "Une erreur est survenue");
       }
     });
   }
@@ -220,21 +226,26 @@ function initJoinFamily() {
   const reconnectBtn = document.getElementById("reconnectFamilyBtn");
   if (reconnectBtn) {
     reconnectBtn.addEventListener("click", async () => {
-      const permanentCode = document.getElementById("familyCodePermanent").value.trim().toUpperCase();
-      const name = document.getElementById("reconnectChildName").value.trim();
-      const pin  = document.getElementById("reconnectChildPin").value.trim();
-      const user = auth.currentUser;
-
-      if (!permanentCode || !name || !pin) return alert("Tous les champs sont requis");
-      if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
-      if (!user) return alert("Utilisateur non connecté");
-
       try {
+        const permCodeEl = document.getElementById("familyCodePermanent");
+        const nameEl     = document.getElementById("reconnectChildName");
+        const pinEl      = document.getElementById("reconnectChildPin");
+        if (!permCodeEl || !nameEl || !pinEl) throw new Error("Formulaire introuvable, rechargez la page");
+
+        const permanentCode = permCodeEl.value.trim().toUpperCase();
+        const name = nameEl.value.trim();
+        const pin  = pinEl.value.trim();
+        const user = auth.currentUser;
+
+        if (!permanentCode || !name || !pin) return alert("Tous les champs sont requis");
+        if (!/^\d{4}$/.test(pin)) return alert("Le code secret doit contenir 4 chiffres");
+        if (!user) return alert("Utilisateur non connecté");
+
         const familyId = await resolveByFamilyCode(permanentCode);
         await reconnectChild(user, familyId, name, pin);
         navigate("child");
       } catch (e) {
-        alert(e.message);
+        alert(e.message || "Une erreur est survenue");
       }
     });
   }
@@ -253,8 +264,16 @@ async function initParent() {
       const familyNameEl = document.getElementById("familyName");
       if (familyNameEl) familyNameEl.textContent = `Famille ${familyDoc.name}`;
 
+      let familyCode = familyDoc.familyCode;
+      if (!familyCode) {
+        try {
+          familyCode = await migrateFamilyCode(userDoc.familyId);
+        } catch (e) {
+          console.error("Migration familyCode échouée :", e);
+        }
+      }
       const permanentCodeEl = document.getElementById("permanentFamilyCode");
-      if (permanentCodeEl) permanentCodeEl.textContent = familyDoc.familyCode || "—";
+      if (permanentCodeEl) permanentCodeEl.textContent = familyCode || "—";
     }
   }
 
