@@ -199,23 +199,23 @@ export async function createInvite(familyId) {
   return shortCode;
 }
 
-// Delete a family and all its members' user documents
+// Delete a family, all its members' user documents, and all linked invitations
 export async function deleteFamily(familyId) {
-  const membersSnap = await getDocs(collection(db, "families", familyId, "members"));
+  const [membersSnap, invitesSnap] = await Promise.all([
+    getDocs(collection(db, "families", familyId, "members")),
+    getDocs(query(collection(db, "invites"), where("familyId", "==", familyId)))
+  ]);
 
-  // Batch 1 : suppression des user docs pendant que la famille existe encore
-  // (isParentOf() dans les rules peut lire le doc famille sans conflit)
-  const userBatch = writeBatch(db);
-  membersSnap.forEach(memberDoc => {
-    userBatch.delete(doc(db, "users", memberDoc.id));
-  });
-  await userBatch.commit();
+  // Batch 1 : suppression des user docs + invitations pendant que la famille et ses
+  // membres existent encore (isMemberOf() dans les rules s'évalue correctement)
+  const cleanupBatch = writeBatch(db);
+  membersSnap.forEach(memberDoc => cleanupBatch.delete(doc(db, "users", memberDoc.id)));
+  invitesSnap.forEach(inviteDoc => cleanupBatch.delete(inviteDoc.ref));
+  await cleanupBatch.commit();
 
   // Batch 2 : suppression des docs membre + famille
   const familyBatch = writeBatch(db);
-  membersSnap.forEach(memberDoc => {
-    familyBatch.delete(memberDoc.ref);
-  });
+  membersSnap.forEach(memberDoc => familyBatch.delete(memberDoc.ref));
   familyBatch.delete(doc(db, "families", familyId));
   await familyBatch.commit();
 }
