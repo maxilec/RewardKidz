@@ -72,9 +72,9 @@ service cloud.firestore {
 
     // ── Reconnexion publique ─────────────────────────────────
     match /families/{familyId}/reconnectPublic/{memberId} {
-      allow get:    if true;  // Lecture publique uniquement par ID exact (pas d'énumération)
-      allow list:   if false;
-      // Ancienne règle : allow read: if true — remplacée pour bloquer l'énumération des membres
+      allow get:    if true;  // Lecture publique par ID exact (reconnexion PIN)
+      allow list:   if isParentOf(familyId) || isMemberOf(familyId); // Requis pour reconnectChild/deleteFamily
+      // Pas de list anonyme → énumération des membres bloquée
       allow create: if isAuth();
       // Reconnexion : mise à jour de linkedAuthUid par le nouvel utilisateur anonyme
       allow update: if isAuth() &&
@@ -129,8 +129,9 @@ service cloud.firestore {
 
     // ── Tokens d'invitation (top-level, lookup par code sans connaître familyId) ──
     match /invites/{tokenId} {
-      allow get:    if true;  // Lecture publique uniquement par ID exact (pas d'énumération)
-      allow list:   if false;
+      allow get:    if true;   // Lecture publique par ID exact (résolution de code)
+      allow list:   if isAuth(); // Requis pour getActiveInvite/createInvite/deleteFamily (query where familyId)
+      // Pas de list anonyme → énumération bloquée pour les non-authentifiés
       allow create: if isAuth() && (isParentOf(request.resource.data.familyId) ||
                                     isMemberOf(request.resource.data.familyId));
       allow delete: if isAuth() && (isParentOf(resource.data.familyId) ||
@@ -146,8 +147,9 @@ service cloud.firestore {
 
     // ── OTP enfants (top-level, lookup par code sans connaître familyId) ──
     match /childOTPs/{otpCode} {
-      allow get:    if true;  // Lecture publique uniquement par ID exact (pas d'énumération)
-      allow list:   if false;
+      allow get:    if true;   // Lecture publique par ID exact (connexion enfant)
+      allow list:   if isAuth(); // Requis pour generateChildOTP/deleteChild (query where memberId)
+      // Pas de list anonyme → énumération bloquée pour les non-authentifiés
       allow create: if isParentOf(request.resource.data.familyId);
       allow delete: if isAuth();
     }
