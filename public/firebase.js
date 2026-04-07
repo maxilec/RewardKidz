@@ -16,7 +16,8 @@ import {
   signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  deleteUser
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 import {
@@ -452,6 +453,45 @@ export async function createInvite(familyId) {
   });
 
   return shortCode;
+}
+
+// ---------------------------------------------------------
+// DELETE PARENT ACCOUNT
+// ---------------------------------------------------------
+
+// Delete the current parent's account.
+// - Sole parent + children  → throws (blocked in UI, safety guard)
+// - Sole parent + no children → deletes the entire family
+// - Multiple parents → removes only this member, family stays active
+// Firestore data is removed first; Auth deletion is best-effort
+// (if recent-login required, data is already gone and user is signed out)
+export async function deleteParentAccount(user, familyId) {
+  const members  = await getFamilyMembers(familyId);
+  const parents  = members.filter(m => m.role === "parent");
+  const children = members.filter(m => m.role === "child");
+
+  if (parents.length === 1 && children.length > 0) {
+    throw new Error("Impossible : vous êtes le seul parent et la famille a des enfants.");
+  }
+
+  if (parents.length <= 1) {
+    // Sole parent, no children → delete the whole family
+    await deleteFamily(familyId);
+  } else {
+    // Multiple parents → remove only this parent
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "families", familyId, "members", user.uid));
+    batch.delete(doc(db, "users", user.uid));
+    await batch.commit();
+  }
+
+  // Best-effort Auth account deletion
+  try {
+    await deleteUser(user);
+  } catch {
+    // requires-recent-login: Firestore data already gone, just sign out
+    await signOut(auth);
+  }
 }
 
 // ---------------------------------------------------------
