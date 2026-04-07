@@ -26,6 +26,7 @@ import {
   createInvite,
   getOrCreateDayScore,
   readDayScore,
+  getChildHistory,
   addPoint,
   removePoint,
   setScoreValidated,
@@ -38,6 +39,7 @@ import {
 // ---------------------------------------------------------
 let pendingJoinCode    = null;
 let pendingDisplayName = null;
+let _selectedChild     = null; // { memberId, displayName, familyId, linkedAuthUid }
 
 // ---------------------------------------------------------
 // SPA Router (hash-based)
@@ -69,6 +71,8 @@ async function loadPage(page) {
 
   if (userDoc?.role === "parent" && page === "child") { navigate("parent"); return; }
   if (userDoc?.role === "child"  && page === "parent") { navigate("child");  return; }
+  if (userDoc?.role === "child"  && page === "child-detail") { navigate("child"); return; }
+  if (userDoc?.role === "parent" && page === "child-detail" && !_selectedChild) { navigate("parent"); return; }
 
   const container = document.getElementById("app");
   document.getElementById("login-screen").style.display = "none";
@@ -82,6 +86,7 @@ async function loadPage(page) {
   if (page === "child-auth")   initChildAuth();
   if (page === "parent")       initParent();
   if (page === "child")        initChild();
+  if (page === "child-detail") initChildDetail();
 }
 
 window.addEventListener("hashchange", () => {
@@ -208,6 +213,35 @@ function setupAuthTabs() {
     panelJoin.classList.remove("hidden");
     panelSignin.classList.add("hidden");
   });
+}
+
+// ---------------------------------------------------------
+// HISTOGRAM HELPERS (view)
+// ---------------------------------------------------------
+
+function formatDayLabel(dateStr, isToday, compact = false) {
+  if (isToday) return 'Auj.';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const names = ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'];
+  return compact ? String(date.getDate()) : `${names[date.getDay()]} ${date.getDate()}`;
+}
+
+function renderHistogram(entries, compact = false) {
+  const MAX_H = 90; // px — max bar height
+  const bars = entries.map(e => {
+    const empty = e.missing || e.ignored;
+    const h = empty ? 0 : Math.round((e.points / 5) * MAX_H);
+    const barCls   = [e.isToday ? 'today' : '', empty ? 'empty' : ''].filter(Boolean).join(' ');
+    const labelCls = e.isToday ? 'today' : '';
+    return `<div class="histogram-bar-group">
+      <div class="histogram-bar-wrap">
+        <div class="histogram-bar ${barCls}" style="height:${h}px"></div>
+      </div>
+      <span class="histogram-label ${labelCls}">${formatDayLabel(e.date, e.isToday, compact)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="histogram-chart">${bars}</div>`;
 }
 
 // ---------------------------------------------------------
@@ -458,7 +492,8 @@ async function initParent() {
         const score = scoreMap[c.memberId];
         return `
           <div class="child-score-card" id="child-card-${c.memberId}">
-            <div class="child-card-header">
+            <div class="child-card-header child-card-header--clickable"
+                 data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
               <span class="child-name">🧒 ${c.displayName}</span>
               <span class="child-status ${c.linkedAuthUid ? 'connected' : 'pending'}">
                 ${c.linkedAuthUid ? "Connecté" : "En attente"}
@@ -478,6 +513,20 @@ async function initParent() {
 
       // Bind score handlers for each child
       children.forEach(c => bindScoreHandlersFor(c.memberId));
+
+      // Navigate to child detail when clicking the card header (not on action buttons)
+      list.querySelectorAll(".child-card-header--clickable").forEach(header => {
+        header.addEventListener("click", e => {
+          if (e.target.closest("button")) return;
+          _selectedChild = {
+            memberId:     header.dataset.memberid,
+            displayName:  header.dataset.name,
+            familyId,
+            linkedAuthUid: header.dataset.linkeduid || null
+          };
+          navigate("child-detail");
+        });
+      });
 
       list.querySelectorAll(".otp-btn").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -655,4 +704,179 @@ async function initChild() {
       <div class="child-score-number">${score.points}<span class="score-max">/5</span></div>
       ${badge}`;
   } catch (e) { console.error(e); }
+}
+
+async function initChildDetail() {
+  // Guard — _selectedChild must be set before navigating here
+  if (!_selectedChild) { navigate("parent"); return; }
+
+  const { familyId } = _selectedChild;
+  let { memberId, displayName, linkedAuthUid } = _selectedChild;
+
+  const user = auth.currentUser;
+  if (!user) return;
+  const userDoc = await getUser(user.uid);
+  const byUid  = user.uid;
+  const byName = userDoc?.displayName || user.displayName || "Parent";
+
+  // ── Back button ────────────────────────────────────────
+  document.getElementById("backToParent")?.addEventListener("click", () => navigate("parent"));
+
+  // ── Header ─────────────────────────────────────────────
+  const nameEl   = document.getElementById("detailChildName");
+  const statusEl = document.getElementById("detailChildStatus");
+  if (nameEl) nameEl.textContent = displayName;
+  if (statusEl) {
+    statusEl.textContent = linkedAuthUid ? "Connecté" : "En attente";
+    statusEl.className   = `child-status ${linkedAuthUid ? 'connected' : 'pending'}`;
+  }
+
+  // ── Score du jour ───────────────────────────────────────
+  let currentScore = null;
+
+  async function reloadDetailScore() {
+    currentScore = await getOrCreateDayScore(familyId, memberId);
+    const section = document.getElementById("detail-score-section");
+    if (!section) return;
+    section.innerHTML = buildScoreHTML(currentScore, memberId);
+    bindDetailScoreButtons(section);
+  }
+
+  function bindDetailScoreButtons(section) {
+    section.querySelector('.score-btn.add')?.addEventListener('click', async () => {
+      try { await addPoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.score-btn.remove')?.addEventListener('click', async () => {
+      if (!confirm("Retirer 1 point ?")) return;
+      try { await removePoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.score-btn.validate')?.addEventListener('click', async () => {
+      try { await setScoreValidated(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.score-btn.unvalidate')?.addEventListener('click', async () => {
+      try { await setScoreValidated(familyId, memberId, false, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.score-btn.ignore')?.addEventListener('click', async () => {
+      if (!confirm("Ignorer la journée pour cet enfant ?")) return;
+      try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.score-btn.unignore')?.addEventListener('click', async () => {
+      try { await setDayIgnored(familyId, memberId, false, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+  }
+
+  await reloadDetailScore();
+
+  // ── Gestion ─────────────────────────────────────────────
+  // OTP
+  document.getElementById("detail-otp-btn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("detail-otp-btn");
+    btn.disabled = true;
+    try {
+      const familyDoc  = await getFamily(familyId);
+      const familyCode = familyDoc?.familyCode || "—";
+      const otp        = await generateChildOTP(familyId, memberId, displayName);
+      const display    = document.getElementById("detail-otp-display");
+      if (display) {
+        display.innerHTML = `
+          <div class="otp-code-block">
+            <div>Code famille&nbsp;: <strong class="code-value">${familyCode}</strong></div>
+            <div>Code enfant&nbsp;&nbsp;: <strong class="code-value otp-value">${otp}</strong></div>
+            <div class="otp-expiry">⏱ Valable 30 minutes</div>
+          </div>`;
+        display.style.display = "block";
+      }
+    } catch (e) { alert("Erreur : " + e.message); }
+    finally { btn.disabled = false; }
+  });
+
+  // Rename
+  document.getElementById("detail-rename-btn")?.addEventListener("click", async () => {
+    const newName = prompt(`Nouveau prénom pour ${displayName} :`, displayName);
+    if (!newName || newName.trim() === displayName) return;
+    try {
+      await updateChildName(familyId, memberId, newName.trim());
+      displayName = newName.trim();
+      _selectedChild.displayName = displayName;
+      if (nameEl) nameEl.textContent = displayName;
+    } catch (e) { alert("Erreur : " + e.message); }
+  });
+
+  // Delete
+  document.getElementById("detail-delete-btn")?.addEventListener("click", async () => {
+    if (!confirm(`Supprimer ${displayName} ? Cette action est irréversible.`)) return;
+    try {
+      await deleteChild(familyId, memberId);
+      _selectedChild = null;
+      navigate("parent");
+    } catch (e) { alert("Erreur : " + e.message); }
+  });
+
+  // ── Statistiques + Histogramme ──────────────────────────
+  let history30Cache = null; // lazy-loaded on toggle
+
+  function updateStats(entries7, allEntries) {
+    // Moyenne 7j validés
+    const validated7 = entries7.filter(d => !d.missing && d.validated);
+    const avg7El = document.getElementById("stat-avg7");
+    if (avg7El) {
+      avg7El.textContent = validated7.length > 0
+        ? (validated7.reduce((s, d) => s + d.points, 0) / validated7.length).toFixed(1) + " / 5"
+        : "—";
+    }
+
+    // Tendance 30j (toujours calculée sur les 30j si disponibles)
+    const trendEl = document.getElementById("stat-trend30");
+    if (trendEl) {
+      const real = allEntries.filter(d => !d.missing && !d.ignored);
+      if (real.length < 4) {
+        trendEl.textContent = "—";
+      } else {
+        const half   = Math.floor(real.length / 2);
+        const avg1st = real.slice(0, half).reduce((s, d) => s + d.points, 0) / half;
+        const avg2nd = real.slice(half).reduce((s, d) => s + d.points, 0) / (real.length - half);
+        const delta  = avg2nd - avg1st;
+        trendEl.textContent = delta > 0.3 ? "↑ Hausse" : delta < -0.3 ? "↓ Baisse" : "→ Stable";
+      }
+    }
+  }
+
+  async function loadAndRenderHistory(days) {
+    const container = document.getElementById("histogram-container");
+    if (container) container.innerHTML = `<p class="hint">Chargement…</p>`;
+
+    let entries;
+    if (days === 7) {
+      entries = await getChildHistory(familyId, memberId, 7, currentScore);
+    } else {
+      if (!history30Cache) history30Cache = await getChildHistory(familyId, memberId, 30, currentScore);
+      entries = history30Cache;
+    }
+
+    // Stats: always pass 7j slice + full entries for trend
+    const last7 = entries.slice(-7);
+    const allForTrend = history30Cache ?? entries;
+    updateStats(last7, allForTrend);
+
+    if (container) container.innerHTML = renderHistogram(entries, days > 7);
+  }
+
+  await loadAndRenderHistory(7);
+
+  document.getElementById("toggle-7d")?.addEventListener("click", async () => {
+    document.getElementById("toggle-7d")?.classList.add("active");
+    document.getElementById("toggle-30d")?.classList.remove("active");
+    await loadAndRenderHistory(7);
+  });
+  document.getElementById("toggle-30d")?.addEventListener("click", async () => {
+    document.getElementById("toggle-30d")?.classList.add("active");
+    document.getElementById("toggle-7d")?.classList.remove("active");
+    await loadAndRenderHistory(30);
+  });
 }
