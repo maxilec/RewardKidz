@@ -28,6 +28,7 @@ import {
   deleteDoc,
   writeBatch,
   updateDoc,
+  arrayUnion,
   collection,
   query,
   where,
@@ -451,6 +452,95 @@ export async function createInvite(familyId) {
   });
 
   return shortCode;
+}
+
+// ---------------------------------------------------------
+// SCORE SYSTEM
+// ---------------------------------------------------------
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Get or create today's score doc. Archives previous day if date changed. Parent only (write needed).
+export async function getOrCreateDayScore(familyId, memberId) {
+  const ref = doc(db, "families", familyId, "scores", memberId);
+  const snap = await getDoc(ref);
+  const todayStr = today();
+
+  if (snap.exists()) {
+    const data = snap.data();
+    if (data.date === todayStr) return { id: memberId, ...data };
+    // Archive previous day to history
+    await setDoc(
+      doc(db, "families", familyId, "scores", memberId, "history", data.date),
+      { ...data, archivedAt: serverTimestamp() }
+    );
+  }
+
+  const fresh = { points: 0, date: todayStr, validated: false, ignored: false, log: [] };
+  await setDoc(ref, { ...fresh, updatedAt: serverTimestamp() });
+  return { id: memberId, ...fresh };
+}
+
+// Read today's score for a child (read-only — children cannot write scores).
+export async function readDayScore(familyId, memberId) {
+  const ref = doc(db, "families", familyId, "scores", memberId);
+  const snap = await getDoc(ref);
+  const todayStr = today();
+  if (!snap.exists() || snap.data().date !== todayStr) {
+    return { id: memberId, points: 0, date: todayStr, validated: false, ignored: false, log: [] };
+  }
+  return { id: memberId, ...snap.data() };
+}
+
+// Add 1 point (max 5). Parent only.
+export async function addPoint(familyId, memberId, byUid, byName) {
+  const score = await getOrCreateDayScore(familyId, memberId);
+  if (score.validated || score.ignored) throw new Error("Score verrouillé — journée validée ou ignorée");
+  if (score.points >= 5) throw new Error("Score maximum atteint (5/5)");
+  const newPoints = score.points + 1;
+  await updateDoc(doc(db, "families", familyId, "scores", memberId), {
+    points: newPoints,
+    log: arrayUnion({ type: 'add', by: byUid, byName, pointsAfter: newPoints, ts: Date.now() }),
+    updatedAt: serverTimestamp()
+  });
+  return newPoints;
+}
+
+// Remove 1 point (min 0). Parent only.
+export async function removePoint(familyId, memberId, byUid, byName) {
+  const score = await getOrCreateDayScore(familyId, memberId);
+  if (score.validated || score.ignored) throw new Error("Score verrouillé — journée validée ou ignorée");
+  if (score.points <= 0) throw new Error("Score déjà à 0");
+  const newPoints = score.points - 1;
+  await updateDoc(doc(db, "families", familyId, "scores", memberId), {
+    points: newPoints,
+    log: arrayUnion({ type: 'remove', by: byUid, byName, pointsAfter: newPoints, ts: Date.now() }),
+    updatedAt: serverTimestamp()
+  });
+  return newPoints;
+}
+
+// Validate or un-validate the day's score. Reversible. Parent only.
+export async function setScoreValidated(familyId, memberId, validated, byUid, byName) {
+  const score = await getOrCreateDayScore(familyId, memberId);
+  await updateDoc(doc(db, "families", familyId, "scores", memberId), {
+    validated,
+    log: arrayUnion({ type: validated ? 'validate' : 'unvalidate', by: byUid, byName, pointsAfter: score.points, ts: Date.now() }),
+    updatedAt: serverTimestamp()
+  });
+}
+
+// Ignore or un-ignore the day. Reversible. Parent only.
+export async function setDayIgnored(familyId, memberId, ignored, byUid, byName) {
+  const score = await getOrCreateDayScore(familyId, memberId);
+  await updateDoc(doc(db, "families", familyId, "scores", memberId), {
+    ignored,
+    log: arrayUnion({ type: ignored ? 'ignore' : 'unignore', by: byUid, byName, pointsAfter: score.points, ts: Date.now() }),
+    updatedAt: serverTimestamp()
+  });
 }
 
 // Resolve an invitation code → returns familyId

@@ -519,3 +519,157 @@ input:focus {
 }
 .inline-form input { flex: 1; }
 .inline-form button { white-space: nowrap; width: auto; }
+
+/* ─── Child score card (parent dashboard) ───────────────── */
+.child-score-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.07);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.child-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.child-card-header .child-name { flex: 1; }
+
+.icon-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+.icon-btn:hover { background: #f7fafc; }
+.icon-btn.danger { border-color: #f56565; color: #e53e3e; }
+.icon-btn.danger:hover { background: #fff5f5; }
+
+/* Score section inside parent child card */
+.score-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.score-stars-row {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.score-star {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.score-star.empty {
+  opacity: 0.2;
+  filter: grayscale(1);
+}
+
+.score-points-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #4a5568;
+  margin-left: 0.5rem;
+}
+
+.score-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.score-btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1.5px solid;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.score-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.score-btn.add    { background: #f0fff4; color: #276749; border-color: #68d391; }
+.score-btn.add:hover:not(:disabled) { background: #c6f6d5; }
+
+.score-btn.remove { background: #fffaf0; color: #c05621; border-color: #f6ad55; }
+.score-btn.remove:hover:not(:disabled) { background: #feebc8; }
+
+.score-btn.validate { background: #ebf4ff; color: #2b6cb0; border-color: #90cdf4; }
+.score-btn.validate:hover { background: #bee3f8; }
+
+.score-btn.ignore { background: #f7fafc; color: #718096; border-color: #cbd5e0; }
+.score-btn.ignore:hover { background: #edf2f7; }
+
+.score-btn.unvalidate,
+.score-btn.unignore { background: transparent; color: #718096; border-color: #cbd5e0; font-size: 0.78rem; }
+.score-btn.unvalidate:hover,
+.score-btn.unignore:hover { background: #edf2f7; }
+
+.score-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.score-status-badge.validated { background: #c6f6d5; color: #276749; }
+.score-status-badge.ignored   { background: #edf2f7; color: #718096; }
+
+.child-otp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* ─── Child dashboard score card ────────────────────────── */
+.score-card-child {
+  text-align: center;
+}
+
+.child-score-loading {
+  color: #a0aec0;
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.child-score-display .score-stars-row {
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 1rem 0 0.5rem;
+}
+.child-score-display .score-star { font-size: 2.4rem; }
+
+.child-score-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #2d3748;
+  margin: 0.25rem 0 0.75rem;
+}
+.score-max { font-size: 1.2rem; color: #a0aec0; font-weight: 500; }
+
+.child-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+.child-score-badge.validated { background: #c6f6d5; color: #276749; }
+.child-score-badge.ignored   { background: #edf2f7; color: #718096; }

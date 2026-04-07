@@ -83,7 +83,13 @@ service cloud.firestore {
     }
 
     // ── Scores — seul le parent écrit ────────────────────────
-    match /families/{familyId}/scores/{userId} {
+    match /families/{familyId}/scores/{memberId} {
+      allow read:   if isParentOf(familyId) || isMemberOf(familyId);
+      allow write:  if isParentOf(familyId);
+    }
+
+    // ── Historique scores (archivage quotidien) ───────────────
+    match /families/{familyId}/scores/{memberId}/history/{date} {
       allow read:   if isParentOf(familyId) || isMemberOf(familyId);
       allow write:  if isParentOf(familyId);
     }
