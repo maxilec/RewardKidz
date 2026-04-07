@@ -3,58 +3,54 @@
   <h1>Espace Parent</h1>
   <p id="familyName" class="subtitle"></p>
 
+  <!-- ── Membres adultes ───────────────────────────────── -->
   <div class="card">
-    <h2>🔑 Code d'invitation</h2>
-
-    <p class="hint">Code temporaire (15 min) pour qu'un enfant rejoigne la famille pour la première fois.</p>
-
-    <p id="inviteCode" class="invite-code">
-      Aucun code généré
-    </p>
-
-    <div id="inviteQRCode" style="display:none;"></div>
-
-    <button id="generateInvite" class="secondary-btn">
-      Générer un code
-    </button>
+    <h2>👤 Membres adultes</h2>
+    <div id="parentsList"><p class="hint">Chargement...</p></div>
   </div>
 
+  <!-- ── Enfants ──────────────────────────────────────── -->
+  <div class="card">
+    <h2>🧒 Enfants</h2>
+
+    <form id="formAddChild" class="inline-form">
+      <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
+      <button type="submit" class="secondary-btn">Ajouter</button>
+    </form>
+
+    <div id="childrenList"><p class="hint">Aucun enfant pour l'instant.</p></div>
+  </div>
+
+  <!-- ── Inviter un parent / tuteur ───────────────────── -->
+  <div class="card">
+    <h2>👤 Inviter un parent / tuteur</h2>
+    <p class="hint">Code temporaire valable 15 min — à transmettre à l'adulte qui rejoindra via "Rejoindre".</p>
+
+    <p id="inviteCode" class="invite-code">Aucun code généré</p>
+    <div id="inviteQRCode" style="display:none;"></div>
+    <button id="generateInvite" class="secondary-btn">Générer un code</button>
+  </div>
+
+  <!-- ── Code famille permanent ───────────────────────── -->
   <div class="card">
     <h2>🏠 Code famille permanent</h2>
-    <p class="hint">Ce code ne change jamais. L'enfant l'utilise pour se reconnecter depuis un nouvel appareil.</p>
+    <p class="hint">Communique ce code à l'enfant lors de la connexion de son appareil (avec son code enfant).</p>
     <p id="permanentFamilyCode" class="invite-code">—</p>
   </div>
 
-  <div class="card">
-    <h2>👨‍👩‍👧 Membres</h2>
-    <div id="childrenList"><p>Chargement...</p></div>
-  </div>
-
+  <!-- ── Actions ──────────────────────────────────────── -->
   <div class="parent-section">
-
-    <div class="parent-card">
-      <h2>👨‍👩‍👧 Gestion famille</h2>
-      <button class="secondary-btn" id="btnFamily">Gérer</button>
-    </div>
-
     <div class="parent-card">
       <h2>⭐ Missions</h2>
       <button class="secondary-btn" id="btnMissions">Configurer</button>
     </div>
-
     <div class="parent-card">
       <h2>🎁 Boutique</h2>
       <button class="secondary-btn" id="btnShop">Configurer</button>
     </div>
-
   </div>
 
-  <button class="danger-btn" id="deleteFamilyBtn">
-    Supprimer la famille
-  </button>
-
-  <button class="danger-btn" id="logoutBtn">
-    Se déconnecter
-  </button>
+  <button class="danger-btn" id="deleteFamilyBtn">Supprimer la famille</button>
+  <button class="danger-btn" id="logoutBtn">Se déconnecter</button>
 
 </div>

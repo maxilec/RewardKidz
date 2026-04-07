@@ -8,7 +8,7 @@ body {
   min-height: 100vh;
 }
 
-/* ─── Login screen ──────────────────────────────────────── */
+/* ─── Landing / Login screen ────────────────────────────── */
 #login-screen {
   display: flex;
   flex-direction: column;
@@ -20,11 +20,11 @@ body {
 
 .login-header {
   text-align: center;
-  margin-bottom: 1.75rem;
+  margin-bottom: 2rem;
 }
 
 .login-header h1 {
-  font-size: 2.2rem;
+  font-size: 2.4rem;
   font-weight: 800;
   color: #4a90e2;
   letter-spacing: -0.5px;
@@ -35,6 +35,40 @@ body {
   margin-top: 0.25rem;
   font-size: 0.95rem;
 }
+
+/* Role selection cards */
+.role-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 360px;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.75rem 1.5rem;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  text-align: center;
+}
+
+.role-card:hover {
+  border-color: #4a90e2;
+  box-shadow: 0 4px 20px rgba(74,144,226,0.15);
+  transform: translateY(-2px);
+}
+
+.role-icon  { font-size: 2.5rem; line-height: 1; }
+.role-label { font-size: 1.05rem; font-weight: 700; color: #2d3748; }
+.role-hint  { font-size: 0.8rem; color: #a0aec0; }
 
 /* Tabbed card */
 .auth-card {
@@ -214,6 +248,17 @@ input:focus {
 }
 
 .danger-btn:hover { background: #fff5f5; }
+
+.danger-btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid #f56565;
+  border-radius: 6px;
+  background: transparent;
+  color: #e53e3e;
+  cursor: pointer;
+}
+.danger-btn-sm:hover { background: #fff5f5; }
 
 /* Child link (anonymous) */
 .child-link {
@@ -409,3 +454,68 @@ input:focus {
   font-weight: 600;
   color: #4a5568;
 }
+
+/* ─── OTP input (child auth) ────────────────────────────── */
+.otp-input {
+  font-family: "Courier New", monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+  padding: 0.75rem;
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.otp-input:focus { border-color: #4a90e2; }
+
+/* ─── Child member row (parent dashboard) ───────────────── */
+.child-member-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f4f8;
+}
+.child-member-row:last-child { border-bottom: none; }
+
+.child-name   { font-weight: 600; flex: 1; min-width: 80px; }
+
+.child-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 20px;
+}
+.child-status.connected { background: #c6f6d5; color: #276749; }
+.child-status.pending   { background: #fefcbf; color: #744210; }
+
+.otp-btn { padding: 0.4rem 0.75rem; font-size: 0.82rem; }
+
+/* OTP code display block */
+.otp-code-block {
+  width: 100%;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.code-value   { font-family: monospace; font-size: 1rem; color: #2b6cb0; }
+.otp-value    { font-size: 1.25rem; letter-spacing: 4px; }
+.otp-expiry   { font-size: 0.78rem; color: #718096; margin-top: 0.25rem; }
+
+/* Inline form (add child) */
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+}
+.inline-form input { flex: 1; }
+.inline-form button { white-space: nowrap; width: auto; }
