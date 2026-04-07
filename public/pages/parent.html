@@ -1,7 +1,15 @@
 <div class="page parent">
 
   <h1>Espace Parent</h1>
-  <p id="familyName" class="subtitle"></p>
+  <div class="family-name-row">
+    <p id="familyName" class="subtitle"></p>
+    <button id="editFamilyNameBtn" class="icon-btn" aria-label="Modifier le nom de famille">✏️</button>
+  </div>
+  <div id="familyNameEditForm" class="inline-form family-name-edit-form" style="display:none;">
+    <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
+    <button id="saveFamilyNameBtn" class="secondary-btn">Sauvegarder</button>
+    <button id="cancelFamilyNameBtn" class="icon-btn">✕</button>
+  </div>
 
   <!-- ── Membres adultes ───────────────────────────────── -->
   <div class="card">

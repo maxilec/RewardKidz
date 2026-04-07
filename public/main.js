@@ -31,6 +31,8 @@ import {
   removePoint,
   setScoreValidated,
   setDayIgnored,
+  subscribeToScore,
+  updateFamilyName,
   logout
 } from "./firebase.js";
 
@@ -40,6 +42,63 @@ import {
 let pendingJoinCode    = null;
 let pendingDisplayName = null;
 let _selectedChild     = null; // { memberId, displayName, familyId, linkedAuthUid }
+let _currentPage       = null;
+let _unsubscribers     = [];
+
+function cleanupPage() {
+  _unsubscribers.forEach(fn => fn());
+  _unsubscribers = [];
+  const existing = document.getElementById('ptr-indicator');
+  if (existing) existing.remove();
+}
+
+function setupPullToRefresh(onRefresh) {
+  const app = document.getElementById('app');
+  if (!app) return;
+
+  // Bouton ↻ flottant
+  const btn = document.createElement('button');
+  btn.id = 'refresh-btn';
+  btn.setAttribute('aria-label', 'Actualiser');
+  btn.innerHTML = '↻';
+  app.prepend(btn);
+  btn.addEventListener('click', () => {
+    btn.classList.add('spinning');
+    onRefresh().finally(() => btn.classList.remove('spinning'));
+  });
+
+  // Indicateur pull-to-refresh
+  const indicator = document.createElement('div');
+  indicator.id = 'ptr-indicator';
+  document.body.prepend(indicator);
+
+  let startY = 0, pulling = false;
+
+  app.addEventListener('touchstart', e => {
+    if (app.scrollTop === 0) { startY = e.touches[0].clientY; pulling = true; }
+  }, { passive: true });
+
+  app.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const delta = e.touches[0].clientY - startY;
+    if (delta > 0) {
+      indicator.style.height = Math.min(delta * 0.5, 48) + 'px';
+      indicator.style.opacity = String(Math.min(delta / 60, 1));
+    }
+  }, { passive: true });
+
+  app.addEventListener('touchend', e => {
+    if (!pulling) return;
+    const delta = e.changedTouches[0].clientY - startY;
+    indicator.style.height = '0';
+    indicator.style.opacity = '0';
+    pulling = false;
+    if (delta > 60) {
+      btn.classList.add('spinning');
+      onRefresh().finally(() => btn.classList.remove('spinning'));
+    }
+  }, { passive: true });
+}
 
 // ---------------------------------------------------------
 // SPA Router (hash-based)
@@ -52,6 +111,9 @@ function navigate(page) {
 }
 
 async function loadPage(page) {
+  cleanupPage();
+  _currentPage = page;
+
   const user = auth.currentUser;
 
   const unauthPages = ["parent-auth", "child-auth"];
@@ -384,9 +446,10 @@ async function initParent() {
 
   const familyId = userDoc.familyId;
 
-  // Family name + permanent code
+  // Family name + permanent code + édition nom
+  let familyDoc = null;
   try {
-    const familyDoc = await getFamily(familyId);
+    familyDoc = await getFamily(familyId);
     if (familyDoc) {
       const el = document.getElementById("familyName");
       if (el) el.textContent = `Famille ${familyDoc.name}`;
@@ -397,6 +460,30 @@ async function initParent() {
       if (codeEl) codeEl.textContent = familyCode || "—";
     }
   } catch (e) { console.error(e); }
+
+  // Édition du nom de famille
+  document.getElementById('editFamilyNameBtn')?.addEventListener('click', () => {
+    const input = document.getElementById('familyNameInput');
+    if (input && familyDoc) input.value = familyDoc.name;
+    document.getElementById('familyNameEditForm').style.display = 'flex';
+    document.getElementById('editFamilyNameBtn').style.display = 'none';
+  });
+  document.getElementById('cancelFamilyNameBtn')?.addEventListener('click', () => {
+    document.getElementById('familyNameEditForm').style.display = 'none';
+    document.getElementById('editFamilyNameBtn').style.display = '';
+  });
+  document.getElementById('saveFamilyNameBtn')?.addEventListener('click', async () => {
+    const newName = document.getElementById('familyNameInput')?.value.trim();
+    if (!newName) return;
+    try {
+      await updateFamilyName(familyId, newName);
+      if (familyDoc) familyDoc = { ...familyDoc, name: newName };
+      const el = document.getElementById('familyName');
+      if (el) el.textContent = `Famille ${newName}`;
+      document.getElementById('familyNameEditForm').style.display = 'none';
+      document.getElementById('editFamilyNameBtn').style.display = '';
+    } catch (e) { alert('Erreur : ' + e.message); }
+  });
 
   // Adult members list — returns all members for reuse by button setup
   async function renderParents() {
@@ -513,6 +600,17 @@ async function initParent() {
 
       // Bind score handlers for each child
       children.forEach(c => bindScoreHandlersFor(c.memberId));
+
+      // Abonnements temps réel — met à jour le score dès qu'un parent modifie depuis un autre appareil
+      children.forEach(c => {
+        const unsub = subscribeToScore(familyId, c.memberId, score => {
+          const el = document.getElementById(`score-${c.memberId}`);
+          if (!el) return;
+          el.innerHTML = buildScoreHTML(score, c.memberId);
+          bindScoreHandlersFor(c.memberId);
+        });
+        _unsubscribers.push(unsub);
+      });
 
       // Navigate to child detail when clicking the card header (not on action buttons)
       list.querySelectorAll(".child-card-header--clickable").forEach(header => {
@@ -667,6 +765,11 @@ async function initParent() {
   });
 
   bindLogoutButton();
+
+  setupPullToRefresh(async () => {
+    cleanupPage();
+    await loadPage(_currentPage);
+  });
 }
 
 async function initChild() {
@@ -685,25 +788,32 @@ async function initChild() {
     if (welcomeEl && displayName) welcomeEl.textContent = `Bonjour ${displayName} !`;
 
     if (!memberId) return;
-    const score = await readDayScore(familyId, memberId);
 
-    const el = document.getElementById("childScoreDisplay");
-    if (!el) return;
+    const renderChildScore = score => {
+      const el = document.getElementById("childScoreDisplay");
+      if (!el) return;
+      const stars = Array.from({length: 5}, (_, i) =>
+        `<span class="score-star ${i < score.points ? 'filled' : 'empty'}">⭐</span>`
+      ).join('');
+      let badge = '';
+      if (score.validated) badge = '<div class="child-score-badge validated">✓ Journée validée par un parent</div>';
+      else if (score.ignored) badge = '<div class="child-score-badge ignored">Journée non comptabilisée</div>';
+      el.className = "child-score-display";
+      el.innerHTML = `
+        <div class="score-stars-row">${stars}</div>
+        <div class="child-score-number">${score.points}<span class="score-max">/5</span></div>
+        ${badge}`;
+    };
 
-    const stars = Array.from({length: 5}, (_, i) =>
-      `<span class="score-star ${i < score.points ? 'filled' : 'empty'}">⭐</span>`
-    ).join('');
+    const unsub = subscribeToScore(familyId, memberId, renderChildScore);
+    _unsubscribers.push(unsub);
 
-    let badge = '';
-    if (score.validated) badge = '<div class="child-score-badge validated">✓ Journée validée par un parent</div>';
-    else if (score.ignored) badge = '<div class="child-score-badge ignored">Journée non comptabilisée</div>';
-
-    el.className = "child-score-display";
-    el.innerHTML = `
-      <div class="score-stars-row">${stars}</div>
-      <div class="child-score-number">${score.points}<span class="score-max">/5</span></div>
-      ${badge}`;
   } catch (e) { console.error(e); }
+
+  setupPullToRefresh(async () => {
+    cleanupPage();
+    await loadPage(_currentPage);
+  });
 }
 
 async function initChildDetail() {

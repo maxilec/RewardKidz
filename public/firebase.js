@@ -33,7 +33,8 @@ import {
   collection,
   query,
   where,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ---------------------------------------------------------
@@ -615,6 +616,26 @@ export async function setDayIgnored(familyId, memberId, ignored, byUid, byName) 
     log: arrayUnion({ type: ignored ? 'ignore' : 'unignore', by: byUid, byName, pointsAfter: score.points, ts: Date.now() }),
     updatedAt: serverTimestamp()
   });
+}
+
+// Real-time listener on today's score for a child (parent or child view).
+// Returns an unsubscribe function. Calls callback immediately with current data.
+export function subscribeToScore(familyId, memberId, callback) {
+  const ref = doc(db, "families", familyId, "scores", memberId);
+  return onSnapshot(ref, snap => {
+    const todayStr = today();
+    const data = snap.exists() ? snap.data() : null;
+    if (data && data.date === todayStr) {
+      callback({ id: memberId, ...data });
+    } else {
+      callback({ id: memberId, points: 0, date: todayStr, validated: false, ignored: false, log: [] });
+    }
+  });
+}
+
+// Update the family name (parent only).
+export async function updateFamilyName(familyId, newName) {
+  await updateDoc(doc(db, "families", familyId), { name: newName });
 }
 
 // Resolve an invitation code → returns familyId

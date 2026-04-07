@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="RewardKidz" />
   <meta name="theme-color" content="#4a90e2" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="manifest" href="./manifest.json" />
   <title>RewardKidz</title>
   <link rel="stylesheet" href="./css/style.css" />
@@ -36,7 +40,49 @@
   <!-- APP CONTAINER (SPA) -->
   <div id="app" style="display:none;"></div>
 
+  <!-- Bandeau d'installation PWA -->
+  <div id="pwa-banner">
+    <span class="pwa-banner-text">Installe l'app RewardKidz !</span>
+    <button id="pwa-install-btn" class="pwa-install-btn">Installer</button>
+    <button id="pwa-dismiss-btn" class="pwa-dismiss-btn" aria-label="Fermer">✕</button>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script type="module" src="./main.js?v=3"></script>
+  <script>
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.warn('[SW] Registration failed:', err));
+    }
+
+    // PWA Install prompt
+    let _deferredInstallPrompt = null;
+    const pwaBanner = document.getElementById('pwa-banner');
+    const pwaInstallBtn = document.getElementById('pwa-install-btn');
+    const pwaDismissBtn = document.getElementById('pwa-dismiss-btn');
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _deferredInstallPrompt = e;
+      setTimeout(() => { pwaBanner.classList.add('visible'); }, 3000);
+    });
+
+    pwaInstallBtn.addEventListener('click', async () => {
+      if (!_deferredInstallPrompt) return;
+      _deferredInstallPrompt.prompt();
+      await _deferredInstallPrompt.userChoice;
+      _deferredInstallPrompt = null;
+      pwaBanner.classList.remove('visible');
+    });
+
+    pwaDismissBtn.addEventListener('click', () => {
+      pwaBanner.classList.remove('visible');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      pwaBanner.classList.remove('visible');
+      _deferredInstallPrompt = null;
+    });
+  </script>
+  <script type="module" src="./main.js?v=4"></script>
 </body>
 </html>
