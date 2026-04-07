@@ -43,7 +43,8 @@ function navigate(page) {
 async function loadPage(page) {
   const user = auth.currentUser;
 
-  if (!user) {
+  const unauthPages = ["parent-auth", "child-auth"];
+  if (!user && !unauthPages.includes(page)) {
     const container = document.getElementById("app");
     if (container) container.innerHTML = "";
     return;

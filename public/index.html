@@ -36,22 +36,6 @@
   <!-- APP CONTAINER (SPA) -->
   <div id="app" style="display:none;"></div>
 
-  <!-- Auth state: show/hide landing vs app -->
-  <script type="module">
-    import { auth } from "./firebase.js";
-    auth.onAuthStateChanged((user) => {
-      const landing = document.getElementById("login-screen");
-      const app     = document.getElementById("app");
-      if (user) {
-        landing.style.display = "none";
-        app.style.display = "block";
-      } else {
-        landing.style.display = "flex";
-        app.style.display = "none";
-      }
-    });
-  </script>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script type="module" src="./main.js?v=3"></script>
 </body>
