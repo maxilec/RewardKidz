@@ -668,15 +668,23 @@ export async function setDayIgnored(familyId, memberId, ignored, byUid, byName) 
 // Returns an unsubscribe function. Calls callback immediately with current data.
 export function subscribeToScore(familyId, memberId, callback) {
   const ref = doc(db, "families", familyId, "scores", memberId);
-  return onSnapshot(ref, snap => {
-    const todayStr = today();
-    const data = snap.exists() ? snap.data() : null;
-    if (data && data.date === todayStr) {
-      callback({ id: memberId, ...data });
-    } else {
-      callback({ id: memberId, points: 0, date: todayStr, validated: false, ignored: false, log: [] });
+  return onSnapshot(
+    ref,
+    snap => {
+      const todayStr = today();
+      const data = snap.exists() ? snap.data() : null;
+      if (data && data.date === todayStr) {
+        callback({ id: memberId, ...data });
+      } else {
+        callback({ id: memberId, points: 0, date: todayStr, validated: false, ignored: false, log: [] });
+      }
+    },
+    err => {
+      // Erreur silencieuse — typiquement token expiré ou permission révoquée.
+      // Le listener sera relancé automatiquement quand l'auth se rétablit.
+      console.warn('[subscribeToScore] listener error:', err.code);
     }
-  });
+  );
 }
 
 // Update the family name (parent only).
