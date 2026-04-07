@@ -20,6 +20,7 @@ import {
   getFamilyMembers,
   migrateFamilyCode,
   deleteFamily,
+  deleteParentAccount,
   resolveInvite,
   getActiveInvite,
   createInvite,
@@ -363,24 +364,23 @@ async function initParent() {
     }
   } catch (e) { console.error(e); }
 
-  // Adult members list
+  // Adult members list — returns all members for reuse by button setup
   async function renderParents() {
     try {
       const members = await getFamilyMembers(familyId);
       const parents = members.filter(m => m.role === "parent");
       const list = document.getElementById("parentsList");
-      if (!list) return;
-      if (parents.length === 0) {
-        list.innerHTML = "<p class='hint'>Aucun membre adulte.</p>";
-        return;
+      if (list) {
+        list.innerHTML = parents.length === 0
+          ? "<p class='hint'>Aucun membre adulte.</p>"
+          : parents.map(p => `
+              <div class="child-member-row">
+                <span class="child-name">👤 ${p.displayName || "—"}</span>
+                <span class="child-status connected">${p.uid === user.uid ? "Vous" : "Membre"}</span>
+              </div>`).join("");
       }
-      list.innerHTML = parents.map(p => `
-        <div class="child-member-row">
-          <span class="child-name">👤 ${p.displayName || "—"}</span>
-          <span class="child-status connected">${p.uid === user.uid ? "Vous" : "Membre"}</span>
-        </div>
-      `).join("");
-    } catch (e) { console.error(e); }
+      return members;
+    } catch (e) { console.error(e); return []; }
   }
 
   const byUid  = user.uid;
@@ -533,8 +533,51 @@ async function initParent() {
     } catch (e) { console.error(e); }
   }
 
-  await renderParents();
+  const allMembers = await renderParents();
   await renderChildren();
+
+  // ── Delete account button setup ─────────────────────────
+  {
+    const parents  = allMembers.filter(m => m.role === "parent");
+    const children = allMembers.filter(m => m.role === "child");
+    const isSoleParent = parents.length === 1;
+    const hasChildren  = children.length > 0;
+    const btn  = document.getElementById("deleteAccountBtn");
+    const hint = document.getElementById("deleteAccountHint");
+
+    if (btn) {
+      if (isSoleParent && hasChildren) {
+        // Blocked — can't leave while sole parent with children
+        btn.disabled = true;
+        if (hint) {
+          hint.textContent = "Invitez un co-parent ou retirez tous les enfants avant de supprimer votre compte.";
+          hint.classList.add("hint-warning");
+        }
+      } else {
+        const msg = isSoleParent
+          ? "⚠️ Vous êtes seul(e) parent — cette action supprimera aussi la famille entière."
+          : "La famille et les autres membres ne seront pas affectés.";
+        if (hint) { hint.textContent = msg; }
+
+        const confirmMsg = isSoleParent
+          ? "Supprimer votre compte supprimera aussi la famille entière (sans enfants). Cette action est irréversible. Confirmer ?"
+          : "Supprimer votre compte ? La famille restera active pour les autres membres. Confirmer ?";
+
+        btn.addEventListener("click", async () => {
+          if (!confirm(confirmMsg)) return;
+          btn.disabled = true;
+          try {
+            await deleteParentAccount(user, familyId);
+            // Auth deletion or signOut handled inside deleteParentAccount
+            // onAuthStateChanged will route back to landing
+          } catch (e) {
+            alert("Erreur : " + e.message);
+            btn.disabled = false;
+          }
+        });
+      }
+    }
+  }
 
   document.getElementById("formAddChild")?.addEventListener("submit", async (e) => {
     e.preventDefault();

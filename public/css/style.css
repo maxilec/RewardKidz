@@ -247,7 +247,17 @@ input:focus {
   margin-top: 0.5rem;
 }
 
-.danger-btn:hover { background: #fff5f5; }
+.danger-btn:hover         { background: #fff5f5; }
+.danger-btn:disabled      { opacity: 0.45; cursor: not-allowed; }
+.danger-btn:disabled:hover { background: #fff; }
+
+/* Hint under delete-account button */
+.account-delete-hint {
+  font-size: 0.8rem;
+  color: #718096;
+  margin-top: -0.25rem;
+}
+.account-delete-hint.hint-warning { color: #c05621; }
 
 .danger-btn-sm {
   padding: 0.25rem 0.5rem;
