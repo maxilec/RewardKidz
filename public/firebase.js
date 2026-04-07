@@ -114,9 +114,10 @@ export async function getFamily(familyId) {
   return snap.exists() ? snap.data() : null;
 }
 
-export async function createFamily(user, familyName) {
+export async function createFamily(user, familyName, parentDisplayName) {
   const familyId = crypto.randomUUID();
   const familyCode = generateFamilyCode();
+  const displayName = parentDisplayName || user.displayName || "Parent";
   const batch = writeBatch(db);
 
   // Famille + code permanent + membre parent + user doc en un seul commit
@@ -132,12 +133,12 @@ export async function createFamily(user, familyName) {
   batch.set(doc(db, "families", familyId, "members", user.uid), {
     uid: user.uid,
     role: "parent",
-    displayName: user.displayName || "Parent"
+    displayName
   });
   batch.set(doc(db, "users", user.uid), {
     uid: user.uid,
     email: user.email || null,
-    displayName: user.displayName || null,
+    displayName,
     familyId,
     role: "parent",
     createdAt: Date.now()
@@ -178,14 +179,15 @@ export async function joinFamily(user, familyId, displayName, pin) {
   return memberId;
 }
 
-// Join a family as a Google / email-authenticated user (no PIN needed)
+// Join a family as a Google / email-authenticated adult (no PIN needed) — role: parent
 export async function joinFamilyAsAuthenticated(user, familyId, displayName) {
   const name = displayName || user.displayName || "Membre";
   const batch = writeBatch(db);
   batch.set(doc(db, "families", familyId, "members", user.uid), {
+    uid: user.uid,
     memberId: user.uid,
     linkedAuthUid: user.uid,
-    role: "child",
+    role: "parent",
     displayName: name
   });
   batch.set(doc(db, "users", user.uid), {
@@ -194,7 +196,7 @@ export async function joinFamilyAsAuthenticated(user, familyId, displayName) {
     displayName: name,
     familyId,
     memberId: user.uid,
-    role: "child",
+    role: "parent",
     createdAt: Date.now()
   });
   await batch.commit();
@@ -309,6 +311,33 @@ export async function addChild(familyId, displayName) {
   });
   const otp = await generateChildOTP(familyId, memberId, displayName);
   return { memberId, otp };
+}
+
+// Rename a child (parent-side) — updates member doc only
+export async function updateChildName(familyId, memberId, newName) {
+  await updateDoc(doc(db, "families", familyId, "members", memberId), { displayName: newName });
+}
+
+// Delete a child and all associated data (parent-side)
+export async function deleteChild(familyId, memberId) {
+  const memberRef = doc(db, "families", familyId, "members", memberId);
+  const memberSnap = await getDoc(memberRef);
+  if (!memberSnap.exists()) throw new Error("Enfant introuvable");
+  const { linkedAuthUid } = memberSnap.data();
+
+  const batch = writeBatch(db);
+  batch.delete(memberRef);
+  batch.delete(doc(db, "families", familyId, "childOTPs", memberId));
+  if (linkedAuthUid) batch.delete(doc(db, "users", linkedAuthUid));
+  await batch.commit();
+
+  // Clean up any top-level OTP doc for this child
+  const otpSnap = await getDocs(query(collection(db, "childOTPs"), where("memberId", "==", memberId)));
+  if (!otpSnap.empty) {
+    const cleanBatch = writeBatch(db);
+    otpSnap.forEach(d => cleanBatch.delete(d.ref));
+    await cleanBatch.commit();
+  }
 }
 
 // Generate (or regenerate) a 6-digit OTP for an existing child.

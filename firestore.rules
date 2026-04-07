@@ -29,7 +29,8 @@ service cloud.firestore {
 
     function isParentOf(familyId) {
       return isAuth() &&
-        request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.ownerIds;
+        exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == "parent";
     }
 
     // isMemberOf via user doc (compatible avec memberId ≠ UID)

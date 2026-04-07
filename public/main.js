@@ -13,6 +13,8 @@ import {
   createFamily,
   joinFamilyAsAuthenticated,
   addChild,
+  deleteChild,
+  updateChildName,
   generateChildOTP,
   connectChildDevice,
   getFamilyMembers,
@@ -50,9 +52,9 @@ async function loadPage(page) {
     return;
   }
 
-  const userDoc = user ? await getUser(user.uid) : null;
-
+  // Skip Firestore read for pages that never need a family doc (faster render)
   const noFamilyPages = ["onboarding", "create-family", "parent-auth", "child-auth"];
+  const userDoc = (user && !noFamilyPages.includes(page)) ? await getUser(user.uid) : null;
   if ((!userDoc || !userDoc.familyId) && !noFamilyPages.includes(page)) {
     navigate("onboarding");
     return;
@@ -213,11 +215,12 @@ function initOnboarding() {
 function initCreateFamily() {
   document.getElementById("createFamilyBtn")?.addEventListener("click", async () => {
     try {
-      const name = document.getElementById("familyName").value.trim();
+      const name     = document.getElementById("familyName").value.trim();
+      const nickname = document.getElementById("parentNickname")?.value.trim();
       const user = auth.currentUser;
-      if (!name) return alert("Nom requis");
+      if (!name) return alert("Nom de la famille requis");
       if (!user)  return alert("Utilisateur non connecté");
-      await createFamily(user, name);
+      await createFamily(user, name, nickname || null);
       navigate("parent");
     } catch (e) { alert(e.message); }
   });
@@ -251,24 +254,25 @@ function initParentAuth() {
 
   // Rejoindre — Google
   document.getElementById("joinGoogle")?.addEventListener("click", () => {
-    const code = document.getElementById("joinInviteCode").value.trim().toUpperCase();
+    const code     = document.getElementById("joinInviteCode").value.trim().toUpperCase();
+    const nickname = document.getElementById("joinNickname")?.value.trim();
     if (!code) return alert("Entre le code d'invitation");
-    pendingJoinCode = code;
-    loginWithGoogle().catch(err => { pendingJoinCode = null; alert(translateAuthError(err)); });
+    pendingJoinCode    = code;
+    pendingDisplayName = nickname || null;
+    loginWithGoogle().catch(err => { pendingJoinCode = null; pendingDisplayName = null; alert(translateAuthError(err)); });
   });
 
   // Rejoindre — email/password
   document.getElementById("formJoin")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const code = document.getElementById("joinInviteCode").value.trim().toUpperCase();
-    const name = document.getElementById("joinDisplayName").value.trim();
-    const email = document.getElementById("joinEmail").value.trim();
-    const pass  = document.getElementById("joinPassword").value;
+    const code     = document.getElementById("joinInviteCode").value.trim().toUpperCase();
+    const nickname = document.getElementById("joinNickname")?.value.trim();
+    const email    = document.getElementById("joinEmail").value.trim();
+    const pass     = document.getElementById("joinPassword").value;
     if (!code) return alert("Entre le code d'invitation");
-    if (!name) return alert("Entre ton prénom");
-    pendingJoinCode = code; pendingDisplayName = name;
+    pendingJoinCode = code; pendingDisplayName = nickname || null;
     try {
-      await registerWithEmail(email, pass, name);
+      await registerWithEmail(email, pass, nickname || null);
     } catch (err) {
       pendingJoinCode = null; pendingDisplayName = null;
       alert(translateAuthError(err));
@@ -314,6 +318,26 @@ async function initParent() {
     }
   } catch (e) { console.error(e); }
 
+  // Adult members list
+  async function renderParents() {
+    try {
+      const members = await getFamilyMembers(familyId);
+      const parents = members.filter(m => m.role === "parent");
+      const list = document.getElementById("parentsList");
+      if (!list) return;
+      if (parents.length === 0) {
+        list.innerHTML = "<p class='hint'>Aucun membre adulte.</p>";
+        return;
+      }
+      list.innerHTML = parents.map(p => `
+        <div class="child-member-row">
+          <span class="child-name">👤 ${p.displayName || "—"}</span>
+          <span class="child-status connected">${p.uid === user.uid ? "Vous" : "Membre"}</span>
+        </div>
+      `).join("");
+    } catch (e) { console.error(e); }
+  }
+
   // Children list + add child
   async function renderChildren() {
     try {
@@ -334,7 +358,13 @@ async function initParent() {
             ${c.linkedAuthUid ? "Connecté" : "En attente"}
           </span>
           <button class="secondary-btn otp-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">
-            Générer un code
+            Code connexion
+          </button>
+          <button class="secondary-btn rename-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">
+            ✏️
+          </button>
+          <button class="danger-btn-sm delete-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">
+            🗑
           </button>
           <div class="otp-display" id="otp-${c.memberId}" style="display:none;"></div>
         </div>
@@ -366,9 +396,35 @@ async function initParent() {
           }
         });
       });
+
+      list.querySelectorAll(".rename-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const memberId = btn.dataset.memberid;
+          const current  = btn.dataset.name;
+          const newName  = prompt(`Nouveau prénom pour ${current} :`, current);
+          if (!newName || newName.trim() === current) return;
+          try {
+            await updateChildName(familyId, memberId, newName.trim());
+            await renderChildren();
+          } catch (e) { alert("Erreur : " + e.message); }
+        });
+      });
+
+      list.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const memberId = btn.dataset.memberid;
+          const name     = btn.dataset.name;
+          if (!confirm(`Supprimer ${name} ? Cette action est irréversible.`)) return;
+          try {
+            await deleteChild(familyId, memberId);
+            await renderChildren();
+          } catch (e) { alert("Erreur : " + e.message); }
+        });
+      });
     } catch (e) { console.error(e); }
   }
 
+  await renderParents();
   await renderChildren();
 
   document.getElementById("formAddChild")?.addEventListener("submit", async (e) => {
