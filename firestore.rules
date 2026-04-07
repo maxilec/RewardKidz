@@ -40,13 +40,6 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.familyId == familyId;
     }
 
-    // ── TRANSITION DÉMO ──────────────────────────────────────
-    // famille_demo reste accessible sans auth pendant la transition
-    // À SUPPRIMER une fois l'onboarding implémenté
-    match /families/famille_demo/{document=**} {
-      allow read, write: if true;
-    }
-
     // ── Anti-énumération ─────────────────────────────────────
     // Impossible de lister /families sans familyId exact
     match /families/{familyId} {
@@ -79,7 +72,9 @@ service cloud.firestore {
 
     // ── Reconnexion publique ─────────────────────────────────
     match /families/{familyId}/reconnectPublic/{memberId} {
-      allow read:   if true; // Lecture publique pour valider prénom + PIN
+      allow get:    if true;  // Lecture publique par ID exact (reconnexion PIN)
+      allow list:   if isParentOf(familyId) || isMemberOf(familyId); // Requis pour reconnectChild/deleteFamily
+      // Pas de list anonyme → énumération des membres bloquée
       allow create: if isAuth();
       // Reconnexion : mise à jour de linkedAuthUid par le nouvel utilisateur anonyme
       allow update: if isAuth() &&
@@ -134,7 +129,9 @@ service cloud.firestore {
 
     // ── Tokens d'invitation (top-level, lookup par code sans connaître familyId) ──
     match /invites/{tokenId} {
-      allow read:   if true; // Lecture publique pour valider un code sans être authentifié
+      allow get:    if true;   // Lecture publique par ID exact (résolution de code)
+      allow list:   if isAuth(); // Requis pour getActiveInvite/createInvite/deleteFamily (query where familyId)
+      // Pas de list anonyme → énumération bloquée pour les non-authentifiés
       allow create: if isAuth() && (isParentOf(request.resource.data.familyId) ||
                                     isMemberOf(request.resource.data.familyId));
       allow delete: if isAuth() && (isParentOf(resource.data.familyId) ||
@@ -142,30 +139,33 @@ service cloud.firestore {
     }
 
     // ── Tokens d'invitation (imbriqués, héritage legacy) ────────────────────────
+    // Collection plus utilisée par l'app (les invites passent par le top-level)
+    // Restrictions resserrées pour supprimer les anciennes règles trop permissives
     match /families/{familyId}/invites/{tokenId} {
-      allow read:   if true;
-      allow create: if isParentOf(familyId) || isAuth();
-      allow update: if isAuth();
-      allow delete: if isParentOf(familyId);
+      allow read, write: if isParentOf(familyId);
     }
 
     // ── OTP enfants (top-level, lookup par code sans connaître familyId) ──
     match /childOTPs/{otpCode} {
-      allow read:   if true; // Lecture publique pour valider le code depuis l'appareil enfant
+      allow get:    if true;   // Lecture publique par ID exact (connexion enfant)
+      allow list:   if isAuth(); // Requis pour generateChildOTP/deleteChild (query where memberId)
+      // Pas de list anonyme → énumération bloquée pour les non-authentifiés
       allow create: if isParentOf(request.resource.data.familyId);
       allow delete: if isAuth();
     }
 
     // ── OTP enfants (sous-collection, existence check pour les règles) ──
     match /families/{familyId}/childOTPs/{memberId} {
-      allow read:   if true;
+      allow get:    if true;  // Lecture publique uniquement par ID exact (pas d'énumération)
+      allow list:   if false;
       allow create: if isParentOf(familyId);
       allow delete: if isAuth();
     }
 
     // ── Index codes famille permanents ────────────────────────
     match /familyCodes/{code} {
-      allow read:   if true; // Lecture publique pour résoudre un code famille
+      allow get:    if true;  // Lecture publique uniquement par ID exact (pas d'énumération)
+      allow list:   if false;
       allow create: if isAuth();
       allow delete: if isAuth() && isMemberOf(resource.data.familyId);
     }
