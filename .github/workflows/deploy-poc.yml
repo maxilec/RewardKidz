@@ -5,6 +5,7 @@ on:
     branches:
       - 'fix/2.0/POC'
       - 'claude/secure-dev-branch-Apa2M'
+      - 'dev/main'
 
 jobs:
   deploy:
