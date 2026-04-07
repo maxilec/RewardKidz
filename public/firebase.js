@@ -298,6 +298,80 @@ export async function deleteFamily(familyId) {
 }
 
 // ---------------------------------------------------------
+// CHILD OTP SYSTEM
+// ---------------------------------------------------------
+
+// Create a child account (parent-side) and generate their first OTP
+export async function addChild(familyId, displayName) {
+  const memberId = crypto.randomUUID();
+  await setDoc(doc(db, "families", familyId, "members", memberId), {
+    memberId, role: "child", displayName, linkedAuthUid: null
+  });
+  const otp = await generateChildOTP(familyId, memberId, displayName);
+  return { memberId, otp };
+}
+
+// Generate (or regenerate) a 6-digit OTP for an existing child.
+// Called by the parent who already has isParentOf rights → can read the member doc.
+// currentLinkedAuthUid is stored in the OTP doc so the child device never needs to
+// read the member doc directly (permission denied for anonymous users).
+export async function generateChildOTP(familyId, memberId, displayName) {
+  // Read the current linked UID so reconnection can clean up the old user doc
+  const memberSnap = await getDoc(doc(db, "families", familyId, "members", memberId));
+  const currentLinkedAuthUid = memberSnap.exists() ? memberSnap.data().linkedAuthUid : null;
+
+  // Clean up any previous OTP for this child
+  const oldSnap = await getDocs(query(
+    collection(db, "childOTPs"), where("memberId", "==", memberId)
+  ));
+  if (!oldSnap.empty) {
+    const cleanBatch = writeBatch(db);
+    oldSnap.forEach(d => cleanBatch.delete(d.ref));
+    cleanBatch.delete(doc(db, "families", familyId, "childOTPs", memberId));
+    await cleanBatch.commit();
+  }
+
+  const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = Date.now() + 30 * 60 * 1000; // 30 min
+
+  const b = writeBatch(db);
+  // Top-level doc: child looks up by code (public read, no auth needed)
+  b.set(doc(db, "childOTPs", otpCode), {
+    otpCode, familyId, memberId, displayName, expiresAt, currentLinkedAuthUid
+  });
+  // Subcollection doc: existence check for Firestore security rules
+  b.set(doc(db, "families", familyId, "childOTPs", memberId), { otpCode, expiresAt });
+  await b.commit();
+  return otpCode;
+}
+
+// Connect a child device using the family code (8 chars) + child OTP (6 digits).
+// All required data comes from the public OTP doc → no member doc read needed.
+export async function connectChildDevice(user, familyCode, otpCode) {
+  // 1. Resolve family code → familyId (public)
+  const familyId = await resolveByFamilyCode(familyCode);
+
+  // 2. Read and validate OTP (public)
+  const otpRef = doc(db, "childOTPs", otpCode);
+  const otpSnap = await getDoc(otpRef);
+  if (!otpSnap.exists()) throw new Error("Code enfant invalide");
+  const { familyId: otpFamilyId, memberId, displayName, expiresAt, currentLinkedAuthUid } = otpSnap.data();
+  if (otpFamilyId !== familyId) throw new Error("Le code famille et le code enfant ne correspondent pas");
+  if (Date.now() > expiresAt) throw new Error("Code expiré — demande un nouveau code au parent");
+
+  const oldUid = currentLinkedAuthUid || null;
+  const batch = writeBatch(db);
+  batch.update(doc(db, "families", familyId, "members", memberId), { linkedAuthUid: user.uid });
+  batch.delete(otpRef);
+  batch.delete(doc(db, "families", familyId, "childOTPs", memberId));
+  if (oldUid && oldUid !== user.uid) batch.delete(doc(db, "users", oldUid));
+  batch.set(doc(db, "users", user.uid), {
+    uid: user.uid, email: null, displayName, familyId, memberId, role: "child", createdAt: Date.now()
+  });
+  await batch.commit();
+}
+
+// ---------------------------------------------------------
 // INVITATION SYSTEM (shortCode 6 chars + expiration)
 // ---------------------------------------------------------
 

@@ -11,109 +11,48 @@
 </head>
 <body>
 
-  <!-- LOGIN SCREEN -->
+  <!-- LANDING SCREEN — role selection -->
   <div id="login-screen">
     <div class="login-header">
       <h1>RewardKidz</h1>
       <p class="login-tagline">La famille qui avance ensemble</p>
     </div>
 
-    <div class="auth-card">
+    <div class="role-choices">
+      <button class="role-card" id="goParent">
+        <span class="role-icon">👨‍👩‍👧</span>
+        <span class="role-label">Je suis un parent</span>
+        <span class="role-hint">S'identifier ou rejoindre une famille</span>
+      </button>
 
-      <!-- Onglets -->
-      <div class="auth-tabs" role="tablist">
-        <button id="tabSignin" class="auth-tab active" role="tab" aria-selected="true" aria-controls="panel-signin">
-          S'identifier
-        </button>
-        <button id="tabJoinFamily" class="auth-tab" role="tab" aria-selected="false" aria-controls="panel-join">
-          Rejoindre
-        </button>
-      </div>
-
-      <!-- Panneau S'identifier -->
-      <div id="panel-signin" class="auth-panel" role="tabpanel">
-        <p class="panel-hint">Tu as déjà un compte</p>
-
-        <button id="loginGoogle" class="google-btn">
-          <span class="google-icon">G</span> Continuer avec Google
-        </button>
-
-        <div class="separator"><span>ou</span></div>
-
-        <form id="formSignin" novalidate>
-          <input id="signinEmail" type="email" placeholder="Email" required autocomplete="email">
-          <input id="signinPassword" type="password" placeholder="Mot de passe" required autocomplete="current-password">
-          <button type="submit" class="primary-btn">Se connecter</button>
-        </form>
-      </div>
-
-      <!-- Panneau Rejoindre une famille -->
-      <div id="panel-join" class="auth-panel hidden" role="tabpanel">
-        <p class="panel-hint">Tu as reçu un code d'invitation</p>
-
-        <div class="form-group">
-          <input id="joinInviteCode" type="text" maxlength="6" placeholder="Code d'invitation (6 cars)" autocomplete="off" style="text-transform:uppercase;letter-spacing:3px;font-weight:700">
-        </div>
-
-        <button id="joinGoogle" class="google-btn">
-          <span class="google-icon">G</span> Continuer avec Google
-        </button>
-
-        <div class="separator"><span>ou</span></div>
-
-        <form id="formJoin" novalidate>
-          <input id="joinDisplayName" type="text" placeholder="Ton prénom" required autocomplete="given-name">
-          <input id="joinEmail" type="email" placeholder="Email" required autocomplete="email">
-          <input id="joinPassword" type="password" placeholder="Mot de passe (6 cars min)" required autocomplete="new-password">
-          <button type="submit" class="primary-btn">Créer un compte et rejoindre</button>
-        </form>
-
-        <a id="goChildAnon" class="child-link">Je suis un jeune enfant (sans compte) →</a>
-      </div>
-
+      <button class="role-card" id="goChild">
+        <span class="role-icon">🧒</span>
+        <span class="role-label">Je suis un enfant</span>
+        <span class="role-hint">Connecter cet appareil avec mon code</span>
+      </button>
     </div>
   </div>
 
   <!-- APP CONTAINER (SPA) -->
   <div id="app" style="display:none;"></div>
 
-  <!-- Affichage login/app selon auth state -->
+  <!-- Auth state: show/hide landing vs app -->
   <script type="module">
     import { auth } from "./firebase.js";
     auth.onAuthStateChanged((user) => {
-      const loginScreen = document.getElementById("login-screen");
-      const app = document.getElementById("app");
+      const landing = document.getElementById("login-screen");
+      const app     = document.getElementById("app");
       if (user) {
-        loginScreen.style.display = "none";
+        landing.style.display = "none";
         app.style.display = "block";
       } else {
-        loginScreen.style.display = "flex";
+        landing.style.display = "flex";
         app.style.display = "none";
       }
-    });
-
-    // Tab switching
-    const tabSignin    = document.getElementById("tabSignin");
-    const tabJoinFamily = document.getElementById("tabJoinFamily");
-    const panelSignin  = document.getElementById("panel-signin");
-    const panelJoin    = document.getElementById("panel-join");
-
-    tabSignin.addEventListener("click", () => {
-      tabSignin.classList.add("active");    tabSignin.setAttribute("aria-selected", "true");
-      tabJoinFamily.classList.remove("active"); tabJoinFamily.setAttribute("aria-selected", "false");
-      panelSignin.classList.remove("hidden");
-      panelJoin.classList.add("hidden");
-    });
-
-    tabJoinFamily.addEventListener("click", () => {
-      tabJoinFamily.classList.add("active");  tabJoinFamily.setAttribute("aria-selected", "true");
-      tabSignin.classList.remove("active");   tabSignin.setAttribute("aria-selected", "false");
-      panelJoin.classList.remove("hidden");
-      panelSignin.classList.add("hidden");
     });
   </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script type="module" src="./main.js?v=2"></script>
+  <script type="module" src="./main.js?v=3"></script>
 </body>
 </html>

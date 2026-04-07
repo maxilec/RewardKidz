@@ -11,9 +11,13 @@ service cloud.firestore {
       //   le doc reconnectPublic pointe encore vers l'ancien UID au moment du batch
       allow delete: if isAuth() && resource.data.familyId != null && (
         isParentOf(resource.data.familyId) ||
+        // Reconnexion via PIN legacy (reconnectPublic)
         (resource.data.memberId != null &&
          exists(/databases/$(database)/documents/families/$(resource.data.familyId)/reconnectPublic/$(resource.data.memberId)) &&
-         get(/databases/$(database)/documents/families/$(resource.data.familyId)/reconnectPublic/$(resource.data.memberId)).data.linkedAuthUid == userId)
+         get(/databases/$(database)/documents/families/$(resource.data.familyId)/reconnectPublic/$(resource.data.memberId)).data.linkedAuthUid == userId) ||
+        // Reconnexion via OTP enfant (childOTPs sous-collection encore présent au batch)
+        (resource.data.memberId != null &&
+         exists(/databases/$(database)/documents/families/$(resource.data.familyId)/childOTPs/$(resource.data.memberId)))
       );
     }
 
@@ -61,10 +65,14 @@ service cloud.firestore {
         (isAuth() && request.auth.uid == resource.data.linkedAuthUid &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['avatarSkin','childPasswordHash','updatedAt'])) ||
-        // Reconnexion : update uniquement linkedAuthUid
+        // Reconnexion legacy (PIN) : update uniquement linkedAuthUid
         (isAuth() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']) &&
-         exists(/databases/$(database)/documents/families/$(familyId)/reconnectPublic/$(memberId)));
+         exists(/databases/$(database)/documents/families/$(familyId)/reconnectPublic/$(memberId))) ||
+        // Connexion / reconnexion via OTP enfant
+        (isAuth() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']) &&
+         exists(/databases/$(database)/documents/families/$(familyId)/childOTPs/$(memberId)));
       allow delete: if isParentOf(familyId);
     }
 
@@ -138,6 +146,20 @@ service cloud.firestore {
       allow create: if isParentOf(familyId) || isAuth();
       allow update: if isAuth();
       allow delete: if isParentOf(familyId);
+    }
+
+    // ── OTP enfants (top-level, lookup par code sans connaître familyId) ──
+    match /childOTPs/{otpCode} {
+      allow read:   if true; // Lecture publique pour valider le code depuis l'appareil enfant
+      allow create: if isParentOf(request.resource.data.familyId);
+      allow delete: if isAuth();
+    }
+
+    // ── OTP enfants (sous-collection, existence check pour les règles) ──
+    match /families/{familyId}/childOTPs/{memberId} {
+      allow read:   if true;
+      allow create: if isParentOf(familyId);
+      allow delete: if isAuth();
     }
 
     // ── Index codes famille permanents ────────────────────────
