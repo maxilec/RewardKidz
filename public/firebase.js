@@ -330,6 +330,8 @@ export async function deleteChild(familyId, memberId) {
   const batch = writeBatch(db);
   batch.delete(memberRef);
   batch.delete(doc(db, "families", familyId, "childOTPs", memberId));
+  // Delete today's score doc (history sub-collection remains orphaned — no cascade possible client-side)
+  batch.delete(doc(db, "families", familyId, "scores", memberId));
   if (linkedAuthUid) batch.delete(doc(db, "users", linkedAuthUid));
   await batch.commit();
 
@@ -453,6 +455,38 @@ export async function createInvite(familyId) {
   });
 
   return shortCode;
+}
+
+// ---------------------------------------------------------
+// SCORE HISTORY
+// ---------------------------------------------------------
+
+// Fetch the last `days` entries for a child's score, newest = last element.
+// `todayScore` is the already-loaded score for today (passed to avoid an extra read).
+// Missing days (parent never opened dashboard that day) are returned with missing: true.
+export async function getChildHistory(familyId, memberId, days, todayScore) {
+  // Build list of past dates (excluding today)
+  const pastDates = Array.from({ length: days - 1 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1 - i));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+
+  // Parallel reads — one getDoc per date
+  const snaps = await Promise.all(
+    pastDates.map(date => getDoc(doc(db, "families", familyId, "scores", memberId, "history", date)))
+  );
+
+  const history = pastDates.map((date, i) => {
+    const snap = snaps[i];
+    return snap.exists()
+      ? { date, missing: false, ...snap.data() }
+      : { date, missing: true, points: 0, validated: false, ignored: false };
+  });
+
+  // Append today (already loaded by caller)
+  history.push({ ...todayScore, missing: false, isToday: true });
+  return history;
 }
 
 // ---------------------------------------------------------

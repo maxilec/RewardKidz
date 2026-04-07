@@ -1,0 +1,58 @@
+<div class="page child-detail-page">
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <div class="detail-header">
+    <button class="back-link" id="backToParent">← Retour</button>
+    <h1 id="detailChildName"></h1>
+    <span id="detailChildStatus" class="child-status"></span>
+  </div>
+
+  <!-- ── Score du jour ────────────────────────────────────── -->
+  <div class="card">
+    <h2>⭐ Score du jour</h2>
+    <div class="score-section" id="detail-score-section">
+      <p class="hint">Chargement…</p>
+    </div>
+  </div>
+
+  <!-- ── Gestion ──────────────────────────────────────────── -->
+  <div class="card">
+    <h2>⚙️ Gestion</h2>
+    <div class="child-otp-section">
+      <button class="secondary-btn" id="detail-otp-btn">Code connexion</button>
+      <div class="otp-display" id="detail-otp-display" style="display:none;"></div>
+    </div>
+    <div class="detail-actions-row">
+      <button class="icon-btn" id="detail-rename-btn">✏️ Renommer</button>
+      <button class="icon-btn danger" id="detail-delete-btn">🗑 Supprimer</button>
+    </div>
+  </div>
+
+  <!-- ── Statistiques ─────────────────────────────────────── -->
+  <div class="card">
+    <h2>📊 Statistiques</h2>
+    <div class="stats-row">
+      <div class="stat-box">
+        <span class="stat-label">Moyenne 7 jours validés</span>
+        <span class="stat-value" id="stat-avg7">—</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Tendance 30 jours</span>
+        <span class="stat-value" id="stat-trend30">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Histogramme ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="histogram-header">
+      <h2>📅 Historique</h2>
+      <div class="histogram-toggle">
+        <button class="toggle-btn active" id="toggle-7d">7j</button>
+        <button class="toggle-btn" id="toggle-30d">30j</button>
+      </div>
+    </div>
+    <div id="histogram-container"><p class="hint">Chargement…</p></div>
+  </div>
+
+</div>
