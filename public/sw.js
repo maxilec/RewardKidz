@@ -1,7 +1,13 @@
-// RewardKidz — Service Worker v1.0
-// Stratégie : Stale-While-Revalidate pour les assets statiques
+// RewardKidz — Service Worker v1.1
+// Stratégie : Stale-While-Revalidate + Firebase Cloud Messaging (background)
 
-const CACHE_NAME = 'rewardkidz-v1';
+// Firebase compat (requis pour onBackgroundMessage dans le SW — pas d'ES modules ici)
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
+
+// ─────────────────────────────────────────────────────────────
+const CACHE_NAME   = 'rewardkidz-v1';
+const CONFIG_CACHE = 'sw-config-v1';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -20,6 +26,46 @@ const ASSETS_TO_CACHE = [
   './pages/onboarding.html',
 ];
 
+// ── FCM : initialisation lazy ────────────────────────────────
+let _messagingReady = false;
+
+async function ensureMessaging(config) {
+  if (_messagingReady) return;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(config);
+    const messagingSW = firebase.messaging();
+    messagingSW.onBackgroundMessage(payload => {
+      const notif  = payload.notification || {};
+      const title  = notif.title || 'RewardKidz';
+      const body   = notif.body  || '';
+      self.registration.showNotification(title, {
+        body,
+        icon:     './icon-192.png',
+        badge:    './icon-192.png',
+        tag:      'rewardkidz-score',
+        renotify: true,
+        vibrate:  [200, 100, 200],
+        data:     payload.data || {},
+      });
+    });
+    _messagingReady = true;
+    // Persister le config pour les push reçus quand l'app est fermée
+    const cache = await caches.open(CONFIG_CACHE);
+    await cache.put('/sw-config', new Response(JSON.stringify(config)));
+  } catch (e) {
+    console.warn('[SW FCM] init failed:', e);
+  }
+}
+
+async function loadPersistedConfig() {
+  try {
+    const cache = await caches.open(CONFIG_CACHE);
+    const resp  = await cache.match('/sw-config');
+    if (resp) return JSON.parse(await resp.text());
+  } catch (e) {}
+  return null;
+}
+
 // ── Installation : mise en cache des assets ──────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -35,16 +81,20 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── Activation : nettoyage des anciens caches ─────────────────
+// ── Activation : nettoyage + chargement config persistée ─────
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
+    (async () => {
+      // Nettoyer anciens caches (conserver CONFIG_CACHE)
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.filter(k => k !== CACHE_NAME && k !== CONFIG_CACHE).map(k => caches.delete(k))
+      );
+      await self.clients.claim();
+      // Réinitialiser FCM si config disponible (push reçu avant ouverture de l'app)
+      const config = await loadPersistedConfig();
+      if (config) await ensureMessaging(config);
+    })()
   );
 });
 
@@ -72,14 +122,14 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ── Push notifications ────────────────────────────────────────
+// ── Push fallback (non-FCM) ───────────────────────────────────
+// FCM gère ses propres pushs via onBackgroundMessage ci-dessus.
+// Ce handler reste en place pour les pushs envoyés hors FCM.
 self.addEventListener('push', event => {
-  let data = {
-    title: 'RewardKidz',
-    body: 'Tu as un nouveau message !',
-    icon: './icon-192.png'
-  };
+  // FCM intercepte ses propres events — on ignore s'il est déjà initialisé
+  if (_messagingReady) return;
 
+  let data = { title: 'RewardKidz', body: 'Tu as un nouveau message !' };
   try {
     data = event.data ? { ...data, ...event.data.json() } : data;
   } catch (e) {
@@ -88,12 +138,11 @@ self.addEventListener('push', event => {
 
   event.waitUntil(
     self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || './icon-192.png',
-      badge: './icon-192.png',
-      data: data.url || './',
+      body:    data.body,
+      icon:    './icon-192.png',
+      badge:   './icon-192.png',
       vibrate: [200, 100, 200],
-      tag: 'rewardkidz-notif',
+      tag:     'rewardkidz-notif',
       renotify: true,
     })
   );
@@ -102,19 +151,24 @@ self.addEventListener('push', event => {
 // ── Tap sur notification → ouvre la PWA ──────────────────────
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = event.notification.data || './';
+  const url = event.notification.data?.url || './';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(windowClients => {
         for (const client of windowClients) {
-          if (client.url === url && 'focus' in client) return client.focus();
+          if ('focus' in client) return client.focus();
         }
         if (clients.openWindow) return clients.openWindow(url);
       })
   );
 });
 
-// ── Message depuis la page ────────────────────────────────────
-self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+// ── Messages depuis la page ───────────────────────────────────
+self.addEventListener('message', async event => {
+  if (event.data?.type === 'FIREBASE_CONFIG') {
+    await ensureMessaging(event.data.config);
+  }
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

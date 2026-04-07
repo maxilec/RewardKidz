@@ -8,6 +8,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 
 import {
+  getMessaging,
+  getToken,
+  onMessage
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
+
+import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
@@ -44,6 +50,46 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const provider = new GoogleAuthProvider();
+
+// Config minimale exposée pour le service worker (valeurs publiques côté client)
+export const swConfig = {
+  apiKey:            firebaseConfig.apiKey,
+  projectId:         firebaseConfig.projectId,
+  messagingSenderId: firebaseConfig.messagingSenderId,
+  appId:             firebaseConfig.appId,
+};
+
+// Firebase Cloud Messaging
+export const messaging = getMessaging(app);
+
+// Demande la permission, obtient le token FCM et le persiste dans le membre doc.
+// À appeler côté enfant uniquement, après identification.
+export async function initNotifications(familyId, memberId) {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  let permission = Notification.permission;
+  if (permission === 'default') {
+    permission = await Notification.requestPermission();
+  }
+  if (permission !== 'granted') return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, {
+      vapidKey: firebaseConfig.vapidKey,
+      serviceWorkerRegistration: reg,
+    });
+    if (!token) return;
+    await updateDoc(doc(db, "families", familyId, "members", memberId), {
+      fcmToken: token,
+    });
+  } catch (e) {
+    console.warn('[FCM] getToken failed:', e);
+  }
+}
+
+// Enregistre un callback pour les messages FCM reçus quand l'app est au premier plan.
+export function onForegroundMessage(callback) {
+  return onMessage(messaging, callback);
+}
 
 // ---------------------------------------------------------
 // AUTH HELPERS

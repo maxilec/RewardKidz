@@ -58,7 +58,7 @@ service cloud.firestore {
         // Enfant met à jour son profil (avatar, PIN)
         (isAuth() && request.auth.uid == resource.data.linkedAuthUid &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['avatarSkin','childPasswordHash','updatedAt'])) ||
+           .hasOnly(['avatarSkin','childPasswordHash','updatedAt','fcmToken'])) ||
         // Reconnexion legacy (PIN) : update uniquement linkedAuthUid
         (isAuth() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']) &&

@@ -33,6 +33,9 @@ import {
   setDayIgnored,
   subscribeToScore,
   updateFamilyName,
+  swConfig,
+  initNotifications,
+  onForegroundMessage,
   logout
 } from "./firebase.js";
 
@@ -99,6 +102,48 @@ function setupPullToRefresh(onRefresh) {
     }
   }, { passive: true });
 }
+
+// ---------------------------------------------------------
+// Notifications push (FCM)
+// ---------------------------------------------------------
+
+async function sendConfigToSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg  = await navigator.serviceWorker.ready;
+    const ctrl = reg.active;
+    if (ctrl) ctrl.postMessage({ type: 'FIREBASE_CONFIG', config: swConfig });
+  } catch (e) {}
+}
+
+function showAppNotification(title, body) {
+  let banner = document.getElementById('app-notif-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'app-notif-banner';
+    document.body.prepend(banner);
+  }
+  banner.innerHTML = `
+    <div class="app-notif-content">
+      <strong class="app-notif-title">${title}</strong>
+      <span class="app-notif-body">${body}</span>
+    </div>
+    <button class="app-notif-close" aria-label="Fermer">✕</button>`;
+  banner.classList.add('visible');
+  banner.querySelector('.app-notif-close').onclick = () => banner.classList.remove('visible');
+  clearTimeout(banner._timer);
+  banner._timer = setTimeout(() => banner.classList.remove('visible'), 5000);
+}
+
+// Appelé une seule fois au démarrage du module
+function setupForegroundNotifications() {
+  onForegroundMessage(payload => {
+    const notif = payload.notification || {};
+    showAppNotification(notif.title || 'RewardKidz', notif.body || '');
+  });
+}
+
+setupForegroundNotifications();
 
 // ---------------------------------------------------------
 // SPA Router (hash-based)
@@ -788,6 +833,10 @@ async function initChild() {
     if (welcomeEl && displayName) welcomeEl.textContent = `Bonjour ${displayName} !`;
 
     if (!memberId) return;
+
+    // Notifications push — envoyer config au SW + demander permission
+    sendConfigToSW();
+    initNotifications(familyId, memberId); // async, non bloquant
 
     const renderChildScore = score => {
       const el = document.getElementById("childScoreDisplay");

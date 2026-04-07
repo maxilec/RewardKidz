@@ -12,4 +12,6 @@ export const firebaseConfig = {
   storageBucket:     'rewardkidz-4fe68.appspot.com',
   messagingSenderId: 'VOTRE_SENDER_ID',
   appId:             'VOTRE_APP_ID',
+  // Clé VAPID pour les push notifications (Firebase Console → Project Settings → Cloud Messaging)
+  vapidKey:          'VOTRE_VAPID_KEY',
 };
