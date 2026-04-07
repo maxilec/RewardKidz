@@ -1,25 +1,46 @@
 <div class="page onboarding">
 
-  <h1>Bienvenue sur RewardKidz</h1>
-
-  <p class="subtitle">
-    Tu veux créer une nouvelle famille ou rejoindre une famille existante ?
-  </p>
-
-  <div class="onboarding-choices">
-
-    <div class="onboarding-card">
-      <h2>👨‍👩‍👧 Je crée ma famille</h2>
-      <p>Tu es parent et tu veux démarrer une nouvelle famille.</p>
-      <button class="primary-btn" id="goCreateFamily">Créer une famille</button>
-    </div>
-
-    <div class="onboarding-card">
-      <h2>🔑 J'ai un code d'invitation</h2>
-      <p>Tu as reçu un code de 6 caractères par un parent.</p>
-      <button class="secondary-btn" id="goJoinFamily">Rejoindre une famille</button>
-    </div>
-
+  <div class="ob-blobs" aria-hidden="true">
+    <div class="ob-blob ob-blob-1"></div>
+    <div class="ob-blob ob-blob-2"></div>
+    <div class="ob-blob ob-blob-3"></div>
   </div>
 
-</div>
+  <div class="ob-content">
+
+    <!-- Logo -->
+    <div style="margin-bottom:28px;padding-top:10px">
+      <span class="ob-logo">Reward<em>Kidz</em></span>
+    </div>
+
+    <!-- Illustration -->
+    <div class="ob-illus ob-mb20" style="height:100px">
+      <span class="ob-illus-emoji" style="font-size:80px">🏠</span>
+    </div>
+
+    <!-- Titre -->
+    <h1 class="ob-title ob-mb8">Votre famille</h1>
+    <p class="ob-subtitle ob-mb24">Que souhaitez-vous faire ?</p>
+
+    <!-- Choix -->
+    <div class="ob-choices">
+
+      <div class="ob-role-card ob-role-card--primary">
+        <span class="ob-role-card-emoji">👨‍👩‍👧</span>
+        <div class="ob-role-card-title">Créer ma famille</div>
+        <div class="ob-role-card-desc">Vous êtes parent et souhaitez démarrer un nouvel espace familial.</div>
+        <button class="ob-btn-primary" id="goCreateFamily">Créer ma famille</button>
+      </div>
+
+      <div class="ob-role-card">
+        <span class="ob-role-card-emoji">🔑</span>
+        <div class="ob-role-card-title">J'ai un code d'invitation</div>
+        <div class="ob-role-card-desc">Un parent vous a envoyé un code à 6 caractères pour rejoindre sa famille.</div>
+        <button class="ob-btn-outline" id="goJoinFamily">Rejoindre une famille</button>
+      </div>
+
+    </div>
+
+  </div><!-- /.ob-content -->
+
+</div><!-- /.page.onboarding -->

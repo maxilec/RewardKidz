@@ -7,40 +7,52 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="RewardKidz" />
-  <meta name="theme-color" content="#4a90e2" />
+  <meta name="theme-color" content="#7C3AED" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="manifest" href="./manifest.json" />
   <title>RewardKidz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="./css/onboarding.css" />
 </head>
 <body>
 
-  <!-- LANDING SCREEN — role selection -->
   <div id="login-screen">
-    <div class="login-header">
-      <h1>RewardKidz</h1>
-      <p class="login-tagline">La famille qui avance ensemble</p>
+    <div class="ob-blobs" aria-hidden="true">
+      <div class="ob-blob ob-blob-1"></div>
+      <div class="ob-blob ob-blob-2"></div>
+      <div class="ob-blob ob-blob-3"></div>
     </div>
-
-    <div class="role-choices">
-      <button class="role-card" id="goParent">
-        <span class="role-icon">👨‍👩‍👧</span>
-        <span class="role-label">Je suis un parent</span>
-        <span class="role-hint">S'identifier ou rejoindre une famille</span>
-      </button>
-
-      <button class="role-card" id="goChild">
-        <span class="role-icon">🧒</span>
-        <span class="role-label">Je suis un enfant</span>
-        <span class="role-hint">Connecter cet appareil avec mon code</span>
-      </button>
+    <div class="ob-content">
+      <div style="margin-bottom:28px;padding-top:10px">
+        <span class="ob-logo">Reward<em>Kidz</em></span>
+      </div>
+      <div class="ob-illus ob-mb20" style="height:118px">
+        <span class="ob-illus-emoji" style="font-size:88px">👨‍👩‍👧‍👦</span>
+      </div>
+      <h1 class="ob-title ob-title-xl ob-title-gradient ob-mb8">Bienvenue sur<br><em>RewardKidz</em></h1>
+      <p class="ob-subtitle ob-mb24">La famille qui avance ensemble</p>
+      <div class="ob-choices">
+        <div class="ob-role-card ob-role-card--primary">
+          <span class="ob-role-card-emoji">👨‍👩‍👧</span>
+          <div class="ob-role-card-title">Je suis un parent</div>
+          <div class="ob-role-card-desc">S'identifier ou gérer l'espace famille.</div>
+          <button class="ob-btn-primary" id="goParent">Espace parent</button>
+        </div>
+        <div class="ob-role-card">
+          <span class="ob-role-card-emoji">🧒</span>
+          <div class="ob-role-card-title">Je suis un enfant</div>
+          <div class="ob-role-card-desc">Connecter cet appareil avec mon code.</div>
+          <button class="ob-btn-outline" id="goChild">Espace enfant</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- APP CONTAINER (SPA) -->
   <div id="app" style="display:none;"></div>
 
-  <!-- Bandeau d'installation PWA -->
   <div id="pwa-banner">
     <span class="pwa-banner-text">Installe l'app RewardKidz !</span>
     <button id="pwa-install-btn" class="pwa-install-btn">Installer</button>
@@ -49,23 +61,18 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
-    // Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').catch(err => console.warn('[SW] Registration failed:', err));
     }
-
-    // PWA Install prompt
     let _deferredInstallPrompt = null;
-    const pwaBanner = document.getElementById('pwa-banner');
+    const pwaBanner    = document.getElementById('pwa-banner');
     const pwaInstallBtn = document.getElementById('pwa-install-btn');
     const pwaDismissBtn = document.getElementById('pwa-dismiss-btn');
-
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       _deferredInstallPrompt = e;
       setTimeout(() => { pwaBanner.classList.add('visible'); }, 3000);
     });
-
     pwaInstallBtn.addEventListener('click', async () => {
       if (!_deferredInstallPrompt) return;
       _deferredInstallPrompt.prompt();
@@ -73,11 +80,7 @@
       _deferredInstallPrompt = null;
       pwaBanner.classList.remove('visible');
     });
-
-    pwaDismissBtn.addEventListener('click', () => {
-      pwaBanner.classList.remove('visible');
-    });
-
+    pwaDismissBtn.addEventListener('click', () => { pwaBanner.classList.remove('visible'); });
     window.addEventListener('appinstalled', () => {
       pwaBanner.classList.remove('visible');
       _deferredInstallPrompt = null;

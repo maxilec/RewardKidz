@@ -1,24 +1,53 @@
 <div class="page child-auth">
 
-  <a id="backToLanding" class="back-link">← Retour</a>
-
-  <h1>🧒 Connexion enfant</h1>
-  <p class="subtitle">Entre les deux codes que ton parent t'a donnés.</p>
-
-  <div class="card">
-    <div class="form-group">
-      <label for="childFamilyCode">Code famille (8 caractères)</label>
-      <input id="childFamilyCode" type="text" maxlength="8" placeholder="Ex : ABCD1234"
-             autocomplete="off" style="text-transform:uppercase;letter-spacing:3px;font-weight:700">
-    </div>
-
-    <div class="form-group">
-      <label for="childOtpInput">Code enfant (6 chiffres)</label>
-      <input id="childOtpInput" type="tel" inputmode="numeric" maxlength="6"
-             placeholder="••••••" autocomplete="one-time-code" class="otp-input">
-    </div>
-
-    <button id="connectChildBtn" class="primary-btn">Me connecter</button>
+  <div class="ob-blobs" aria-hidden="true">
+    <div class="ob-blob ob-blob-1"></div>
+    <div class="ob-blob ob-blob-2"></div>
   </div>
 
-</div>
+  <!-- Bouton retour (id inchangé — main.js: logout) -->
+  <a id="backToLanding" class="ob-btn-back" role="button" aria-label="Retour">←</a>
+
+  <div class="ob-content ob-content--pad-top">
+
+    <!-- Illustration -->
+    <div class="ob-illus ob-mb16" style="height:90px">
+      <span class="ob-illus-emoji" style="font-size:76px">🧒</span>
+    </div>
+
+    <!-- Titre -->
+    <h1 class="ob-title ob-mb8">Connexion enfant</h1>
+    <p class="ob-subtitle ob-mb24">Entre les deux codes que ton parent t'a donnés.</p>
+
+    <!-- Code famille (8 caractères) -->
+    <div class="ob-form-field">
+      <label class="ob-label" for="childFamilyCode">Code famille <span style="font-weight:400;color:var(--c-txt-m)">(8 caractères)</span></label>
+      <input class="ob-input ob-code-input" id="childFamilyCode"
+             type="text" maxlength="8"
+             placeholder="ABCD1234"
+             autocomplete="off"
+             style="text-transform:uppercase;letter-spacing:5px">
+    </div>
+
+    <!-- Code enfant OTP (6 chiffres) -->
+    <div class="ob-form-field ob-mb8">
+      <label class="ob-label" for="childOtpInput">Code enfant <span style="font-weight:400;color:var(--c-txt-m)">(6 chiffres — valable 30 min)</span></label>
+      <input class="ob-input ob-code-input otp-input" id="childOtpInput"
+             type="tel" inputmode="numeric" maxlength="6"
+             placeholder="••••••"
+             autocomplete="one-time-code"
+             style="letter-spacing:8px">
+    </div>
+
+    <div class="ob-warn-box ob-mb24">
+      ⚠️ Si tu te déconnectes, tu auras besoin de ces deux codes pour revenir. Demande-les à ton parent.
+    </div>
+
+    <!-- CTA -->
+    <div class="ob-btn-stack ob-mt-a">
+      <button class="ob-btn-primary" id="connectChildBtn">Me connecter</button>
+    </div>
+
+  </div><!-- /.ob-content -->
+
+</div><!-- /.page.child-auth -->

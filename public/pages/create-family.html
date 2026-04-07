@@ -1,28 +1,56 @@
 <div class="page create-family">
 
-  <h1>Créer une famille</h1>
-
-  <p class="subtitle">
-    Donne un nom à ta famille pour commencer.
-  </p>
-
-  <div class="form-group">
-    <label for="familyName">Nom de la famille</label>
-    <input id="familyName" type="text" placeholder="Ex : Les SuperKids">
+  <div class="ob-blobs" aria-hidden="true">
+    <div class="ob-blob ob-blob-1"></div>
+    <div class="ob-blob ob-blob-2"></div>
   </div>
 
-  <div class="form-group">
-    <label for="parentNickname">Comment souhaitez-vous être appelé ?</label>
-    <input id="parentNickname" type="text" placeholder="Ex : Papa, Maman, Marc…" autocomplete="given-name">
-  </div>
+  <div class="ob-content">
 
-  <button id="createFamilyBtn" class="primary-btn">
-    Créer la famille
-  </button>
+    <!-- Logo -->
+    <div style="margin-bottom:20px;padding-top:10px">
+      <span class="ob-logo">Reward<em>Kidz</em></span>
+    </div>
 
-  <p class="alt-link">
-    Tu as déjà un code famille ?
-    <a href="#join-family">Rejoindre une famille</a>
-  </p>
+    <!-- Illustration -->
+    <div class="ob-illus ob-mb16" style="height:90px">
+      <span class="ob-illus-emoji" style="font-size:76px">🏡</span>
+    </div>
 
-</div>
+    <!-- Titre -->
+    <h1 class="ob-title ob-mb8">Votre famille</h1>
+    <p class="ob-subtitle ob-mb24">Donnez un nom à votre famille et indiquez comment vous appeler.</p>
+
+    <!-- Formulaire -->
+    <div class="ob-form-field">
+      <label class="ob-label" for="familyName">Nom de la famille</label>
+      <input class="ob-input" id="familyName" type="text"
+             placeholder="Ex : Les SuperKids"
+             autocomplete="off" maxlength="40">
+    </div>
+
+    <div class="ob-form-field ob-mb8">
+      <label class="ob-label" for="parentNickname">Comment souhaitez-vous être appelé ?</label>
+      <input class="ob-input" id="parentNickname" type="text"
+             placeholder="Papa, Maman, Marc…"
+             autocomplete="given-name" maxlength="30">
+    </div>
+
+    <!-- Info : l'utilisateur doit déjà être authentifié ici -->
+    <div class="ob-info-box ob-mb24">
+      🔒 Votre compte est déjà sécurisé. Cette étape crée uniquement le profil de votre famille.
+    </div>
+
+    <!-- CTA -->
+    <div class="ob-btn-stack ob-mt-a">
+      <button class="ob-btn-primary" id="createFamilyBtn">Créer la famille</button>
+    </div>
+
+    <p style="text-align:center;font-size:13px;color:var(--c-txt-m);margin-top:16px">
+      Vous avez déjà un code famille ?
+      <a href="#join-family" style="color:var(--c-primary);text-decoration:none;font-weight:600">Rejoindre une famille</a>
+    </p>
+
+  </div><!-- /.ob-content -->
+
+</div><!-- /.page.create-family -->

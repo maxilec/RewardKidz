@@ -1,65 +1,137 @@
 <div class="page join-family">
 
-  <a id="backToLogin" class="back-link">← Retour</a>
-
-  <h1>Espace Enfant</h1>
-
-  <!-- Mode selector -->
-  <div class="mode-tabs">
-    <button class="mode-tab active" id="tabJoin">Première connexion</button>
-    <button class="mode-tab" id="tabReconnect">Je reviens</button>
+  <div class="ob-blobs" aria-hidden="true">
+    <div class="ob-blob ob-blob-1"></div>
+    <div class="ob-blob ob-blob-2"></div>
   </div>
 
-  <!-- MODE : Rejoindre (première fois) -->
-  <div id="modeJoin">
-    <p class="subtitle">
-      Entre le code d'invitation de ta famille, ton prénom et un code secret à 4 chiffres.
-    </p>
+  <!-- Bouton retour (id inchangé) -->
+  <a id="backToLogin" class="ob-btn-back" role="button" aria-label="Retour">←</a>
 
-    <div class="form-group">
-      <label for="inviteCode">Code d'invitation (6 caractères)</label>
-      <input id="inviteCode" type="text" maxlength="6" placeholder="Ex : AB4F9Z" autocomplete="off">
+  <div class="ob-content ob-content--pad-top">
+
+    <!-- Onglets Première connexion / Je reviens -->
+    <div class="ob-tabs ob-mb4" role="tablist">
+      <button class="ob-tab active" id="tabJoin"      role="tab" aria-selected="true">Première connexion</button>
+      <button class="ob-tab"        id="tabReconnect" role="tab" aria-selected="false">Je reviens</button>
     </div>
 
-    <div class="form-group">
-      <label for="joinChildName">Ton prénom</label>
-      <input id="joinChildName" type="text" placeholder="Ex : Lucas" autocomplete="off">
-    </div>
+    <!-- ── Mode : Première connexion ─────────────────────────── -->
+    <div id="modeJoin">
 
-    <div class="form-group">
-      <label for="joinChildPin">Code secret (4 chiffres)</label>
-      <input id="joinChildPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="new-password">
-    </div>
+      <div class="ob-illus ob-mb16" style="height:80px">
+        <span class="ob-illus-emoji" style="font-size:68px">🎟️</span>
+      </div>
+      <h1 class="ob-title ob-mb8">Rejoindre ma famille</h1>
+      <p class="ob-subtitle ob-mb20">Entre le code d'invitation, ton prénom et crée un code secret.</p>
 
-    <button id="joinFamilyBtn" class="primary-btn">
-      Rejoindre la famille
-    </button>
-  </div>
+      <!-- Code d'invitation (6 caractères) -->
+      <div class="ob-form-field">
+        <label class="ob-label" for="inviteCode">Code d'invitation <span style="font-weight:400;color:var(--c-txt-m)">(6 caractères)</span></label>
+        <input class="ob-input ob-code-input" id="inviteCode"
+               type="text" maxlength="6"
+               placeholder="AB4F9Z"
+               autocomplete="off"
+               style="text-transform:uppercase;letter-spacing:6px">
+      </div>
 
-  <!-- MODE : Reconnexion -->
-  <div id="modeReconnect" style="display:none;">
-    <p class="subtitle">
-      Entre le code permanent de ta famille, ton prénom et ton code secret.
-    </p>
+      <!-- Prénom -->
+      <div class="ob-form-field">
+        <label class="ob-label" for="joinChildName">Ton prénom</label>
+        <input class="ob-input" id="joinChildName"
+               type="text" placeholder="Lucas, Emma…"
+               autocomplete="given-name" maxlength="30">
+      </div>
 
-    <div class="form-group">
-      <label for="familyCodePermanent">Code famille (8 caractères)</label>
-      <input id="familyCodePermanent" type="text" maxlength="8" placeholder="Ex : A3BF92KL" autocomplete="off">
-    </div>
+      <!-- Code secret PIN (4 chiffres) -->
+      <div class="ob-form-field ob-mb8">
+        <label class="ob-label" for="joinChildPin">Code secret <span style="font-weight:400;color:var(--c-txt-m)">(4 chiffres — à retenir !)</span></label>
+        <input class="ob-input ob-code-input" id="joinChildPin"
+               type="password" inputmode="numeric" maxlength="4"
+               placeholder="••••"
+               autocomplete="new-password"
+               style="letter-spacing:10px">
+      </div>
 
-    <div class="form-group">
-      <label for="reconnectChildName">Ton prénom</label>
-      <input id="reconnectChildName" type="text" placeholder="Ex : Lucas" autocomplete="off">
-    </div>
+      <div class="ob-info-box ob-mb24">
+        🔑 Note bien ton code secret, tu en auras besoin pour te reconnecter depuis un autre appareil.
+      </div>
 
-    <div class="form-group">
-      <label for="reconnectChildPin">Code secret (4 chiffres)</label>
-      <input id="reconnectChildPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="current-password">
-    </div>
+      <div class="ob-btn-stack ob-mt-a">
+        <button class="ob-btn-primary" id="joinFamilyBtn">Rejoindre la famille 🎉</button>
+      </div>
 
-    <button id="reconnectFamilyBtn" class="primary-btn">
-      Me reconnecter
-    </button>
-  </div>
+    </div><!-- /#modeJoin -->
 
-</div>
+    <!-- ── Mode : Reconnexion ─────────────────────────────────── -->
+    <div id="modeReconnect" style="display:none;">
+
+      <div class="ob-illus ob-mb16" style="height:80px">
+        <span class="ob-illus-emoji" style="font-size:68px">👋</span>
+      </div>
+      <h1 class="ob-title ob-mb8">Content de te revoir !</h1>
+      <p class="ob-subtitle ob-mb20">Entre le code permanent de ta famille, ton prénom et ton code secret.</p>
+
+      <!-- Code famille permanent (8 caractères) -->
+      <div class="ob-form-field">
+        <label class="ob-label" for="familyCodePermanent">Code famille <span style="font-weight:400;color:var(--c-txt-m)">(8 caractères)</span></label>
+        <input class="ob-input ob-code-input" id="familyCodePermanent"
+               type="text" maxlength="8"
+               placeholder="A3BF92KL"
+               autocomplete="off"
+               style="text-transform:uppercase;letter-spacing:5px">
+      </div>
+
+      <!-- Prénom -->
+      <div class="ob-form-field">
+        <label class="ob-label" for="reconnectChildName">Ton prénom</label>
+        <input class="ob-input" id="reconnectChildName"
+               type="text" placeholder="Lucas, Emma…"
+               autocomplete="given-name" maxlength="30">
+      </div>
+
+      <!-- Code secret PIN -->
+      <div class="ob-form-field ob-mb24">
+        <label class="ob-label" for="reconnectChildPin">Ton code secret <span style="font-weight:400;color:var(--c-txt-m)">(4 chiffres)</span></label>
+        <input class="ob-input ob-code-input" id="reconnectChildPin"
+               type="password" inputmode="numeric" maxlength="4"
+               placeholder="••••"
+               autocomplete="current-password"
+               style="letter-spacing:10px">
+      </div>
+
+      <div class="ob-btn-stack ob-mt-a">
+        <button class="ob-btn-primary" id="reconnectFamilyBtn">Me reconnecter</button>
+      </div>
+
+    </div><!-- /#modeReconnect -->
+
+  </div><!-- /.ob-content -->
+
+</div><!-- /.page.join-family -->
+
+<script>
+  /* Bascule des onglets — câblage minimal des éléments déjà présents dans le HTML */
+  (function () {
+    const tabJoin      = document.getElementById('tabJoin');
+    const tabRecon     = document.getElementById('tabReconnect');
+    const modeJoin     = document.getElementById('modeJoin');
+    const modeRecon    = document.getElementById('modeReconnect');
+    if (!tabJoin || !tabRecon) return;
+
+    function showJoin() {
+      tabJoin.classList.add('active');    tabJoin.setAttribute('aria-selected', 'true');
+      tabRecon.classList.remove('active'); tabRecon.setAttribute('aria-selected', 'false');
+      modeJoin.style.display  = '';
+      modeRecon.style.display = 'none';
+    }
+    function showRecon() {
+      tabRecon.classList.add('active');  tabRecon.setAttribute('aria-selected', 'true');
+      tabJoin.classList.remove('active'); tabJoin.setAttribute('aria-selected', 'false');
+      modeRecon.style.display = '';
+      modeJoin.style.display  = 'none';
+    }
+    tabJoin.addEventListener('click',  showJoin);
+    tabRecon.addEventListener('click', showRecon);
+  })();
+</script>
