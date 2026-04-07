@@ -138,8 +138,8 @@ onUserStateChanged(async (user) => {
   const userDoc = await getUser(user.uid);
 
   if (!userDoc || !userDoc.familyId) {
-    // Anonymous → child auth screen; authenticated → parent auth screen
-    navigate(user.isAnonymous ? "child-auth" : "parent-auth");
+    // Anonymous → child auth screen; authenticated (no family yet) → onboarding to create one
+    navigate(user.isAnonymous ? "child-auth" : "onboarding");
     return;
   }
 
@@ -224,8 +224,12 @@ function initCreateFamily() {
 }
 
 function initParentAuth() {
-  // Back to landing
-  document.getElementById("backToLanding")?.addEventListener("click", () => logout());
+  // Back to landing — works whether user is authenticated or not
+  document.getElementById("backToLanding")?.addEventListener("click", async () => {
+    if (auth.currentUser) await logout();
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("app").style.display = "none";
+  });
 
   setupAuthTabs();
 
