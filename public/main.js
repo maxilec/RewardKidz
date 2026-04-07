@@ -50,7 +50,7 @@ async function loadPage(page) {
     return;
   }
 
-  const userDoc = await getUser(user.uid);
+  const userDoc = user ? await getUser(user.uid) : null;
 
   const noFamilyPages = ["onboarding", "create-family", "parent-auth", "child-auth"];
   if ((!userDoc || !userDoc.familyId) && !noFamilyPages.includes(page)) {
@@ -62,6 +62,8 @@ async function loadPage(page) {
   if (userDoc?.role === "child"  && page === "parent") { navigate("child");  return; }
 
   const container = document.getElementById("app");
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
   const html = await fetch(`./pages/${page}.html`, { cache: "no-store" }).then(r => r.text());
   container.innerHTML = html;
 
