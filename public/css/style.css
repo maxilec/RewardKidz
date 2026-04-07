@@ -13,13 +13,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 2rem 1rem;
   min-height: 100vh;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.75rem;
 }
 
 .login-header h1 {
@@ -35,40 +36,59 @@ body {
   font-size: 0.95rem;
 }
 
-/* Two-panel layout */
-.auth-panels {
-  display: flex;
-  gap: 1.5rem;
+/* Tabbed card */
+.auth-card {
   width: 100%;
-  max-width: 780px;
-  align-items: flex-start;
-}
-
-@media (max-width: 640px) {
-  .auth-panels { flex-direction: column; }
-}
-
-.auth-panel {
-  flex: 1;
+  max-width: 420px;
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
-  padding: 1.75rem 1.5rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  overflow: hidden;
+}
+
+/* Tab bar */
+.auth-tabs {
+  display: flex;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 0.9rem 1rem;
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #a0aec0;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.auth-tab.active {
+  color: #4a90e2;
+  border-bottom-color: #4a90e2;
+}
+
+.auth-tab:hover:not(.active) {
+  color: #4a5568;
+}
+
+/* Tab panels */
+.auth-panel {
+  padding: 1.5rem 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
 }
 
-.auth-panel h2 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #2d3748;
-}
+.auth-panel.hidden { display: none; }
 
 .panel-hint {
   font-size: 0.85rem;
   color: #a0aec0;
-  margin-top: -0.4rem;
+  margin-top: -0.25rem;
 }
 
 /* Google button */
