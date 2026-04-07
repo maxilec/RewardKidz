@@ -23,6 +23,12 @@ import {
   resolveInvite,
   getActiveInvite,
   createInvite,
+  getOrCreateDayScore,
+  readDayScore,
+  addPoint,
+  removePoint,
+  setScoreValidated,
+  setDayIgnored,
   logout
 } from "./firebase.js";
 
@@ -204,6 +210,45 @@ function setupAuthTabs() {
 }
 
 // ---------------------------------------------------------
+// SCORE HELPERS (view)
+// ---------------------------------------------------------
+
+function buildScoreStars(points) {
+  return Array.from({length: 5}, (_, i) =>
+    `<span class="score-star ${i < points ? 'filled' : 'empty'}">⭐</span>`
+  ).join('');
+}
+
+// Returns the inner HTML for a score section in the parent dashboard
+function buildScoreHTML(score, memberId) {
+  const stars = buildScoreStars(score.points);
+
+  let controls;
+  if (score.validated) {
+    controls = `
+      <span class="score-status-badge validated">✓ Journée validée</span>
+      <button class="score-btn unvalidate" data-memberid="${memberId}">↩ Annuler</button>`;
+  } else if (score.ignored) {
+    controls = `
+      <span class="score-status-badge ignored">Journée ignorée</span>
+      <button class="score-btn unignore" data-memberid="${memberId}">↩ Rétablir</button>`;
+  } else {
+    controls = `
+      <button class="score-btn add"      data-memberid="${memberId}" ${score.points >= 5 ? 'disabled' : ''}>+1</button>
+      <button class="score-btn remove"   data-memberid="${memberId}" ${score.points <= 0 ? 'disabled' : ''}>−1</button>
+      <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>
+      <button class="score-btn ignore"   data-memberid="${memberId}">🚫 Ignorer</button>`;
+  }
+
+  return `
+    <div class="score-stars-row">
+      ${stars}
+      <span class="score-points-label">${score.points}/5</span>
+    </div>
+    <div class="score-controls">${controls}</div>`;
+}
+
+// ---------------------------------------------------------
 // PAGE LOGIC
 // ---------------------------------------------------------
 
@@ -338,6 +383,58 @@ async function initParent() {
     } catch (e) { console.error(e); }
   }
 
+  const byUid  = user.uid;
+  const byName = userDoc.displayName || user.displayName || "Parent";
+
+  // Reload only the score section for one child (preserves OTP display state)
+  async function reloadChildScore(memberId) {
+    try {
+      const score = await getOrCreateDayScore(familyId, memberId);
+      const el = document.getElementById(`score-${memberId}`);
+      if (!el) return;
+      el.innerHTML = buildScoreHTML(score, memberId);
+      bindScoreHandlersFor(memberId);
+    } catch (e) { console.error(e); }
+  }
+
+  // Bind score action buttons for one child's score section
+  function bindScoreHandlersFor(memberId) {
+    const section = document.getElementById(`score-${memberId}`);
+    if (!section) return;
+
+    section.querySelector('.score-btn.add')?.addEventListener('click', async () => {
+      try { await addPoint(familyId, memberId, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+
+    section.querySelector('.score-btn.remove')?.addEventListener('click', async () => {
+      if (!confirm("Retirer 1 point ?")) return;
+      try { await removePoint(familyId, memberId, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+
+    section.querySelector('.score-btn.validate')?.addEventListener('click', async () => {
+      try { await setScoreValidated(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+
+    section.querySelector('.score-btn.unvalidate')?.addEventListener('click', async () => {
+      try { await setScoreValidated(familyId, memberId, false, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+
+    section.querySelector('.score-btn.ignore')?.addEventListener('click', async () => {
+      if (!confirm("Ignorer la journée pour cet enfant ?")) return;
+      try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+
+    section.querySelector('.score-btn.unignore')?.addEventListener('click', async () => {
+      try { await setDayIgnored(familyId, memberId, false, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+  }
+
   // Children list + add child
   async function renderChildren() {
     try {
@@ -351,24 +448,36 @@ async function initParent() {
         return;
       }
 
-      list.innerHTML = children.map(c => `
-        <div class="child-member-row" id="child-row-${c.memberId}">
-          <span class="child-name">🧒 ${c.displayName}</span>
-          <span class="child-status ${c.linkedAuthUid ? 'connected' : 'pending'}">
-            ${c.linkedAuthUid ? "Connecté" : "En attente"}
-          </span>
-          <button class="secondary-btn otp-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">
-            Code connexion
-          </button>
-          <button class="secondary-btn rename-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">
-            ✏️
-          </button>
-          <button class="danger-btn-sm delete-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">
-            🗑
-          </button>
-          <div class="otp-display" id="otp-${c.memberId}" style="display:none;"></div>
-        </div>
-      `).join("");
+      // Load all scores in parallel (lazy reset included)
+      const scores = await Promise.all(
+        children.map(c => getOrCreateDayScore(familyId, c.memberId))
+      );
+      const scoreMap = Object.fromEntries(children.map((c, i) => [c.memberId, scores[i]]));
+
+      list.innerHTML = children.map(c => {
+        const score = scoreMap[c.memberId];
+        return `
+          <div class="child-score-card" id="child-card-${c.memberId}">
+            <div class="child-card-header">
+              <span class="child-name">🧒 ${c.displayName}</span>
+              <span class="child-status ${c.linkedAuthUid ? 'connected' : 'pending'}">
+                ${c.linkedAuthUid ? "Connecté" : "En attente"}
+              </span>
+              <button class="icon-btn rename-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">✏️</button>
+              <button class="icon-btn danger delete-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">🗑</button>
+            </div>
+            <div class="score-section" id="score-${c.memberId}">
+              ${buildScoreHTML(score, c.memberId)}
+            </div>
+            <div class="child-otp-section">
+              <button class="secondary-btn otp-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">Code connexion</button>
+              <div class="otp-display" id="otp-${c.memberId}" style="display:none;"></div>
+            </div>
+          </div>`;
+      }).join("");
+
+      // Bind score handlers for each child
+      children.forEach(c => bindScoreHandlersFor(c.memberId));
 
       list.querySelectorAll(".otp-btn").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -376,10 +485,10 @@ async function initParent() {
           const name     = btn.dataset.name;
           btn.disabled = true;
           try {
-            const familyDoc = await getFamily(familyId);
+            const familyDoc  = await getFamily(familyId);
             const familyCode = familyDoc?.familyCode || "—";
-            const otp = await generateChildOTP(familyId, memberId, name);
-            const display = document.getElementById(`otp-${memberId}`);
+            const otp        = await generateChildOTP(familyId, memberId, name);
+            const display    = document.getElementById(`otp-${memberId}`);
             if (display) {
               display.innerHTML = `
                 <div class="otp-code-block">
@@ -468,6 +577,39 @@ async function initParent() {
   bindLogoutButton();
 }
 
-function initChild() {
+async function initChild() {
   bindLogoutButton();
+
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const userDoc = await getUser(user.uid);
+    if (!userDoc?.familyId) return;
+
+    const { familyId, memberId, displayName } = userDoc;
+
+    const welcomeEl = document.getElementById("childWelcome");
+    if (welcomeEl && displayName) welcomeEl.textContent = `Bonjour ${displayName} !`;
+
+    if (!memberId) return;
+    const score = await readDayScore(familyId, memberId);
+
+    const el = document.getElementById("childScoreDisplay");
+    if (!el) return;
+
+    const stars = Array.from({length: 5}, (_, i) =>
+      `<span class="score-star ${i < score.points ? 'filled' : 'empty'}">⭐</span>`
+    ).join('');
+
+    let badge = '';
+    if (score.validated) badge = '<div class="child-score-badge validated">✓ Journée validée par un parent</div>';
+    else if (score.ignored) badge = '<div class="child-score-badge ignored">Journée non comptabilisée</div>';
+
+    el.className = "child-score-display";
+    el.innerHTML = `
+      <div class="score-stars-row">${stars}</div>
+      <div class="child-score-number">${score.points}<span class="score-max">/5</span></div>
+      ${badge}`;
+  } catch (e) { console.error(e); }
 }
