@@ -2,14 +2,29 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <!--
+    viewport-fit=cover : étend le rendu sous l'encoche et le home indicator.
+    maximum-scale=1.0 + user-scalable=no : désactive le zoom utilisateur.
+    Ces deux attributs sont prérequis pour env(safe-area-inset-*).
+  -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0,
+                 maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <!-- PWA — comportement natif iOS -->
+  <meta name="mobile-web-app-capable"                content="yes" />
+  <meta name="apple-mobile-web-app-capable"          content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="RewardKidz" />
+  <meta name="apple-mobile-web-app-title"            content="RewardKidz" />
+
+  <!-- Android : couleur barre de statut Chrome -->
   <meta name="theme-color" content="#7C3AED" />
+
+  <!-- Icône écran d'accueil iOS -->
   <link rel="apple-touch-icon" href="./icon-192.png" />
-  <link rel="manifest" href="./manifest.json" />
+  <link rel="manifest"         href="./manifest.json" />
+
   <title>RewardKidz</title>
 
   <!-- Polices -->
@@ -17,10 +32,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Styles : base → thème onboarding → vues dashboard -->
+  <!--
+    Ordre de chargement CSS :
+      1. style.css       — styles POC existants (ne pas modifier)
+      2. onboarding.css  — variables :root + pages auth
+      3. app.css         — composants dashboard
+      4. pwa-native.css  — resets PWA en dernier pour tout surcharger
+  -->
   <link rel="stylesheet" href="./css/style.css" />
   <link rel="stylesheet" href="./css/onboarding.css" />
   <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/pwa-native.css" />
 </head>
 <body>
 
@@ -38,7 +60,9 @@
       <div class="ob-illus ob-mb20" style="height:118px">
         <span class="ob-illus-emoji" style="font-size:88px">👨‍👩‍👧‍👦</span>
       </div>
-      <h1 class="ob-title ob-title-xl ob-title-gradient ob-mb8">Bienvenue sur<br><em>RewardKidz</em></h1>
+      <h1 class="ob-title ob-title-xl ob-title-gradient ob-mb8">
+        Bienvenue sur<br><em>RewardKidz</em>
+      </h1>
       <p class="ob-subtitle ob-mb24">La famille qui avance ensemble</p>
       <div class="ob-choices">
         <div class="ob-role-card ob-role-card--primary">
@@ -70,45 +94,57 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <script>
-    /* ── Service Worker ──────────────────────────────────────── */
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js')
-        .catch(err => console.warn('[SW] Registration failed:', err));
+    /* ══════════════════════════════════════════════════════════════
+       PWA NATIVE — Comportements natifs iOS / Android
+       Ces fonctions sont globales et disponibles immédiatement,
+       avant le chargement du module main.js.
+       ══════════════════════════════════════════════════════════════ */
+
+    /* ── Anti-zoom JS (couche 3) ─────────────────────────────────
+       Bloque le pinch-to-zoom résiduel non intercepté par CSS.
+       passive:false requis pour pouvoir appeler preventDefault().    */
+    document.addEventListener('touchstart', function(e) {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+
+    /* ── Retour haptique ──────────────────────────────────────────
+       navigator.vibrate : Android + iOS 16.4+ en mode PWA installée.
+       Les patterns sont en ms [vibration, pause, vibration…].
+
+       Utilisation dans les pages HTML injectées :
+         onclick="hapticLight()"
+         onclick="hapticSuccess()"
+         onclick="hapticError()"
+       Ou depuis main.js :
+         import { hapticLight } — non disponible (global seulement)
+         window.hapticLight()
+    ──────────────────────────────────────────────────────────────── */
+
+    /** Tap léger — boutons secondaires, navigation */
+    function hapticLight() {
+      if (navigator.vibrate) navigator.vibrate(10);
     }
 
-    /* ── PWA Install prompt ──────────────────────────────────── */
-    let _deferredInstallPrompt = null;
-    const pwaBanner    = document.getElementById('pwa-banner');
-    const pwaInstallBtn = document.getElementById('pwa-install-btn');
-    const pwaDismissBtn = document.getElementById('pwa-dismiss-btn');
+    /** Succès — validation journée, ajout enfant, etc. */
+    function hapticSuccess() {
+      if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+    }
 
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();
-      _deferredInstallPrompt = e;
-      setTimeout(() => { pwaBanner.classList.add('visible'); }, 3000);
-    });
-    pwaInstallBtn.addEventListener('click', async () => {
-      if (!_deferredInstallPrompt) return;
-      _deferredInstallPrompt.prompt();
-      await _deferredInstallPrompt.userChoice;
-      _deferredInstallPrompt = null;
-      pwaBanner.classList.remove('visible');
-    });
-    pwaDismissBtn.addEventListener('click', () => { pwaBanner.classList.remove('visible'); });
-    window.addEventListener('appinstalled', () => {
-      pwaBanner.classList.remove('visible');
-      _deferredInstallPrompt = null;
-    });
+    /** Erreur — action bloquée, confirmation destructive */
+    function hapticError() {
+      if (navigator.vibrate) navigator.vibrate([80, 30, 80]);
+    }
 
-    /* ── Utilitaires drawer — utilisés par onclick dans les fragments HTML ──
-       Les pages HTML sont insérées via innerHTML (scripts non exécutés).
-       Ces fonctions globales sont appelées via les attributs onclick des boutons.
-    ─────────────────────────────────────────────────────────────────────── */
+    /* ── Utilitaires Drawer ───────────────────────────────────────
+       Appelés via onclick dans les fragments HTML injectés par
+       main.js via innerHTML (les <script> inline ne s'exécutent pas
+       dans ce contexte — les fonctions doivent être globales).        */
     function rkOpenDrawer(drawerId, overlayId) {
       const drawer  = document.getElementById(drawerId);
       const overlay = document.getElementById(overlayId);
       if (drawer)  drawer.classList.add('open');
       if (overlay) overlay.classList.add('on');
+      hapticLight();
     }
 
     function rkCloseDrawer(drawerId, overlayId) {
@@ -126,12 +162,14 @@
       navigator.clipboard?.writeText(code).catch(() => {});
       const orig = valEl.textContent;
       valEl.textContent = '✓ Copié !';
+      hapticSuccess();
       setTimeout(() => { valEl.textContent = orig; }, 1500);
     }
 
-    /* Synchroniser le nom de famille dans la barre basse et le drawer
-       — appelé automatiquement quand familyName est mis à jour par main.js */
-    (function observeFamilyName() {
+    /* ── Synchronisation nom de famille ──────────────────────────
+       Quand main.js met à jour #familyName, on propage la valeur
+       dans la bottom bar et le drawer sans modifier main.js.          */
+    (function() {
       const obs = new MutationObserver(() => {
         const src = document.getElementById('familyName');
         if (!src) return;
@@ -141,11 +179,45 @@
         if (bar)    bar.textContent    = v;
         if (drawer) drawer.textContent = v;
       });
+      // Observer #app car #familyName n'existe qu'après le loadPage()
       const app = document.getElementById('app');
       if (app) obs.observe(app, { subtree: true, characterData: true, childList: true });
     })();
+
+    /* ── Service Worker ──────────────────────────────────────────── */
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .catch(err => console.warn('[SW] Registration failed:', err));
+    }
+
+    /* ── PWA Install prompt ──────────────────────────────────────── */
+    let _deferredInstallPrompt = null;
+    const pwaBanner     = document.getElementById('pwa-banner');
+    const pwaInstallBtn = document.getElementById('pwa-install-btn');
+    const pwaDismissBtn = document.getElementById('pwa-dismiss-btn');
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _deferredInstallPrompt = e;
+      setTimeout(() => { pwaBanner.classList.add('visible'); }, 3000);
+    });
+    pwaInstallBtn.addEventListener('click', async () => {
+      if (!_deferredInstallPrompt) return;
+      _deferredInstallPrompt.prompt();
+      await _deferredInstallPrompt.userChoice;
+      _deferredInstallPrompt = null;
+      pwaBanner.classList.remove('visible');
+    });
+    pwaDismissBtn.addEventListener('click', () => {
+      pwaBanner.classList.remove('visible');
+    });
+    window.addEventListener('appinstalled', () => {
+      pwaBanner.classList.remove('visible');
+      _deferredInstallPrompt = null;
+    });
   </script>
 
+  <!-- Module principal — chargé en dernier pour avoir accès aux globals ci-dessus -->
   <script type="module" src="./main.js?v=4"></script>
 </body>
 </html>

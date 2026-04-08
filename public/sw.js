@@ -1,12 +1,13 @@
-// RewardKidz — Service Worker v1.1
+// RewardKidz — Service Worker v2.0
 // Stratégie : Stale-While-Revalidate + Firebase Cloud Messaging (background)
+// v2.0 : ajout des feuilles CSS onboarding / app / pwa-native
 
 // Firebase compat (requis pour onBackgroundMessage dans le SW — pas d'ES modules ici)
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // ─────────────────────────────────────────────────────────────
-const CACHE_NAME   = 'rewardkidz-v1';
+const CACHE_NAME   = 'rewardkidz-v2';   // bumper à chaque déploiement
 const CONFIG_CACHE = 'sw-config-v1';
 
 const ASSETS_TO_CACHE = [
@@ -15,15 +16,20 @@ const ASSETS_TO_CACHE = [
   './main.js',
   './firebase.js',
   './manifest.json',
+  // CSS — ordre de chargement intentionnel
   './css/style.css',
+  './css/onboarding.css',
+  './css/app.css',
+  './css/pwa-native.css',
+  // Pages SPA
+  './pages/onboarding.html',
+  './pages/create-family.html',
+  './pages/parent-auth.html',
+  './pages/child-auth.html',
+  './pages/join-family.html',
   './pages/parent.html',
   './pages/child.html',
-  './pages/child-auth.html',
   './pages/child-detail.html',
-  './parent-auth.html',
-  './pages/create-family.html',
-  './pages/join-family.html',
-  './pages/onboarding.html',
 ];
 
 // ── FCM : initialisation lazy ────────────────────────────────

@@ -1,0 +1,228 @@
+/* ═══════════════════════════════════════════════════════════════════
+   pwa-native.css — Comportements natifs iOS / Android
+   ───────────────────────────────────────────────────────────────────
+   Ce fichier est chargé EN DERNIER dans index.html pour surcharger
+   les règles CSS existantes sur les points spécifiques aux PWA.
+   Ne pas modifier style.css, onboarding.css ou app.css pour cela.
+
+   Référence : docs/pwa-native.md
+   ═══════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. Variables Safe Area ─────────────────────────────────────────
+   env(safe-area-inset-*) est défini par iOS pour gérer l'encoche,
+   le Dynamic Island et le home indicator.
+   Prérequis : viewport-fit=cover dans la meta viewport.
+   ──────────────────────────────────────────────────────────────────── */
+:root {
+  --sat: env(safe-area-inset-top,    0px);  /* encoche / Dynamic Island  */
+  --sab: env(safe-area-inset-bottom, 0px);  /* home indicator            */
+  --sal: env(safe-area-inset-left,   0px);  /* bord gauche (landscape)   */
+  --sar: env(safe-area-inset-right,  0px);  /* bord droit  (landscape)   */
+}
+
+
+/* ── 2. Reset global PWA ─────────────────────────────────────────────
+   Ces règles priment sur style.css via la position de chargement.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Supprime le flash bleu/gris au tap sur tous les éléments */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Désactive le zoom double-tap et le pinch-to-zoom CSS
+   (le JS dans index.html gère le pinch résiduel) */
+html {
+  touch-action: manipulation;
+  overscroll-behavior: none;           /* supprime le rubber-band de page */
+  -webkit-text-size-adjust: 100%;      /* désactive le reflow auto des polices iOS */
+  text-size-adjust: 100%;
+}
+
+body {
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;   /* scroll inertiel (momentum) iOS */
+  user-select: none;                   /* comportement app native : pas de sélection */
+  -webkit-user-select: none;
+}
+
+/* Empêche le callout iOS (menu copier/coller au long-press sur images et liens) */
+img, a {
+  -webkit-touch-callout: none;
+}
+
+
+/* ── 3. Inputs : anti-zoom iOS ───────────────────────────────────────
+   iOS Safari zoome sur tout champ dont la police est < 16px.
+   On force 16px sur tous les champs, puis on adapte visuellement
+   via transform: scale() si besoin (cf. onboarding.css .ob-input).
+   ──────────────────────────────────────────────────────────────────── */
+input,
+select,
+textarea {
+  font-size:            16px !important;
+  touch-action:         manipulation;
+  -webkit-user-select:  auto !important;
+  user-select:          auto !important;
+}
+
+
+/* ── 4. Hauteur dynamique — svh ──────────────────────────────────────
+   100vh inclut la barre d'adresse Safari → décalages visuels.
+   100svh = hauteur stable, sans la barre d'adresse.
+   Fallback: 100vh pour les navigateurs sans support svh.
+   Support: iOS 16+, Chrome 108+.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Landing screen */
+#login-screen {
+  min-height: 100vh;   /* fallback */
+  min-height: 100svh;
+}
+
+/* Pages SPA injectées dans #app */
+#app {
+  min-height: 100vh;   /* fallback */
+  min-height: 100svh;
+}
+
+/* Pages onboarding */
+.page.onboarding,
+.page.create-family,
+.page.parent-auth,
+.page.child-auth,
+.page.join-family {
+  min-height: 100vh;   /* fallback */
+  min-height: 100svh;
+}
+
+/* Pages dashboard */
+.page.parent,
+.page.child,
+.page.child-detail-page {
+  min-height: 100vh;   /* fallback */
+  min-height: 100svh;
+}
+
+/* Drawers et overlays — les insets sont déjà gérés via env() dans app.css / onboarding.css */
+
+
+/* ── 5. Feedback tactile — scale :active ─────────────────────────────
+   Les apps natives iOS appliquent un micro-squish au touch.
+   Ces règles complètent et unifient les :active existants dans
+   onboarding.css et app.css.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Carte cliquable */
+.ob-role-card:active  { transform: scale(.99); }
+
+/* Boutons icon (retour, fermer, etc.) */
+.ob-btn-back:active   { transform: scale(.93); }
+.app-drawer-close:active { transform: scale(.93); }
+.detail-back:active   { transform: scale(.93); }
+
+/* Score buttons */
+.score-btn:active     { transform: scale(.95) !important; }
+
+/* Items de liste cliquables */
+.app-drawer-item:active { transform: none; }  /* pas de scale sur les items de liste */
+
+/* Transition de base sur tout interactif sans transition définie */
+button:not([style*="transform"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* ── 6. Zones tactiles minimales (44 × 44 px) ────────────────────────
+   Apple Human Interface Guidelines : toute cible tactile doit faire
+   au minimum 44 × 44 points. On corrige les éléments en dessous
+   de ce seuil sans changer leur apparence visuelle (via padding).
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Bouton retour dans les headers */
+.ob-btn-back,
+.detail-back,
+.app-drawer-close {
+  min-width:  44px;
+  min-height: 44px;
+}
+
+/* Bouton burger */
+.app-burger {
+  min-width:  44px;
+  min-height: 44px;
+}
+
+/* Onglets pilules (ob-tabs) */
+.ob-tab {
+  min-height: 40px;   /* 40px acceptable pour des pills contextuelles */
+}
+
+/* Onglets toggle histogram */
+.toggle-btn,
+.hist-tab {
+  min-height: 36px;
+}
+
+/* Items de drawer */
+.app-drawer-item {
+  min-height: 48px;
+}
+
+
+/* ── 7. Zones scrollables — utilitaires ──────────────────────────────
+   Classes utilitaires à appliquer sur n'importe quel conteneur
+   nécessitant un scroll natif.
+   ──────────────────────────────────────────────────────────────────── */
+.pwa-scroll-y {
+  overflow-y:               auto;
+  overflow-x:               hidden;
+  touch-action:             pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y:    contain;  /* rebond dans la zone, pas la page */
+}
+
+.pwa-scroll-x {
+  overflow-x:               auto;
+  overflow-y:               hidden;
+  touch-action:             pan-x;
+  scrollbar-width:          none;     /* Firefox */
+  -webkit-overflow-scrolling: touch;
+}
+.pwa-scroll-x::-webkit-scrollbar { display: none; }
+
+/* App body (zones scrollables déjà définies — on ajoute contain) */
+.app-body,
+.s-detail-body {
+  overscroll-behavior-y: contain;
+}
+
+.ob-content {
+  overscroll-behavior-y: contain;
+}
+
+
+/* ── 8. Sélection de texte — exceptions ──────────────────────────────
+   user-select: none sur body (règle 2) désactive la sélection partout.
+   On ré-active sur les zones où c'est attendu ou utile.
+   ──────────────────────────────────────────────────────────────────── */
+input,
+textarea,
+[contenteditable],
+.selectable {
+  user-select:          text;
+  -webkit-user-select:  text;
+}
+
+/* Code famille (copiable manuellement) */
+.app-drawer-code-val,
+.ob-code-input,
+.otp-code-big,
+.otp-value,
+.code-value {
+  user-select:          all;
+  -webkit-user-select:  all;
+  cursor:               pointer;
+}
