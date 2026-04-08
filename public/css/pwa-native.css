@@ -38,6 +38,9 @@ html {
   overscroll-behavior: none;           /* supprime le rubber-band de page */
   -webkit-text-size-adjust: 100%;      /* désactive le reflow auto des polices iOS */
   text-size-adjust: 100%;
+  /* Remplit la zone derrière l'encoche / Dynamic Island (viewport-fit=cover)
+     avec la couleur primaire de l'app — visible quand status-bar=black-translucent */
+  background: var(--c-primary);
 }
 
 body {

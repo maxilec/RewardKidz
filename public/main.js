@@ -51,56 +51,6 @@ let _unsubscribers     = [];
 function cleanupPage() {
   _unsubscribers.forEach(fn => fn());
   _unsubscribers = [];
-  const existing = document.getElementById('ptr-indicator');
-  if (existing) existing.remove();
-}
-
-function setupPullToRefresh(onRefresh) {
-  const app = document.getElementById('app');
-  if (!app) return;
-
-  // Bouton ↻ flottant
-  const btn = document.createElement('button');
-  btn.id = 'refresh-btn';
-  btn.setAttribute('aria-label', 'Actualiser');
-  btn.innerHTML = '↻';
-  app.prepend(btn);
-  btn.addEventListener('click', () => {
-    btn.classList.add('spinning');
-    onRefresh().finally(() => btn.classList.remove('spinning'));
-  });
-
-  // Indicateur pull-to-refresh
-  const indicator = document.createElement('div');
-  indicator.id = 'ptr-indicator';
-  document.body.prepend(indicator);
-
-  let startY = 0, pulling = false;
-
-  app.addEventListener('touchstart', e => {
-    if (app.scrollTop === 0) { startY = e.touches[0].clientY; pulling = true; }
-  }, { passive: true });
-
-  app.addEventListener('touchmove', e => {
-    if (!pulling) return;
-    const delta = e.touches[0].clientY - startY;
-    if (delta > 0) {
-      indicator.style.height = Math.min(delta * 0.5, 48) + 'px';
-      indicator.style.opacity = String(Math.min(delta / 60, 1));
-    }
-  }, { passive: true });
-
-  app.addEventListener('touchend', e => {
-    if (!pulling) return;
-    const delta = e.changedTouches[0].clientY - startY;
-    indicator.style.height = '0';
-    indicator.style.opacity = '0';
-    pulling = false;
-    if (delta > 60) {
-      btn.classList.add('spinning');
-      onRefresh().finally(() => btn.classList.remove('spinning'));
-    }
-  }, { passive: true });
 }
 
 // ---------------------------------------------------------
@@ -355,15 +305,10 @@ function renderHistogram(entries, compact = false) {
 // SCORE HELPERS (view)
 // ---------------------------------------------------------
 
-function buildScoreStars(points) {
-  return Array.from({length: 5}, (_, i) =>
-    `<span class="score-star ${i < points ? 'filled' : 'empty'}">⭐</span>`
-  ).join('');
-}
-
-// Returns the inner HTML for a score section in the parent dashboard
+// Returns the inner HTML for a score section in the parent dashboard + child-detail
 function buildScoreHTML(score, memberId) {
-  const stars = buildScoreStars(score.points);
+  const pct = (score.points / 5 * 100).toFixed(1);
+  const gauge = `<div class="score-gauge-track"><div class="score-gauge-fill" style="width:${pct}%"></div></div>`;
 
   let controls;
   if (score.validated) {
@@ -383,11 +328,44 @@ function buildScoreHTML(score, memberId) {
   }
 
   return `
-    <div class="score-stars-row">
-      ${stars}
+    <div class="score-gauge-row">
+      ${gauge}
       <span class="score-points-label">${score.points}/5</span>
     </div>
     <div class="score-controls">${controls}</div>`;
+}
+
+// SVG circular gauge for child page (arc from 8h to 4h, 240° sweep)
+function buildCircularGaugeSVG(points, maxPoints = 5) {
+  const cx = 80, cy = 80, r = 60, sw = 12;
+  const toRad = d => d * Math.PI / 180;
+  const pt = d => ({ x: cx + r * Math.cos(toRad(d)), y: cy + r * Math.sin(toRad(d)) });
+  const f  = n => n.toFixed(2);
+  const startDeg   = 150;   // 8h position in SVG coords (0°=right, CW)
+  const totalSweep = 240;   // arc span to 4h position
+  const sP = pt(startDeg);
+  const eP = pt(startDeg + totalSweep);  // cos/sin handle >360° naturally
+  const fillSweep = (points / maxPoints) * totalSweep;
+  const fillEndDeg = startDeg + fillSweep;
+  const fillP      = pt(fillEndDeg);
+  const fillLarge  = fillSweep > 180 ? 1 : 0;
+  const trackPath = `M ${f(sP.x)} ${f(sP.y)} A ${r} ${r} 0 1 1 ${f(eP.x)} ${f(eP.y)}`;
+  const fillPath  = points > 0
+    ? `M ${f(sP.x)} ${f(sP.y)} A ${r} ${r} 0 ${fillLarge} 1 ${f(fillP.x)} ${f(fillP.y)}`
+    : '';
+  return `
+    <svg viewBox="0 0 160 160" class="circ-gauge-svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="cgFill" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stop-color="var(--c-primary)" />
+          <stop offset="100%" stop-color="var(--c-primary-end)" />
+        </linearGradient>
+      </defs>
+      <path class="circ-gauge-track" d="${trackPath}" stroke-width="${sw}" />
+      ${fillPath ? `<path class="circ-gauge-fill" d="${fillPath}" stroke="url(#cgFill)" stroke-width="${sw}" />` : ''}
+      <text x="${cx}" y="${cy - 6}" class="circ-gauge-num">${points}</text>
+      <text x="${cx}" y="${cy + 14}" class="circ-gauge-max">/ ${maxPoints}</text>
+    </svg>`;
 }
 
 // ---------------------------------------------------------
@@ -503,6 +481,8 @@ async function initParent() {
       if (!familyCode) familyCode = await migrateFamilyCode(familyId);
       const codeEl = document.getElementById("permanentFamilyCode");
       if (codeEl) codeEl.textContent = familyCode || "—";
+      const codeModalEl = document.getElementById("permanentFamilyCodeModal");
+      if (codeModalEl) codeModalEl.textContent = familyCode || "—";
     }
   } catch (e) { console.error(e); }
 
@@ -630,15 +610,10 @@ async function initParent() {
               <span class="child-status ${c.linkedAuthUid ? 'connected' : 'pending'}">
                 ${c.linkedAuthUid ? "Connecté" : "En attente"}
               </span>
-              <button class="icon-btn rename-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">✏️</button>
-              <button class="icon-btn danger delete-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">🗑</button>
+              <span class="child-card-chevron">›</span>
             </div>
             <div class="score-section" id="score-${c.memberId}">
               ${buildScoreHTML(score, c.memberId)}
-            </div>
-            <div class="child-otp-section">
-              <button class="secondary-btn otp-btn" data-memberid="${c.memberId}" data-name="${c.displayName}">Code connexion</button>
-              <div class="otp-display" id="otp-${c.memberId}" style="display:none;"></div>
             </div>
           </div>`;
       }).join("");
@@ -671,57 +646,7 @@ async function initParent() {
         });
       });
 
-      list.querySelectorAll(".otp-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const memberId = btn.dataset.memberid;
-          const name     = btn.dataset.name;
-          btn.disabled = true;
-          try {
-            const familyDoc  = await getFamily(familyId);
-            const familyCode = familyDoc?.familyCode || "—";
-            const otp        = await generateChildOTP(familyId, memberId, name);
-            const display    = document.getElementById(`otp-${memberId}`);
-            if (display) {
-              display.innerHTML = `
-                <div class="otp-code-block">
-                  <div>Code famille&nbsp;: <strong class="code-value">${familyCode}</strong></div>
-                  <div>Code enfant&nbsp;&nbsp;: <strong class="code-value otp-value">${otp}</strong></div>
-                  <div class="otp-expiry">⏱ Valable 30 minutes</div>
-                </div>`;
-              display.style.display = "block";
-            }
-          } catch (e) {
-            alert("Erreur : " + e.message);
-          } finally {
-            btn.disabled = false;
-          }
-        });
-      });
-
-      list.querySelectorAll(".rename-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const memberId = btn.dataset.memberid;
-          const current  = btn.dataset.name;
-          const newName  = prompt(`Nouveau prénom pour ${current} :`, current);
-          if (!newName || newName.trim() === current) return;
-          try {
-            await updateChildName(familyId, memberId, newName.trim());
-            await renderChildren();
-          } catch (e) { alert("Erreur : " + e.message); }
-        });
-      });
-
-      list.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          const memberId = btn.dataset.memberid;
-          const name     = btn.dataset.name;
-          if (!confirm(`Supprimer ${name} ? Cette action est irréversible.`)) return;
-          try {
-            await deleteChild(familyId, memberId);
-            await renderChildren();
-          } catch (e) { alert("Erreur : " + e.message); }
-        });
-      });
+      // Rename/delete/OTP are handled in child-detail — nothing to bind here
     } catch (e) { console.error(e); }
   }
 
@@ -783,22 +708,25 @@ async function initParent() {
     } catch (e) { alert("Erreur : " + e.message); }
   });
 
-  // Invite parent/tutor
+  // Invite parent/tutor — modale
   const inviteBtn    = document.getElementById("generateInvite");
   const inviteCodeEl = document.getElementById("inviteCode");
   if (inviteBtn && inviteCodeEl) {
-    try {
-      const existing = await getActiveInvite(familyId);
-      if (existing) { inviteCodeEl.textContent = existing; renderQRCode(existing); }
-    } catch (e) { console.error(e); }
+    // Load existing code when modal opens (openInviteModalBtn is a plain onclick=rkOpenModal)
+    // so we preload on page init too
+    getActiveInvite(familyId)
+      .then(existing => { if (existing) { inviteCodeEl.textContent = existing; renderQRCode(existing); } })
+      .catch(() => {});
 
     inviteBtn.addEventListener("click", async () => {
+      inviteBtn.disabled = true;
       try {
         const active = await getActiveInvite(familyId);
-        const code = active ?? await createInvite(familyId);
+        const code   = active ?? await createInvite(familyId);
         inviteCodeEl.textContent = code;
         renderQRCode(code);
       } catch (e) { alert("Erreur : " + e.message); }
+      finally { inviteBtn.disabled = false; }
     });
   }
 
@@ -810,11 +738,6 @@ async function initParent() {
   });
 
   bindLogoutButton();
-
-  setupPullToRefresh(async () => {
-    cleanupPage();
-    await loadPage(_currentPage);
-  });
 }
 
 async function initChild() {
@@ -834,6 +757,12 @@ async function initChild() {
 
     if (!memberId) return;
 
+    // Populate family code in drawer
+    getFamily(familyId).then(fDoc => {
+      const codeEl = document.getElementById('childFamilyCodeDisplay');
+      if (codeEl && fDoc?.familyCode) codeEl.textContent = fDoc.familyCode;
+    }).catch(() => {});
+
     // Notifications push — envoyer config au SW + demander permission
     sendConfigToSW();
     initNotifications(familyId, memberId); // async, non bloquant
@@ -841,28 +770,17 @@ async function initChild() {
     const renderChildScore = score => {
       const el = document.getElementById("childScoreDisplay");
       if (!el) return;
-      const stars = Array.from({length: 5}, (_, i) =>
-        `<span class="score-star ${i < score.points ? 'filled' : 'empty'}">⭐</span>`
-      ).join('');
       let badge = '';
-      if (score.validated) badge = '<div class="child-score-badge validated">✓ Journée validée par un parent</div>';
-      else if (score.ignored) badge = '<div class="child-score-badge ignored">Journée non comptabilisée</div>';
+      if (score.validated) badge = '<div class="child-score-badge validated">✓ Journée validée</div>';
+      else if (score.ignored) badge = '<div class="child-score-badge ignored">Non comptabilisée</div>';
       el.className = "child-score-display";
-      el.innerHTML = `
-        <div class="score-stars-row">${stars}</div>
-        <div class="child-score-number">${score.points}<span class="score-max">/5</span></div>
-        ${badge}`;
+      el.innerHTML = buildCircularGaugeSVG(score.points) + badge;
     };
 
     const unsub = subscribeToScore(familyId, memberId, renderChildScore);
     _unsubscribers.push(unsub);
 
   } catch (e) { console.error(e); }
-
-  setupPullToRefresh(async () => {
-    cleanupPage();
-    await loadPage(_currentPage);
-  });
 }
 
 async function initChildDetail() {
@@ -933,15 +851,20 @@ async function initChildDetail() {
   await reloadDetailScore();
 
   // ── Gestion ─────────────────────────────────────────────
-  // OTP
-  document.getElementById("detail-otp-btn")?.addEventListener("click", async () => {
-    const btn = document.getElementById("detail-otp-btn");
-    btn.disabled = true;
+  // OTP — opens modal, generate button inside modal triggers the actual call
+  document.getElementById("detail-otp-btn")?.addEventListener("click", () => {
+    if (typeof rkOpenModal === 'function') rkOpenModal('otp-modal');
+  });
+
+  async function generateAndShowOTP() {
+    const genBtn  = document.getElementById("detail-otp-generate-btn");
+    const display = document.getElementById("detail-otp-display");
+    if (genBtn) genBtn.disabled = true;
+    if (display) display.innerHTML = '<p class="app-hint">Génération en cours…</p>';
     try {
       const familyDoc  = await getFamily(familyId);
       const familyCode = familyDoc?.familyCode || "—";
       const otp        = await generateChildOTP(familyId, memberId, displayName);
-      const display    = document.getElementById("detail-otp-display");
       if (display) {
         display.innerHTML = `
           <div class="otp-code-block">
@@ -949,11 +872,16 @@ async function initChildDetail() {
             <div>Code enfant&nbsp;&nbsp;: <strong class="code-value otp-value">${otp}</strong></div>
             <div class="otp-expiry">⏱ Valable 30 minutes</div>
           </div>`;
-        display.style.display = "block";
       }
-    } catch (e) { alert("Erreur : " + e.message); }
-    finally { btn.disabled = false; }
-  });
+    } catch (e) {
+      if (typeof rkCloseModal === 'function') rkCloseModal('otp-modal');
+      alert("Erreur : " + e.message);
+    } finally {
+      if (genBtn) genBtn.disabled = false;
+    }
+  }
+
+  document.getElementById("detail-otp-generate-btn")?.addEventListener("click", generateAndShowOTP);
 
   // Rename
   document.getElementById("detail-rename-btn")?.addEventListener("click", async () => {

@@ -15,7 +15,7 @@
   <!-- PWA — comportement natif iOS -->
   <meta name="mobile-web-app-capable"                content="yes" />
   <meta name="apple-mobile-web-app-capable"          content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title"            content="RewardKidz" />
 
   <!-- Android : couleur barre de statut Chrome -->
@@ -152,6 +152,17 @@
       const overlay = document.getElementById(overlayId);
       if (drawer)  drawer.classList.remove('open');
       if (overlay) overlay.classList.remove('on');
+    }
+
+    function rkOpenModal(id) {
+      document.getElementById(id)?.classList.add('open');
+      document.getElementById(id + '-ov')?.classList.add('on');
+      hapticLight();
+    }
+
+    function rkCloseModal(id) {
+      document.getElementById(id)?.classList.remove('open');
+      document.getElementById(id + '-ov')?.classList.remove('on');
     }
 
     function rkCopyCode(el) {

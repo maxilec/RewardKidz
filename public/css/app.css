@@ -310,31 +310,24 @@
 .page.parent .icon-btn.danger { background: #FEF2F2; color: var(--c-error); }
 .page.parent .icon-btn.danger:hover { background: #FEE2E2; }
 
-/* ── ÉTOILES → BARRES (parent + detail) ─────────────────────── */
-.page.parent .score-stars-row,
-.page.child-detail-page .score-stars-row {
-  display: flex; align-items: center; gap: 4px;
-  min-width: 0; flex-wrap: nowrap;
+/* ── JAUGE LINÉAIRE (parent + detail) ────────────────────────── */
+.score-gauge-row {
+  display: flex; align-items: center; gap: 10px; margin: 6px 0;
 }
-.page.parent .score-star,
-.page.child-detail-page .score-star {
-  flex: 1; height: 8px; border-radius: 4px;
-  font-size: 0 !important; /* masque l'emoji ⭐ */
-  display: inline-block; overflow: hidden;
-  transition: background .2s;
+.score-gauge-track {
+  flex: 1; height: 10px; background: #EDE9FE;
+  border-radius: 5px; overflow: hidden;
 }
-.page.parent .score-star.filled,
-.page.child-detail-page .score-star.filled {
+.score-gauge-fill {
+  height: 100%;
   background: linear-gradient(90deg, var(--c-primary), var(--c-primary-end));
+  border-radius: 5px;
+  transition: width .35s ease;
+  min-width: 0;
 }
-.page.parent .score-star.empty,
-.page.child-detail-page .score-star.empty { background: #EDE9FE; }
-
-.page.parent .score-points-label,
-.page.child-detail-page .score-points-label {
+.score-points-label {
   font-family: var(--f-head); font-size: 14px; font-weight: 600;
-  color: var(--c-txt-h); flex-shrink: 0;
-  margin-left: 8px; white-space: nowrap;
+  color: var(--c-txt-h); flex-shrink: 0; white-space: nowrap;
 }
 
 /* Badge statut de la journée dans le score */
@@ -489,18 +482,27 @@
   font-size: 32px; color: var(--c-txt-m); font-weight: 500;
 }
 
-/* Barre de score enfant (5 segments) */
-.page.child .score-stars-row {
-  display: flex; gap: 6px; height: 14px;
-  align-items: stretch; margin: 12px 0;
+/* ── Jauge circulaire enfant (SVG) ──────────────────────────── */
+.circ-gauge-svg {
+  width: 160px; height: 160px;
+  display: block; margin: 8px auto 4px;
+  overflow: visible;
 }
-.page.child .score-star {
-  flex: 1; font-size: 0 !important; border-radius: 7px;
+.circ-gauge-track {
+  fill: none; stroke: #EDE9FE; stroke-linecap: round;
 }
-.page.child .score-star.filled {
-  background: linear-gradient(90deg, var(--c-primary), var(--c-primary-end));
+.circ-gauge-fill {
+  fill: none; stroke-linecap: round;
+  transition: d .4s ease;
 }
-.page.child .score-star.empty { background: #EDE9FE; }
+.circ-gauge-num {
+  font-family: var(--f-head); font-size: 28px; font-weight: 600;
+  fill: var(--c-txt-h); text-anchor: middle; dominant-baseline: middle;
+}
+.circ-gauge-max {
+  font-size: 14px; font-family: var(--f-head);
+  fill: var(--c-txt-m); text-anchor: middle; dominant-baseline: middle;
+}
 
 /* Badge journée enfant */
 .page.child .child-score-badge {
@@ -655,6 +657,71 @@
   overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .page.child-detail-page .histogram-label.today { color: var(--c-accent); }
+
+/* ═══════════════════════════════════════════════════════════════
+   MODULE : MODALE (bottom-sheet)
+   ═══════════════════════════════════════════════════════════════ */
+.app-modal-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(30,27,75,.55);
+  backdrop-filter: blur(4px);
+  opacity: 0; pointer-events: none;
+  transition: opacity .28s;
+}
+.app-modal-overlay.on { opacity: 1; pointer-events: all; }
+
+.app-modal {
+  position: fixed;
+  left: 50%; bottom: 0;
+  transform: translateX(-50%) translateY(100%);
+  width: min(430px, 100vw);
+  background: var(--c-surface);
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  z-index: 70;
+  padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  display: flex; flex-direction: column; gap: 12px;
+  max-height: 85vh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+}
+.app-modal.open { transform: translateX(-50%) translateY(0); }
+
+.app-modal-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #F3F0FF; border: none; cursor: pointer;
+  color: var(--c-primary); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.app-modal-close:hover  { background: #EDE9FE; }
+.app-modal-close:active { transform: scale(.93); }
+
+/* Barre de tiret indicateur de drag */
+.app-modal::before {
+  content: '';
+  position: absolute; top: 10px; left: 50%;
+  transform: translateX(-50%);
+  width: 36px; height: 4px; border-radius: 2px;
+  background: #E5E1FF;
+}
+
+.app-modal-title {
+  font-family: var(--f-head); font-size: 20px; font-weight: 600;
+  color: var(--c-txt-h); margin-top: 4px;
+}
+.app-modal-divider {
+  height: 1px; background: #F0EEFF;
+}
+
+/* ── Chevron navigation carte enfant ─────────────────────────── */
+.child-card-chevron {
+  font-size: 20px; color: var(--c-primary);
+  opacity: .5; margin-left: auto; flex-shrink: 0;
+  line-height: 1;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    TABLETTE ≥ 768 px

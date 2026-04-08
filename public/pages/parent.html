@@ -1,6 +1,6 @@
 <div class="page parent">
 
-  <!-- ── Overlay ─────────────────────────────────────────────── -->
+  <!-- ── Overlay (drawer) ─────────────────────────────────────── -->
   <div class="app-overlay" id="par-ov" onclick="rkCloseDrawer('par-drawer','par-ov')"></div>
 
   <!-- ── Drawer droit ─────────────────────────────────────────── -->
@@ -38,6 +38,24 @@
     </div>
   </div>
 
+  <!-- ── Overlay (modale invitation) ─────────────────────────── -->
+  <div class="app-modal-overlay" id="invite-modal-ov" onclick="rkCloseModal('invite-modal')"></div>
+
+  <!-- ── Modale invitation adulte ─────────────────────────────── -->
+  <div class="app-modal" id="invite-modal">
+    <button class="app-modal-close" onclick="rkCloseModal('invite-modal')" aria-label="Fermer">✕</button>
+    <div class="app-modal-title">🔗 Inviter un adulte</div>
+    <p class="app-hint">Code temporaire valable 15 min — à transmettre à l'adulte qui rejoint via « Rejoindre ».</p>
+    <p id="inviteCode" class="app-invite-code">—</p>
+    <div id="inviteQRCode" style="display:none; margin: 4px auto; width: fit-content;"></div>
+    <button id="generateInvite" class="app-btn-prim full">Générer / Rafraîchir</button>
+    <div class="app-modal-divider"></div>
+    <div style="text-align:center; padding: 4px 0 2px">
+      <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille permanent (rappel)</div>
+      <div class="app-drawer-code-val" id="permanentFamilyCodeModal" style="font-size:18px;letter-spacing:3px">—</div>
+    </div>
+  </div>
+
   <!-- ── En-tête gradient ─────────────────────────────────────── -->
   <div class="app-header">
     <div class="app-header-info">
@@ -60,32 +78,29 @@
   <!-- ── Corps scrollable ─────────────────────────────────────── -->
   <div class="app-body">
 
-    <!-- Membres adultes -->
-    <div class="app-section-hd">
-      <span class="app-section-title">👤 Membres adultes</span>
-    </div>
-    <div id="parentsList"><p class="app-hint">Chargement…</p></div>
-
-    <!-- Inviter un co-parent -->
-    <div class="app-card">
-      <div class="app-card-title">🔗 Inviter un co-parent</div>
-      <p class="app-hint">Code temporaire valable 15 min — à transmettre à l'adulte qui rejoindra via "Rejoindre".</p>
-      <p id="inviteCode" class="app-invite-code">Aucun code généré</p>
-      <div id="inviteQRCode" style="display:none; margin: 8px auto; width: fit-content;"></div>
-      <button id="generateInvite" class="app-btn-outline full">Générer un code</button>
-    </div>
-
-    <!-- Enfants -->
+    <!-- 1. Enfants ─────────────────────────────────────────────── -->
     <div class="app-section-hd">
       <span class="app-section-title">🧒 Enfants</span>
     </div>
 
-    <form id="formAddChild" class="inline-form" style="margin-bottom:12px">
+    <div id="childrenList"><p class="app-hint">Aucun enfant pour l'instant.</p></div>
+
+    <form id="formAddChild" class="inline-form" style="margin-top:10px;margin-bottom:4px">
       <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
       <button type="submit" class="secondary-btn">Ajouter</button>
     </form>
 
-    <div id="childrenList"><p class="app-hint">Aucun enfant pour l'instant.</p></div>
+    <!-- 2. Parents et tuteurs ──────────────────────────────────── -->
+    <div class="app-section-hd" style="margin-top:24px">
+      <span class="app-section-title">👤 Parents et tuteurs</span>
+    </div>
+
+    <div id="parentsList"><p class="app-hint">Chargement…</p></div>
+
+    <button class="app-btn-outline full" style="margin-top:10px"
+            onclick="rkOpenModal('invite-modal')" id="openInviteModalBtn">
+      + Inviter un membre adulte
+    </button>
 
   </div><!-- /.app-body -->
 

@@ -1,5 +1,19 @@
 <div class="page child-detail-page">
 
+  <!-- ── Overlay (modale OTP) ─────────────────────────────────── -->
+  <div class="app-modal-overlay" id="otp-modal-ov" onclick="rkCloseModal('otp-modal')"></div>
+
+  <!-- ── Modale code connexion enfant ─────────────────────────── -->
+  <div class="app-modal" id="otp-modal">
+    <button class="app-modal-close" onclick="rkCloseModal('otp-modal')" aria-label="Fermer">✕</button>
+    <div class="app-modal-title">🔑 Code connexion</div>
+    <p class="app-hint">À saisir sur l'appareil de l'enfant lors de la première connexion.</p>
+    <div id="detail-otp-display">
+      <p class="app-hint">Appuie sur « Générer » pour créer un code.</p>
+    </div>
+    <button id="detail-otp-generate-btn" class="app-btn-prim full">Générer un code</button>
+  </div>
+
   <!-- ── En-tête avec retour ──────────────────────────────────── -->
   <div class="detail-header">
     <a id="backToParent" class="back-link" role="button" aria-label="Retour">←</a>
@@ -23,7 +37,6 @@
       <h2>⚙️ Gestion</h2>
       <div class="child-otp-section">
         <button class="secondary-btn" id="detail-otp-btn">🔑 Code connexion</button>
-        <div class="otp-display" id="detail-otp-display" style="display:none;"></div>
       </div>
       <div class="detail-actions-row" style="margin-top:10px">
         <button class="icon-btn" id="detail-rename-btn">✏️ Renommer</button>
