@@ -252,24 +252,23 @@ function translateAuthError(err) {
 }
 
 function setupAuthTabs() {
-  const tabSignin    = document.getElementById("tabSignin");
-  const tabJoinFamily = document.getElementById("tabJoinFamily");
-  const panelSignin  = document.getElementById("panel-signin");
-  const panelJoin    = document.getElementById("panel-join");
-  if (!tabSignin) return;
+  const tabs = [
+    { tab: document.getElementById("tabSignin"),     panel: document.getElementById("panel-signin")    },
+    { tab: document.getElementById("tabRegister"),   panel: document.getElementById("panel-register")  },
+    { tab: document.getElementById("tabJoinFamily"), panel: document.getElementById("panel-join")      },
+  ];
+  if (!tabs[0].tab) return;
 
-  tabSignin.addEventListener("click", () => {
-    tabSignin.classList.add("active");     tabSignin.setAttribute("aria-selected", "true");
-    tabJoinFamily.classList.remove("active"); tabJoinFamily.setAttribute("aria-selected", "false");
-    panelSignin.classList.remove("hidden");
-    panelJoin.classList.add("hidden");
-  });
-  tabJoinFamily.addEventListener("click", () => {
-    tabJoinFamily.classList.add("active");  tabJoinFamily.setAttribute("aria-selected", "true");
-    tabSignin.classList.remove("active");   tabSignin.setAttribute("aria-selected", "false");
-    panelJoin.classList.remove("hidden");
-    panelSignin.classList.add("hidden");
-  });
+  function activate(index) {
+    tabs.forEach(({ tab, panel }, i) => {
+      const active = i === index;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", String(active));
+      panel.classList.toggle("hidden", !active);
+    });
+  }
+
+  tabs.forEach(({ tab }, i) => tab.addEventListener("click", () => activate(i)));
 }
 
 // ---------------------------------------------------------
@@ -440,6 +439,29 @@ function initParentAuth() {
       await registerWithEmail(email, pass, nickname || null);
     } catch (err) {
       pendingJoinCode = null; pendingDisplayName = null;
+      alert(translateAuthError(err));
+    }
+  });
+
+  // Créer un compte — Google
+  document.getElementById("registerGoogle")?.addEventListener("click", () => {
+    loginWithGoogle().catch(e => alert(translateAuthError(e)));
+  });
+
+  // Créer un compte — email/password
+  document.getElementById("formRegister")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email    = document.getElementById("registerEmail").value.trim();
+    const pass     = document.getElementById("registerPassword").value;
+    const confirm  = document.getElementById("registerPasswordConfirm").value;
+    const nickname = document.getElementById("registerNickname")?.value.trim() || null;
+    if (!email)           return alert("Saisis ton adresse email.");
+    if (!pass)            return alert("Saisis un mot de passe.");
+    if (pass !== confirm) return alert("Les mots de passe ne correspondent pas.");
+    try {
+      await registerWithEmail(email, pass, nickname);
+      // onUserStateChanged → pas de famille → navigate("onboarding") → "Créer ma famille"
+    } catch (err) {
       alert(translateAuthError(err));
     }
   });

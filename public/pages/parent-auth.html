@@ -15,10 +15,11 @@
       <span class="ob-logo">Reward<em>Kidz</em></span>
     </div>
 
-    <!-- Onglets — les IDs et classes active/hidden restent identiques pour main.js -->
+    <!-- Onglets -->
     <div class="ob-tabs" role="tablist">
-      <button id="tabSignin"    class="ob-tab active" role="tab" aria-selected="true"  aria-controls="panel-signin">S'identifier</button>
-      <button id="tabJoinFamily" class="ob-tab"       role="tab" aria-selected="false" aria-controls="panel-join">Rejoindre</button>
+      <button id="tabSignin"     class="ob-tab active" role="tab" aria-selected="true"  aria-controls="panel-signin">S'identifier</button>
+      <button id="tabRegister"   class="ob-tab"        role="tab" aria-selected="false" aria-controls="panel-register">Créer un compte</button>
+      <button id="tabJoinFamily" class="ob-tab"        role="tab" aria-selected="false" aria-controls="panel-join">Rejoindre</button>
     </div>
 
     <!-- ── Panel : S'identifier ─────────────────────────────── -->
@@ -54,6 +55,53 @@
       </form>
 
     </div><!-- /#panel-signin -->
+
+    <!-- ── Panel : Créer un compte ──────────────────────────── -->
+    <div id="panel-register" class="ob-panel hidden" role="tabpanel">
+
+      <p class="ob-hint ob-mb16">Créez votre compte parent pour démarrer une nouvelle famille.</p>
+
+      <!-- Google -->
+      <button id="registerGoogle" class="ob-btn-google ob-mb16">
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.5 0 6.4 1.2 8.7 3.1l6.5-6.5C35.4 2.5 30.1 0 24 0 14.7 0 6.7 5.5 2.9 13.5l7.6 5.9C12.4 13.3 17.8 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-17.2h.4z"/>
+          <path fill="#FBBC05" d="M10.5 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6l-7.6-5.9A24 24 0 0 0 0 24c0 3.9.9 7.6 2.6 10.8l7.9-6.2z"/>
+          <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.4l-7.4-5.7c-2 1.4-4.6 2.2-7.6 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.9 6.2C6.7 42.5 14.7 48 24 48z"/>
+        </svg>
+        Continuer avec Google
+      </button>
+
+      <div class="ob-sep">ou par email</div>
+
+      <form id="formRegister" novalidate>
+        <div class="ob-form-field">
+          <label class="ob-label" for="registerEmail">Email</label>
+          <input class="ob-input" id="registerEmail" type="email"
+                 placeholder="votre@email.com" required autocomplete="email">
+        </div>
+        <div class="ob-form-field">
+          <label class="ob-label" for="registerPassword">Mot de passe</label>
+          <input class="ob-input" id="registerPassword" type="password"
+                 placeholder="6 caractères minimum" required autocomplete="new-password">
+        </div>
+        <div class="ob-form-field">
+          <label class="ob-label" for="registerPasswordConfirm">Confirmer le mot de passe</label>
+          <input class="ob-input" id="registerPasswordConfirm" type="password"
+                 placeholder="Répète ton mot de passe" required autocomplete="new-password">
+        </div>
+        <div class="ob-form-field ob-mb8">
+          <label class="ob-label" for="registerNickname">
+            Comment vous appelle-t-on ?
+            <span style="font-weight:400;color:var(--c-txt-m)">(optionnel)</span>
+          </label>
+          <input class="ob-input" id="registerNickname" type="text"
+                 placeholder="Papa, Maman, Alex…" autocomplete="given-name">
+        </div>
+        <button type="submit" class="ob-btn-primary">Créer mon compte</button>
+      </form>
+
+    </div><!-- /#panel-register -->
 
     <!-- ── Panel : Rejoindre ─────────────────────────────────── -->
     <div id="panel-join" class="ob-panel hidden" role="tabpanel">
