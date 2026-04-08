@@ -11,14 +11,20 @@
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="manifest" href="./manifest.json" />
   <title>RewardKidz</title>
+
+  <!-- Polices -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles : base → thème onboarding → vues dashboard -->
   <link rel="stylesheet" href="./css/style.css" />
   <link rel="stylesheet" href="./css/onboarding.css" />
+  <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
 
+  <!-- ── Landing : sélection du rôle ──────────────────────────── -->
   <div id="login-screen">
     <div class="ob-blobs" aria-hidden="true">
       <div class="ob-blob ob-blob-1"></div>
@@ -51,8 +57,10 @@
     </div>
   </div>
 
+  <!-- ── Conteneur SPA ─────────────────────────────────────────── -->
   <div id="app" style="display:none;"></div>
 
+  <!-- ── Bandeau install PWA ───────────────────────────────────── -->
   <div id="pwa-banner">
     <span class="pwa-banner-text">Installe l'app RewardKidz !</span>
     <button id="pwa-install-btn" class="pwa-install-btn">Installer</button>
@@ -60,14 +68,20 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
   <script>
+    /* ── Service Worker ──────────────────────────────────────── */
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(err => console.warn('[SW] Registration failed:', err));
+      navigator.serviceWorker.register('./sw.js')
+        .catch(err => console.warn('[SW] Registration failed:', err));
     }
+
+    /* ── PWA Install prompt ──────────────────────────────────── */
     let _deferredInstallPrompt = null;
     const pwaBanner    = document.getElementById('pwa-banner');
     const pwaInstallBtn = document.getElementById('pwa-install-btn');
     const pwaDismissBtn = document.getElementById('pwa-dismiss-btn');
+
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
       _deferredInstallPrompt = e;
@@ -85,7 +99,53 @@
       pwaBanner.classList.remove('visible');
       _deferredInstallPrompt = null;
     });
+
+    /* ── Utilitaires drawer — utilisés par onclick dans les fragments HTML ──
+       Les pages HTML sont insérées via innerHTML (scripts non exécutés).
+       Ces fonctions globales sont appelées via les attributs onclick des boutons.
+    ─────────────────────────────────────────────────────────────────────── */
+    function rkOpenDrawer(drawerId, overlayId) {
+      const drawer  = document.getElementById(drawerId);
+      const overlay = document.getElementById(overlayId);
+      if (drawer)  drawer.classList.add('open');
+      if (overlay) overlay.classList.add('on');
+    }
+
+    function rkCloseDrawer(drawerId, overlayId) {
+      const drawer  = document.getElementById(drawerId);
+      const overlay = document.getElementById(overlayId);
+      if (drawer)  drawer.classList.remove('open');
+      if (overlay) overlay.classList.remove('on');
+    }
+
+    function rkCopyCode(el) {
+      const valEl = el && el.querySelector('.app-drawer-code-val');
+      if (!valEl) return;
+      const code = valEl.textContent.trim();
+      if (code === '—') return;
+      navigator.clipboard?.writeText(code).catch(() => {});
+      const orig = valEl.textContent;
+      valEl.textContent = '✓ Copié !';
+      setTimeout(() => { valEl.textContent = orig; }, 1500);
+    }
+
+    /* Synchroniser le nom de famille dans la barre basse et le drawer
+       — appelé automatiquement quand familyName est mis à jour par main.js */
+    (function observeFamilyName() {
+      const obs = new MutationObserver(() => {
+        const src = document.getElementById('familyName');
+        if (!src) return;
+        const v = src.textContent;
+        const bar    = document.getElementById('familyNameBar');
+        const drawer = document.getElementById('familyNameDrawer');
+        if (bar)    bar.textContent    = v;
+        if (drawer) drawer.textContent = v;
+      });
+      const app = document.getElementById('app');
+      if (app) obs.observe(app, { subtree: true, characterData: true, childList: true });
+    })();
   </script>
+
   <script type="module" src="./main.js?v=4"></script>
 </body>
 </html>

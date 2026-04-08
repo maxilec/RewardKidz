@@ -1,55 +1,98 @@
 <div class="page parent">
 
-  <h1>Espace Parent</h1>
-  <div class="family-name-row">
-    <p id="familyName" class="subtitle"></p>
-    <button id="editFamilyNameBtn" class="icon-btn" aria-label="Modifier le nom de famille">✏️</button>
+  <!-- ── Overlay ─────────────────────────────────────────────── -->
+  <div class="app-overlay" id="par-ov" onclick="rkCloseDrawer('par-drawer','par-ov')"></div>
+
+  <!-- ── Drawer droit ─────────────────────────────────────────── -->
+  <div class="app-drawer" id="par-drawer">
+    <button class="app-drawer-close" onclick="rkCloseDrawer('par-drawer','par-ov')" aria-label="Fermer">✕</button>
+    <div class="app-drawer-head">
+      <span class="app-drawer-emoji">👨‍👩‍👧</span>
+      <div class="app-drawer-title" id="familyNameDrawer">Ma famille</div>
+      <div class="app-drawer-sub">Espace parent</div>
+    </div>
+    <div class="app-drawer-body">
+      <div class="app-drawer-sep"></div>
+      <!-- IDs conservés pour main.js -->
+      <div class="app-drawer-item danger" id="deleteAccountBtn">
+        <span class="app-drawer-item-icon">👤</span>Supprimer mon compte
+      </div>
+      <p id="deleteAccountHint" class="account-delete-hint" style="padding:0 20px 8px;font-size:12px;color:#9CA3AF"></p>
+      <div class="app-drawer-item danger" id="deleteFamilyBtn">
+        <span class="app-drawer-item-icon">🗑</span>Supprimer la famille
+      </div>
+      <div class="app-drawer-sep"></div>
+      <div class="app-drawer-item danger" id="logoutBtn">
+        <span class="app-drawer-item-icon">🚪</span>Se déconnecter
+      </div>
+    </div>
+    <div class="app-drawer-foot">
+      <div class="app-drawer-code" onclick="rkCopyCode(this)" title="Appuyer pour copier">
+        <div>
+          <div class="app-drawer-code-label">Code famille permanent</div>
+          <div class="app-drawer-code-val" id="permanentFamilyCode">—</div>
+        </div>
+        <span style="font-size:16px;color:var(--c-primary)">📋</span>
+      </div>
+      <div class="app-drawer-version">RewardKidz v2.0</div>
+    </div>
   </div>
-  <div id="familyNameEditForm" class="inline-form family-name-edit-form" style="display:none;">
+
+  <!-- ── En-tête gradient ─────────────────────────────────────── -->
+  <div class="app-header">
+    <div class="app-header-info">
+      <div class="app-header-title">
+        <span id="familyName">Chargement…</span>
+        <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom">✏️</button>
+      </div>
+      <div class="app-header-sub">Tableau de bord parent</div>
+    </div>
+    <span class="app-header-emoji">👨‍👩‍👧</span>
+  </div>
+
+  <!-- Formulaire édition nom (display: flex géré par main.js) -->
+  <div id="familyNameEditForm" class="app-edit-form" style="display:none;">
     <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
-    <button id="saveFamilyNameBtn" class="secondary-btn">Sauvegarder</button>
-    <button id="cancelFamilyNameBtn" class="icon-btn">✕</button>
+    <button id="saveFamilyNameBtn" class="app-btn-prim sm">✓</button>
+    <button id="cancelFamilyNameBtn" class="app-btn-outline sm">✕</button>
   </div>
 
-  <!-- ── Membres adultes ───────────────────────────────── -->
-  <div class="card">
-    <h2>👤 Membres adultes</h2>
-    <div id="parentsList"><p class="hint">Chargement...</p></div>
-  </div>
+  <!-- ── Corps scrollable ─────────────────────────────────────── -->
+  <div class="app-body">
 
-  <!-- ── Enfants ──────────────────────────────────────── -->
-  <div class="card">
-    <h2>🧒 Enfants</h2>
+    <!-- Membres adultes -->
+    <div class="app-section-hd">
+      <span class="app-section-title">👤 Membres adultes</span>
+    </div>
+    <div id="parentsList"><p class="app-hint">Chargement…</p></div>
 
-    <form id="formAddChild" class="inline-form">
+    <!-- Inviter un co-parent -->
+    <div class="app-card">
+      <div class="app-card-title">🔗 Inviter un co-parent</div>
+      <p class="app-hint">Code temporaire valable 15 min — à transmettre à l'adulte qui rejoindra via "Rejoindre".</p>
+      <p id="inviteCode" class="app-invite-code">Aucun code généré</p>
+      <div id="inviteQRCode" style="display:none; margin: 8px auto; width: fit-content;"></div>
+      <button id="generateInvite" class="app-btn-outline full">Générer un code</button>
+    </div>
+
+    <!-- Enfants -->
+    <div class="app-section-hd">
+      <span class="app-section-title">🧒 Enfants</span>
+    </div>
+
+    <form id="formAddChild" class="inline-form" style="margin-bottom:12px">
       <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
       <button type="submit" class="secondary-btn">Ajouter</button>
     </form>
 
-    <div id="childrenList"><p class="hint">Aucun enfant pour l'instant.</p></div>
+    <div id="childrenList"><p class="app-hint">Aucun enfant pour l'instant.</p></div>
+
+  </div><!-- /.app-body -->
+
+  <!-- ── Barre basse ───────────────────────────────────────────── -->
+  <div class="app-bottom-bar">
+    <span class="app-bottom-hint"><strong id="familyNameBar">Ma famille</strong></span>
+    <button class="app-burger" onclick="rkOpenDrawer('par-drawer','par-ov')" aria-label="Menu">☰</button>
   </div>
 
-  <!-- ── Inviter un parent / tuteur ───────────────────── -->
-  <div class="card">
-    <h2>👤 Inviter un parent / tuteur</h2>
-    <p class="hint">Code temporaire valable 15 min — à transmettre à l'adulte qui rejoindra via "Rejoindre".</p>
-
-    <p id="inviteCode" class="invite-code">Aucun code généré</p>
-    <div id="inviteQRCode" style="display:none;"></div>
-    <button id="generateInvite" class="secondary-btn">Générer un code</button>
-  </div>
-
-  <!-- ── Code famille permanent ───────────────────────── -->
-  <div class="card">
-    <h2>🏠 Code famille permanent</h2>
-    <p class="hint">Communique ce code à l'enfant lors de la connexion de son appareil (avec son code enfant).</p>
-    <p id="permanentFamilyCode" class="invite-code">—</p>
-  </div>
-
-  <button class="danger-btn" id="deleteAccountBtn">Supprimer mon compte</button>
-  <p id="deleteAccountHint" class="account-delete-hint"></p>
-
-  <button class="danger-btn" id="deleteFamilyBtn">Supprimer la famille</button>
-  <button class="danger-btn" id="logoutBtn">Se déconnecter</button>
-
-</div>
+</div><!-- /.page.parent -->

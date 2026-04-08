@@ -1,19 +1,54 @@
 <div class="page child">
 
-  <h1>Espace Enfant</h1>
-  <p id="childWelcome" class="subtitle">Bonjour !</p>
+  <!-- ── Overlay ─────────────────────────────────────────────── -->
+  <div class="app-overlay" id="chi-ov" onclick="rkCloseDrawer('chi-drawer','chi-ov')"></div>
 
-  <div class="card score-card-child">
-    <h2>⭐ Mon score du jour</h2>
-    <div id="childScoreDisplay" class="child-score-loading">Chargement…</div>
+  <!-- ── Drawer droit ─────────────────────────────────────────── -->
+  <div class="app-drawer" id="chi-drawer">
+    <button class="app-drawer-close" onclick="rkCloseDrawer('chi-drawer','chi-ov')" aria-label="Fermer">✕</button>
+    <div class="app-drawer-head">
+      <span class="app-drawer-emoji">🧒</span>
+      <div class="app-drawer-title" id="childDrawerName">Mon espace</div>
+      <div class="app-drawer-sub">Espace enfant</div>
+    </div>
+    <div class="app-drawer-body">
+      <div class="app-drawer-sep"></div>
+      <!-- ID conservé pour main.js (bindLogoutButton) -->
+      <div class="app-drawer-item danger" id="logoutBtn">
+        <span class="app-drawer-item-icon">🚪</span>Se déconnecter
+      </div>
+    </div>
+    <div class="app-drawer-foot">
+      <div class="warn-box" style="margin-bottom:10px;font-size:12px;background:#FFFBEB;border:1.5px solid #FDE68A;border-radius:12px;padding:10px 14px;color:#92400E;line-height:1.5">
+        ⚠️ Si tu te déconnectes, tu auras besoin du code famille et de ton code secret pour revenir.
+      </div>
+      <div class="app-drawer-code">
+        <div>
+          <div class="app-drawer-code-label">Code famille</div>
+          <div class="app-drawer-code-val" id="childFamilyCodeDisplay">—</div>
+        </div>
+      </div>
+      <div class="app-drawer-version">RewardKidz v2.0</div>
+    </div>
   </div>
 
-  <p class="logout-warning">
-    ⚠️ Si tu te déconnectes, tu devras entrer le code famille, ton prénom et ton code secret pour revenir.
-  </p>
+  <!-- ── En-tête enfant ───────────────────────────────────────── -->
+  <div class="app-child-header">
+    <span class="app-child-logo">Reward<em>Kidz</em></span>
+    <p id="childWelcome" style="font-family:var(--f-head);font-size:16px;font-weight:600;color:var(--c-txt-h)">Bonjour !</p>
+  </div>
 
-  <button class="danger-btn" id="logoutBtn">
-    Se déconnecter
-  </button>
+  <!-- ── Carte score ───────────────────────────────────────────── -->
+  <div class="app-body" style="padding-top:0">
+    <div class="app-score-card">
+      <div id="childScoreDisplay" class="child-score-loading">Chargement…</div>
+    </div>
+  </div>
 
-</div>
+  <!-- ── Barre basse ───────────────────────────────────────────── -->
+  <div class="app-bottom-bar">
+    <span class="app-bottom-hint">Mon score du jour</span>
+    <button class="app-burger" onclick="rkOpenDrawer('chi-drawer','chi-ov')" aria-label="Menu">☰</button>
+  </div>
+
+</div><!-- /.page.child -->
