@@ -8,7 +8,10 @@
     <button class="app-drawer-close" onclick="rkCloseDrawer('par-drawer','par-ov')" aria-label="Fermer">✕</button>
     <div class="app-drawer-head">
       <span class="app-drawer-emoji">👨‍👩‍👧</span>
-      <div class="app-drawer-title" id="familyNameDrawer">Ma famille</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="app-drawer-title" id="familyNameDrawer">Ma famille</div>
+        <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom" style="color:#fff;font-size:16px;background:rgba(255,255,255,.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✏️</button>
+      </div>
       <div class="app-drawer-sub">Espace parent</div>
     </div>
     <div class="app-drawer-body">
@@ -58,11 +61,9 @@
 
   <!-- ── En-tête gradient ─────────────────────────────────────── -->
   <div class="app-header">
+    <button class="app-burger app-burger--header" onclick="rkOpenDrawer('par-drawer','par-ov')" aria-label="Menu">☰</button>
     <div class="app-header-info">
-      <div class="app-header-title">
-        <span id="familyName">Chargement…</span>
-        <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom">✏️</button>
-      </div>
+      <div class="app-header-title" id="familyName">Chargement…</div>
       <div class="app-header-sub">Tableau de bord parent</div>
     </div>
     <span class="app-header-emoji">👨‍👩‍👧</span>
@@ -80,7 +81,7 @@
 
     <!-- 1. Enfants ─────────────────────────────────────────────── -->
     <div class="app-section-hd">
-      <span class="app-section-title">🧒 Enfants</span>
+      <span class="app-section-title">Membres de la famille</span>
     </div>
 
     <div id="childrenList"><p class="app-hint">Aucun enfant pour l'instant.</p></div>
@@ -104,10 +105,5 @@
 
   </div><!-- /.app-body -->
 
-  <!-- ── Barre basse ───────────────────────────────────────────── -->
-  <div class="app-bottom-bar">
-    <span class="app-bottom-hint"><strong id="familyNameBar">Ma famille</strong></span>
-    <button class="app-burger" onclick="rkOpenDrawer('par-drawer','par-ov')" aria-label="Menu">☰</button>
-  </div>
 
 </div><!-- /.page.parent -->

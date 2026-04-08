@@ -320,10 +320,8 @@ function buildScoreHTML(score, memberId) {
       <button class="score-btn unignore" data-memberid="${memberId}">↩ Rétablir</button>`;
   } else {
     controls = `
-      <button class="score-btn add"      data-memberid="${memberId}" ${score.points >= 5 ? 'disabled' : ''}>+1</button>
-      <button class="score-btn remove"   data-memberid="${memberId}" ${score.points <= 0 ? 'disabled' : ''}>−1</button>
-      <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>
-      <button class="score-btn ignore"   data-memberid="${memberId}">🚫 Ignorer</button>`;
+      <button class="score-btn pause"    data-memberid="${memberId}">⏸ Pause</button>
+      <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>`;
   }
 
   return `
@@ -510,14 +508,13 @@ async function initParent() {
 
   // Édition du nom de famille
   document.getElementById('editFamilyNameBtn')?.addEventListener('click', () => {
+    rkCloseDrawer('par-drawer', 'par-ov');
     const input = document.getElementById('familyNameInput');
     if (input && familyDoc) input.value = familyDoc.name;
     document.getElementById('familyNameEditForm').style.display = 'flex';
-    document.getElementById('editFamilyNameBtn').style.display = 'none';
   });
   document.getElementById('cancelFamilyNameBtn')?.addEventListener('click', () => {
     document.getElementById('familyNameEditForm').style.display = 'none';
-    document.getElementById('editFamilyNameBtn').style.display = '';
   });
   document.getElementById('saveFamilyNameBtn')?.addEventListener('click', async () => {
     const newName = document.getElementById('familyNameInput')?.value.trim();
@@ -528,7 +525,6 @@ async function initParent() {
       const el = document.getElementById('familyName');
       if (el) el.textContent = `Famille ${newName}`;
       document.getElementById('familyNameEditForm').style.display = 'none';
-      document.getElementById('editFamilyNameBtn').style.display = '';
     } catch (e) { alert('Erreur : ' + e.message); }
   });
 
@@ -570,14 +566,9 @@ async function initParent() {
     const section = document.getElementById(`score-${memberId}`);
     if (!section) return;
 
-    section.querySelector('.score-btn.add')?.addEventListener('click', async () => {
-      try { await addPoint(familyId, memberId, byUid, byName); await reloadChildScore(memberId); }
-      catch (e) { alert("Erreur : " + e.message); }
-    });
-
-    section.querySelector('.score-btn.remove')?.addEventListener('click', async () => {
-      if (!confirm("Retirer 1 point ?")) return;
-      try { await removePoint(familyId, memberId, byUid, byName); await reloadChildScore(memberId); }
+    section.querySelector('.score-btn.pause')?.addEventListener('click', async () => {
+      if (!confirm("Mettre la journée en pause pour cet enfant ?")) return;
+      try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
       catch (e) { alert("Erreur : " + e.message); }
     });
 
@@ -588,12 +579,6 @@ async function initParent() {
 
     section.querySelector('.score-btn.unvalidate')?.addEventListener('click', async () => {
       try { await setScoreValidated(familyId, memberId, false, byUid, byName); await reloadChildScore(memberId); }
-      catch (e) { alert("Erreur : " + e.message); }
-    });
-
-    section.querySelector('.score-btn.ignore')?.addEventListener('click', async () => {
-      if (!confirm("Ignorer la journée pour cet enfant ?")) return;
-      try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
       catch (e) { alert("Erreur : " + e.message); }
     });
 
@@ -629,10 +614,7 @@ async function initParent() {
             <div class="child-card-header child-card-header--clickable"
                  data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
               <span class="child-name">🧒 ${c.displayName}</span>
-              <span class="child-status ${c.linkedAuthUid ? 'connected' : 'pending'}">
-                ${c.linkedAuthUid ? "Connecté" : "En attente"}
-              </span>
-              <span class="child-card-chevron">›</span>
+              <button class="child-quick-add" data-memberid="${c.memberId}" aria-label="Ajouter un point">+</button>
             </div>
             <div class="score-section" id="score-${c.memberId}">
               ${buildScoreHTML(score, c.memberId)}
@@ -642,6 +624,18 @@ async function initParent() {
 
       // Bind score handlers for each child
       children.forEach(c => bindScoreHandlersFor(c.memberId));
+
+      // Bind quick-add (+1) button on each card header
+      list.querySelectorAll('.child-quick-add').forEach(btn => {
+        const mid = btn.dataset.memberid;
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const scoreEl = document.getElementById(`score-${mid}`);
+          // Prevent adding when day is already validated/ignored (check disabled state visually)
+          try { await addPoint(familyId, mid, byUid, byName); await reloadChildScore(mid); }
+          catch (err) { alert("Erreur : " + err.message); }
+        });
+      });
 
       // Abonnements temps réel — met à jour le score dès qu'un parent modifie depuis un autre appareil
       children.forEach(c => {

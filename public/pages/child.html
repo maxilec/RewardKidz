@@ -32,10 +32,14 @@
     </div>
   </div>
 
-  <!-- ── En-tête enfant ───────────────────────────────────────── -->
-  <div class="app-child-header">
-    <span class="app-child-logo">Reward<em>Kidz</em></span>
-    <p id="childWelcome" style="font-family:var(--f-head);font-size:16px;font-weight:600;color:var(--c-txt-h)">Bonjour !</p>
+  <!-- ── En-tête gradient ─────────────────────────────────────── -->
+  <div class="app-header">
+    <button class="app-burger app-burger--header" onclick="rkOpenDrawer('chi-drawer','chi-ov')" aria-label="Menu">☰</button>
+    <div class="app-header-info">
+      <div class="app-header-title">RewardKidz</div>
+      <div id="childWelcome" class="app-header-sub">Bonjour !</div>
+    </div>
+    <span class="app-header-emoji">🧒</span>
   </div>
 
   <!-- ── Carte score ───────────────────────────────────────────── -->
@@ -45,10 +49,5 @@
     </div>
   </div>
 
-  <!-- ── Barre basse ───────────────────────────────────────────── -->
-  <div class="app-bottom-bar">
-    <span class="app-bottom-hint">Mon score du jour</span>
-    <button class="app-burger" onclick="rkOpenDrawer('chi-drawer','chi-ov')" aria-label="Menu">☰</button>
-  </div>
 
 </div><!-- /.page.child -->
