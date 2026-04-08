@@ -176,8 +176,10 @@
         const v = src.textContent;
         const bar    = document.getElementById('familyNameBar');
         const drawer = document.getElementById('familyNameDrawer');
-        if (bar)    bar.textContent    = v;
-        if (drawer) drawer.textContent = v;
+        // Guard: only write if value changed, to avoid triggering ourselves again
+        // (bar/drawer are inside #app, so assigning textContent would re-fire this observer)
+        if (bar    && bar.textContent    !== v) bar.textContent    = v;
+        if (drawer && drawer.textContent !== v) drawer.textContent = v;
       });
       // Observer #app car #familyName n'existe qu'après le loadPage()
       const app = document.getElementById('app');
