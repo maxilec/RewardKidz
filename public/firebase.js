@@ -425,6 +425,17 @@ export async function generateChildOTP(familyId, memberId, displayName) {
   return otpCode;
 }
 
+// Returns an existing valid OTP for a child, or null if none / expired.
+export async function getActiveChildOTP(familyId, memberId) {
+  try {
+    const snap = await getDoc(doc(db, "families", familyId, "childOTPs", memberId));
+    if (!snap.exists()) return null;
+    const { otpCode, expiresAt } = snap.data();
+    if (Date.now() > expiresAt) return null;
+    return otpCode;
+  } catch (e) { return null; }
+}
+
 // Connect a child device using the family code (8 chars) + child OTP (6 digits).
 // All required data comes from the public OTP doc → no member doc read needed.
 export async function connectChildDevice(user, familyCode, otpCode) {

@@ -1,51 +1,7 @@
 <div class="page child-detail-page">
 
-  <!-- ── Overlay (drawer) ─────────────────────────────────────── -->
-  <div class="app-overlay" id="det-ov" onclick="rkCloseDrawer('det-drawer','det-ov')"></div>
-
-  <!-- ── Drawer gauche (même structure que parent dashboard) ───── -->
-  <div class="app-drawer" id="det-drawer">
-
-    <div class="app-drawer-head">
-      <span class="app-drawer-emoji">👨‍👩‍👧</span>
-      <div class="drawer-title-row">
-        <div class="app-drawer-title" id="detFamilyNameDrawer">Ma famille</div>
-      </div>
-      <div class="app-drawer-sub">Espace parent</div>
-    </div>
-
-    <div class="app-drawer-body">
-
-      <!-- Lien Dashboard -->
-      <div class="drawer-nav-item" id="detDrawerDashboardLink">
-        <span class="drawer-nav-item-icon">🏠</span>
-        <span>Tableau de bord</span>
-      </div>
-
-      <div class="app-drawer-sep"></div>
-
-      <!-- Section Enfants -->
-      <div class="drawer-section-label">Enfants</div>
-      <div id="detDrawerChildrenList"><p class="drawer-section-hint">Chargement…</p></div>
-
-      <div class="app-drawer-sep"></div>
-
-      <div class="app-drawer-item danger" id="detLogoutBtn">
-        <span class="app-drawer-item-icon">🚪</span>Se déconnecter
-      </div>
-    </div>
-
-    <div class="app-drawer-foot">
-      <div class="app-drawer-code" onclick="rkCopyCode(this)" title="Appuyer pour copier">
-        <div>
-          <div class="app-drawer-code-label">Code famille permanent</div>
-          <div class="app-drawer-code-val" id="detPermanentFamilyCode">—</div>
-        </div>
-        <span style="font-size:16px;color:var(--c-primary)">📋</span>
-      </div>
-      <div class="app-drawer-version">RewardKidz v2.0</div>
-    </div>
-  </div>
+  <!-- ── Drawer partagé (injecté par initSharedDrawer) ────────── -->
+  <div id="drawer-root"></div>
 
   <!-- ── Overlay (modale OTP) ─────────────────────────────────── -->
   <div class="app-modal-overlay" id="otp-modal-ov" onclick="rkCloseModal('otp-modal')"></div>
@@ -54,16 +10,19 @@
   <div class="app-modal" id="otp-modal">
     <button class="app-modal-close" onclick="rkCloseModal('otp-modal')" aria-label="Fermer">✕</button>
     <div class="app-modal-title">🔑 Code connexion</div>
-    <p class="app-hint">À saisir sur l'appareil de l'enfant lors de la première connexion.</p>
-    <div id="detail-otp-display">
-      <p class="app-hint">Appuie sur « Générer » pour créer un code.</p>
+    <p class="app-hint">Code temporaire valable 30 min — à saisir sur l'appareil de l'enfant lors de la première connexion.</p>
+    <p id="detail-otp-code" class="app-invite-code">—</p>
+    <button id="detail-otp-generate-btn" class="app-btn-prim full">Générer / Rafraîchir</button>
+    <div class="app-modal-divider"></div>
+    <div style="text-align:center; padding: 4px 0 2px">
+      <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille permanent (rappel)</div>
+      <div class="app-drawer-code-val" id="detail-otp-family-code" style="font-size:18px;letter-spacing:3px">—</div>
     </div>
-    <button id="detail-otp-generate-btn" class="app-btn-prim full">Générer un code</button>
   </div>
 
   <!-- ── En-tête gradient ──────────────────────────────────────── -->
   <div class="app-header">
-    <button class="app-burger app-burger--header" onclick="rkOpenDrawer('det-drawer','det-ov')" aria-label="Menu">☰</button>
+    <button class="app-burger app-burger--header" onclick="rkOpenDrawer('par-drawer','par-ov')" aria-label="Menu">☰</button>
     <div class="app-header-info">
       <div class="app-header-title" id="detailChildName">—</div>
     </div>

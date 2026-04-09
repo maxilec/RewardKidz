@@ -16,6 +16,7 @@ import {
   deleteChild,
   updateChildName,
   generateChildOTP,
+  getActiveChildOTP,
   connectChildDevice,
   getFamilyMembers,
   migrateFamilyCode,
@@ -480,6 +481,258 @@ function initChildAuth() {
   });
 }
 
+/* ─────────────────────────────────────────────────────────────
+   DRAWER PARTAGÉ — même structure pour parent + child-detail
+   ───────────────────────────────────────────────────────────── */
+
+function getSharedDrawerHTML() {
+  return `
+    <div class="app-overlay" id="par-ov" onclick="rkCloseDrawer('par-drawer','par-ov')"></div>
+    <div class="app-drawer" id="par-drawer">
+      <div class="app-drawer-head">
+        <span class="app-drawer-emoji">👨‍👩‍👧</span>
+        <div class="drawer-title-row" id="drawerTitleRow">
+          <div class="app-drawer-title" id="familyNameDrawer">Ma famille</div>
+          <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom">✏️</button>
+        </div>
+        <div id="drawerEditForm" class="drawer-edit-form" style="display:none">
+          <div class="drawer-edit-row">
+            <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
+            <button id="saveFamilyNameBtn" class="drawer-edit-save" aria-label="Valider">✓</button>
+          </div>
+        </div>
+        <div class="app-drawer-sub">Espace parent</div>
+      </div>
+      <div class="app-drawer-body">
+        <div class="drawer-nav-item" id="drawerDashboardLink">
+          <span class="drawer-nav-item-icon">🏠</span>
+          <span>Tableau de bord</span>
+        </div>
+        <div class="app-drawer-sep"></div>
+        <div class="drawer-section-label">Enfants</div>
+        <div id="drawerChildrenList"><p class="drawer-section-hint">Chargement…</p></div>
+        <div id="drawerAddChildArea">
+          <button id="drawerAddChildBtn" class="drawer-add-btn">+ Ajouter un enfant</button>
+          <form id="formAddChild" class="drawer-add-form" style="display:none">
+            <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
+            <button type="submit" class="drawer-add-save" aria-label="Valider">✓</button>
+          </form>
+        </div>
+        <div class="app-drawer-sep"></div>
+        <div class="app-drawer-item danger" id="deleteAccountBtn">
+          <span class="app-drawer-item-icon">👤</span>Supprimer mon compte
+        </div>
+        <p id="deleteAccountHint" style="padding:0 20px 8px;font-size:12px;color:#9CA3AF"></p>
+        <div class="app-drawer-item danger" id="deleteFamilyBtn">
+          <span class="app-drawer-item-icon">🗑</span>Supprimer la famille
+        </div>
+        <div class="app-drawer-sep"></div>
+        <div class="app-drawer-item danger" id="logoutBtn">
+          <span class="app-drawer-item-icon">🚪</span>Se déconnecter
+        </div>
+      </div>
+      <div class="app-drawer-foot">
+        <div class="app-drawer-code" onclick="rkCopyCode(this)" title="Appuyer pour copier">
+          <div>
+            <div class="app-drawer-code-label">Code famille permanent</div>
+            <div class="app-drawer-code-val" id="permanentFamilyCode">—</div>
+          </div>
+          <span style="font-size:16px;color:var(--c-primary)">📋</span>
+        </div>
+        <div class="app-drawer-version">RewardKidz v2.0</div>
+      </div>
+    </div>`;
+}
+
+/**
+ * Injecte le drawer partagé dans #drawer-root et initialise tous ses handlers.
+ * @param {string}   familyId
+ * @param {object}   user            — auth.currentUser
+ * @param {object}   opts
+ * @param {string}   opts.activePage — 'parent' | 'child-detail'
+ * @param {string}   [opts.currentMemberId] — memberId de l'enfant affiché (pour surbrillance)
+ * @param {Function} [opts.onChildAdded]    — callback appelé après ajout d'un enfant
+ */
+async function initSharedDrawer(familyId, user, opts = {}) {
+  const { activePage = 'parent', currentMemberId = null, onChildAdded = null } = opts;
+
+  // ── Injection du HTML ──────────────────────────────────
+  const root = document.getElementById('drawer-root');
+  if (root) root.innerHTML = getSharedDrawerHTML();
+
+  // ── Nom de famille + code permanent ───────────────────
+  let familyDoc = null;
+  try {
+    familyDoc = await getFamily(familyId);
+    if (familyDoc) {
+      const nameEl = document.getElementById('familyNameDrawer');
+      if (nameEl) nameEl.textContent = `Famille ${familyDoc.name}`;
+      let familyCode = familyDoc.familyCode;
+      if (!familyCode) familyCode = await migrateFamilyCode(familyId);
+      const codeEl = document.getElementById('permanentFamilyCode');
+      if (codeEl) codeEl.textContent = familyCode || '—';
+    }
+  } catch (e) { console.error(e); }
+
+  // ── Lien Dashboard ────────────────────────────────────
+  const dashLink = document.getElementById('drawerDashboardLink');
+  if (dashLink) {
+    if (activePage === 'parent') {
+      dashLink.classList.add('drawer-nav-item--active');
+      dashLink.addEventListener('click', () => rkCloseDrawer('par-drawer', 'par-ov'));
+    } else {
+      dashLink.addEventListener('click', () => {
+        rkCloseDrawer('par-drawer', 'par-ov');
+        navigate('parent');
+      });
+    }
+  }
+
+  // ── Édition nom de famille ────────────────────────────
+  const _showEdit = (show) => {
+    document.getElementById('drawerEditForm').style.display = show ? 'flex' : 'none';
+    document.getElementById('drawerTitleRow').style.display = show ? 'none' : 'flex';
+  };
+  document.getElementById('editFamilyNameBtn')?.addEventListener('click', () => {
+    const input = document.getElementById('familyNameInput');
+    if (input && familyDoc) input.value = familyDoc.name;
+    _showEdit(true);
+    input?.focus();
+  });
+  let _savingName = false;
+  const saveFamilyBtn = document.getElementById('saveFamilyNameBtn');
+  saveFamilyBtn?.addEventListener('mousedown',  () => { _savingName = true; });
+  saveFamilyBtn?.addEventListener('touchstart', () => { _savingName = true; }, { passive: true });
+  document.getElementById('familyNameInput')?.addEventListener('blur', () => {
+    setTimeout(() => { if (!_savingName) _showEdit(false); _savingName = false; }, 100);
+  });
+  saveFamilyBtn?.addEventListener('click', async () => {
+    const newName = document.getElementById('familyNameInput')?.value.trim();
+    if (!newName) { _savingName = false; return; }
+    try {
+      await updateFamilyName(familyId, newName);
+      if (familyDoc) familyDoc = { ...familyDoc, name: newName };
+      const headerEl = document.getElementById('familyName');
+      if (headerEl) headerEl.textContent = `Famille ${newName}`;
+      const drawerEl = document.getElementById('familyNameDrawer');
+      if (drawerEl) drawerEl.textContent = `Famille ${newName}`;
+      _showEdit(false);
+    } catch (e) { alert('Erreur : ' + e.message); }
+    finally { _savingName = false; }
+  });
+
+  // ── Liste des enfants (cliquable + surbrillance) ──────
+  async function renderDrawerChildren() {
+    const list = document.getElementById('drawerChildrenList');
+    if (!list) return;
+    try {
+      const members  = await getFamilyMembers(familyId);
+      const children = members.filter(m => m.role === 'child');
+      list.innerHTML = children.length === 0
+        ? "<p class='drawer-section-hint'>Aucun enfant.</p>"
+        : children.map(c => `
+            <div class="drawer-child-row${c.memberId === currentMemberId ? ' drawer-child-row--active' : ''}"
+                 data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
+              <span class="drawer-child-name">🧒 ${c.displayName}</span>
+            </div>`).join('');
+      list.querySelectorAll('.drawer-child-row').forEach(row => {
+        row.addEventListener('click', () => {
+          _selectedChild = {
+            memberId:     row.dataset.memberid,
+            displayName:  row.dataset.name,
+            familyId,
+            linkedAuthUid: row.dataset.linkeduid || null
+          };
+          rkCloseDrawer('par-drawer', 'par-ov');
+          navigate('child-detail');
+        });
+      });
+    } catch (e) { console.error(e); }
+  }
+  await renderDrawerChildren();
+
+  // ── Formulaire ajout enfant ───────────────────────────
+  document.getElementById('drawerAddChildBtn')?.addEventListener('click', () => {
+    const form = document.getElementById('formAddChild');
+    const btn  = document.getElementById('drawerAddChildBtn');
+    if (form) { form.style.display = 'flex'; form.querySelector('input')?.focus(); }
+    if (btn) btn.style.display = 'none';
+  });
+  let _savingChild = false;
+  const addSubmitBtn = document.getElementById('formAddChild')?.querySelector('[type=submit]');
+  addSubmitBtn?.addEventListener('mousedown',  () => { _savingChild = true; });
+  addSubmitBtn?.addEventListener('touchstart', () => { _savingChild = true; }, { passive: true });
+  document.getElementById('newChildName')?.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!_savingChild) {
+        const form = document.getElementById('formAddChild');
+        const btn  = document.getElementById('drawerAddChildBtn');
+        if (form) { form.style.display = 'none'; const inp = form.querySelector('input'); if (inp) inp.value = ''; }
+        if (btn) btn.style.display = '';
+      }
+      _savingChild = false;
+    }, 100);
+  });
+  document.getElementById('formAddChild')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nameEl = document.getElementById('newChildName');
+    const name   = nameEl?.value.trim();
+    if (!name) return alert('Entre un prénom');
+    _savingChild = true;
+    try {
+      await addChild(familyId, name);
+      if (nameEl) nameEl.value = '';
+      document.getElementById('formAddChild').style.display  = 'none';
+      document.getElementById('drawerAddChildBtn').style.display = '';
+      await renderDrawerChildren();
+      if (onChildAdded) await onChildAdded();
+    } catch (e) { alert('Erreur : ' + e.message); }
+    finally { _savingChild = false; }
+  });
+
+  // ── Suppression de compte ─────────────────────────────
+  try {
+    const allMembers = await getFamilyMembers(familyId);
+    const parents    = allMembers.filter(m => m.role === 'parent');
+    const children   = allMembers.filter(m => m.role === 'child');
+    const isSoleParent = parents.length === 1;
+    const deleteBtn  = document.getElementById('deleteAccountBtn');
+    const deleteHint = document.getElementById('deleteAccountHint');
+    if (deleteBtn) {
+      if (isSoleParent && children.length > 0) {
+        deleteBtn.disabled = true;
+        if (deleteHint) deleteHint.textContent = "Invitez un co-parent ou retirez tous les enfants avant de supprimer votre compte.";
+      } else {
+        const msg = isSoleParent
+          ? "⚠️ Vous êtes seul(e) parent — cette action supprimera aussi la famille entière."
+          : "La famille et les autres membres ne seront pas affectés.";
+        if (deleteHint) deleteHint.textContent = msg;
+        const confirmMsg = isSoleParent
+          ? "Supprimer votre compte supprimera aussi la famille entière (sans enfants). Cette action est irréversible. Confirmer ?"
+          : "Supprimer votre compte ? La famille restera active pour les autres membres. Confirmer ?";
+        deleteBtn.addEventListener('click', async () => {
+          if (!confirm(confirmMsg)) return;
+          deleteBtn.disabled = true;
+          try { await deleteParentAccount(user, familyId); }
+          catch (e) { alert("Erreur : " + e.message); deleteBtn.disabled = false; }
+        });
+      }
+    }
+  } catch (e) { console.error(e); }
+
+  // ── Suppression de la famille ─────────────────────────
+  document.getElementById('deleteFamilyBtn')?.addEventListener('click', async () => {
+    if (!confirm("Supprimer la famille ? Cette action est irréversible.")) return;
+    try { await deleteFamily(familyId); await logout(); }
+    catch (e) { alert("Erreur : " + e.message); }
+  });
+
+  // ── Déconnexion ───────────────────────────────────────
+  document.getElementById('logoutBtn')?.addEventListener('click', () => logout());
+
+  return { renderDrawerChildren };
+}
+
 async function initParent() {
   const user = auth.currentUser;
   if (!user) return;
@@ -489,86 +742,19 @@ async function initParent() {
 
   const familyId = userDoc.familyId;
 
-  // Family name + permanent code + édition nom
-  let familyDoc = null;
+  // ── Nom de famille dans le header ─────────────────────────────
+  // (Le drawer est initialisé plus bas via initSharedDrawer)
   try {
-    familyDoc = await getFamily(familyId);
-    if (familyDoc) {
+    const fDoc = await getFamily(familyId);
+    if (fDoc) {
       const el = document.getElementById("familyName");
-      if (el) el.textContent = `Famille ${familyDoc.name}`;
-
-      let familyCode = familyDoc.familyCode;
+      if (el) el.textContent = `Famille ${fDoc.name}`;
+      let familyCode = fDoc.familyCode;
       if (!familyCode) familyCode = await migrateFamilyCode(familyId);
-      const codeEl = document.getElementById("permanentFamilyCode");
-      if (codeEl) codeEl.textContent = familyCode || "—";
       const codeModalEl = document.getElementById("permanentFamilyCodeModal");
       if (codeModalEl) codeModalEl.textContent = familyCode || "—";
     }
   } catch (e) { console.error(e); }
-
-  // Édition du nom de famille — inline dans le drawer
-  const _showDrawerEdit = (show) => {
-    document.getElementById('drawerEditForm').style.display = show ? 'flex' : 'none';
-    document.getElementById('drawerTitleRow').style.display = show ? 'none' : 'flex';
-  };
-  document.getElementById('editFamilyNameBtn')?.addEventListener('click', () => {
-    const input = document.getElementById('familyNameInput');
-    if (input && familyDoc) input.value = familyDoc.name;
-    _showDrawerEdit(true);
-    input?.focus();
-  });
-
-  // Blur-to-cancel : quitter le champ annule la saisie (sauf si on clique Valider)
-  let _savingFamilyName = false;
-  const saveFamilyBtn = document.getElementById('saveFamilyNameBtn');
-  saveFamilyBtn?.addEventListener('mousedown',  () => { _savingFamilyName = true; });
-  saveFamilyBtn?.addEventListener('touchstart', () => { _savingFamilyName = true; }, { passive: true });
-  document.getElementById('familyNameInput')?.addEventListener('blur', () => {
-    setTimeout(() => {
-      if (!_savingFamilyName) _showDrawerEdit(false);
-      _savingFamilyName = false;
-    }, 100);
-  });
-
-  saveFamilyBtn?.addEventListener('click', async () => {
-    const newName = document.getElementById('familyNameInput')?.value.trim();
-    if (!newName) { _savingFamilyName = false; return; }
-    try {
-      await updateFamilyName(familyId, newName);
-      if (familyDoc) familyDoc = { ...familyDoc, name: newName };
-      const el = document.getElementById('familyName');
-      if (el) el.textContent = `Famille ${newName}`;
-      const drawerEl = document.getElementById('familyNameDrawer');
-      if (drawerEl) drawerEl.textContent = `Famille ${newName}`;
-      _showDrawerEdit(false);
-    } catch (e) { alert('Erreur : ' + e.message); }
-    finally { _savingFamilyName = false; }
-  });
-
-  // Toggle affichage formulaire ajout enfant dans le drawer
-  document.getElementById('drawerAddChildBtn')?.addEventListener('click', () => {
-    const form = document.getElementById('formAddChild');
-    const btn  = document.getElementById('drawerAddChildBtn');
-    if (form) { form.style.display = 'flex'; form.querySelector('input')?.focus(); }
-    if (btn)  btn.style.display = 'none';
-  });
-
-  // Blur-to-cancel sur le champ prénom enfant
-  let _savingChildName = false;
-  const addChildSubmitBtn = document.getElementById('formAddChild')?.querySelector('[type=submit]');
-  addChildSubmitBtn?.addEventListener('mousedown',  () => { _savingChildName = true; });
-  addChildSubmitBtn?.addEventListener('touchstart', () => { _savingChildName = true; }, { passive: true });
-  document.getElementById('newChildName')?.addEventListener('blur', () => {
-    setTimeout(() => {
-      if (!_savingChildName) {
-        const form = document.getElementById('formAddChild');
-        const btn  = document.getElementById('drawerAddChildBtn');
-        if (form) { form.style.display = 'none'; const inp = form.querySelector('input'); if (inp) inp.value = ''; }
-        if (btn)  btn.style.display = '';
-      }
-      _savingChildName = false;
-    }, 100);
-  });
 
   // Adult members list — returns all members for reuse by button setup
   async function renderParents() {
@@ -731,102 +917,9 @@ async function initParent() {
     } catch (e) { console.error(e); }
   }
 
-  // Render drawer children list (clickable rows, navigate to child-detail)
-  async function renderDrawerChildren(currentMemberId = null) {
-    const list = document.getElementById("drawerChildrenList");
-    if (!list) return;
-    try {
-      const members  = await getFamilyMembers(familyId);
-      const children = members.filter(m => m.role === "child");
-      list.innerHTML = children.length === 0
-        ? "<p class='drawer-section-hint'>Aucun enfant.</p>"
-        : children.map(c => `
-            <div class="drawer-child-row${c.memberId === currentMemberId ? ' drawer-child-row--active' : ''}"
-                 data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
-              <span class="drawer-child-name">🧒 ${c.displayName}</span>
-            </div>`).join("");
-      list.querySelectorAll('.drawer-child-row').forEach(row => {
-        row.addEventListener('click', () => {
-          _selectedChild = {
-            memberId:     row.dataset.memberid,
-            displayName:  row.dataset.name,
-            familyId,
-            linkedAuthUid: row.dataset.linkeduid || null
-          };
-          rkCloseDrawer('par-drawer', 'par-ov');
-          navigate("child-detail");
-        });
-      });
-    } catch (e) { console.error(e); }
-  }
-
-  // Dashboard link — already active, just close drawer
-  document.getElementById('drawerDashboardLink')?.addEventListener('click', () => {
-    rkCloseDrawer('par-drawer', 'par-ov');
-  });
-
-  const allMembers = await renderParents();
+  await renderParents();
   await renderChildren();
-  await renderDrawerChildren();
-
-  // ── Delete account button setup ─────────────────────────
-  {
-    const parents  = allMembers.filter(m => m.role === "parent");
-    const children = allMembers.filter(m => m.role === "child");
-    const isSoleParent = parents.length === 1;
-    const hasChildren  = children.length > 0;
-    const btn  = document.getElementById("deleteAccountBtn");
-    const hint = document.getElementById("deleteAccountHint");
-
-    if (btn) {
-      if (isSoleParent && hasChildren) {
-        // Blocked — can't leave while sole parent with children
-        btn.disabled = true;
-        if (hint) {
-          hint.textContent = "Invitez un co-parent ou retirez tous les enfants avant de supprimer votre compte.";
-          hint.classList.add("hint-warning");
-        }
-      } else {
-        const msg = isSoleParent
-          ? "⚠️ Vous êtes seul(e) parent — cette action supprimera aussi la famille entière."
-          : "La famille et les autres membres ne seront pas affectés.";
-        if (hint) { hint.textContent = msg; }
-
-        const confirmMsg = isSoleParent
-          ? "Supprimer votre compte supprimera aussi la famille entière (sans enfants). Cette action est irréversible. Confirmer ?"
-          : "Supprimer votre compte ? La famille restera active pour les autres membres. Confirmer ?";
-
-        btn.addEventListener("click", async () => {
-          if (!confirm(confirmMsg)) return;
-          btn.disabled = true;
-          try {
-            await deleteParentAccount(user, familyId);
-            // Auth deletion or signOut handled inside deleteParentAccount
-            // onAuthStateChanged will route back to landing
-          } catch (e) {
-            alert("Erreur : " + e.message);
-            btn.disabled = false;
-          }
-        });
-      }
-    }
-  }
-
-  document.getElementById("formAddChild")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const nameEl = document.getElementById("newChildName");
-    const name = nameEl?.value.trim();
-    if (!name) return alert("Entre un prénom");
-    try {
-      await addChild(familyId, name);
-      if (nameEl) nameEl.value = "";
-      // Hide form, restore button
-      document.getElementById("formAddChild").style.display = 'none';
-      document.getElementById("drawerAddChildBtn").style.display = '';
-      await renderChildren();
-      await renderDrawerChildren();
-    } catch (e) { alert("Erreur : " + e.message); }
-  });
+  await initSharedDrawer(familyId, user, { activePage: 'parent', onChildAdded: renderChildren });
 
   // Invite parent/tutor — modale
   const inviteBtn    = document.getElementById("generateInvite");
@@ -850,14 +943,6 @@ async function initParent() {
     });
   }
 
-  // Delete family
-  document.getElementById("deleteFamilyBtn")?.addEventListener("click", async () => {
-    if (!confirm("Supprimer la famille ? Cette action est irréversible.")) return;
-    try { await deleteFamily(familyId); await logout(); }
-    catch (e) { alert("Erreur : " + e.message); }
-  });
-
-  bindLogoutButton();
 }
 
 async function initChild() {
@@ -903,56 +988,6 @@ async function initChild() {
   } catch (e) { console.error(e); }
 }
 
-async function setupDetailDrawer(familyId, currentMemberId) {
-  // Populate family name and code
-  try {
-    const fDoc = await getFamily(familyId);
-    const nameEl = document.getElementById('detFamilyNameDrawer');
-    if (nameEl && fDoc) nameEl.textContent = `Famille ${fDoc.name}`;
-    const codeEl = document.getElementById('detPermanentFamilyCode');
-    if (codeEl && fDoc?.familyCode) codeEl.textContent = fDoc.familyCode;
-  } catch (e) { console.error(e); }
-
-  // Children list — clickable rows with current child highlighted
-  const list = document.getElementById('detDrawerChildrenList');
-  if (list) {
-    try {
-      const members  = await getFamilyMembers(familyId);
-      const children = members.filter(m => m.role === 'child');
-      list.innerHTML = children.length === 0
-        ? "<p class='drawer-section-hint'>Aucun enfant.</p>"
-        : children.map(c => `
-            <div class="drawer-child-row${c.memberId === currentMemberId ? ' drawer-child-row--active' : ''}"
-                 data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
-              <span class="drawer-child-name">🧒 ${c.displayName}</span>
-            </div>`).join("");
-      list.querySelectorAll('.drawer-child-row').forEach(row => {
-        row.addEventListener('click', () => {
-          _selectedChild = {
-            memberId:     row.dataset.memberid,
-            displayName:  row.dataset.name,
-            familyId,
-            linkedAuthUid: row.dataset.linkeduid || null
-          };
-          rkCloseDrawer('det-drawer', 'det-ov');
-          navigate("child-detail");
-        });
-      });
-    } catch (e) { console.error(e); }
-  }
-
-  // Dashboard link
-  document.getElementById('detDrawerDashboardLink')?.addEventListener('click', () => {
-    rkCloseDrawer('det-drawer', 'det-ov');
-    navigate("parent");
-  });
-
-  // Logout
-  document.getElementById('detLogoutBtn')?.addEventListener('click', async () => {
-    try { await logout(); } catch (e) { alert("Erreur : " + e.message); }
-  });
-}
-
 async function initChildDetail() {
   // Guard — _selectedChild must be set before navigating here
   if (!_selectedChild) { navigate("parent"); return; }
@@ -973,8 +1008,8 @@ async function initChildDetail() {
   const nameEl = document.getElementById("detailChildName");
   if (nameEl) nameEl.textContent = displayName;
 
-  // ── Drawer ─────────────────────────────────────────────
-  await setupDetailDrawer(familyId, memberId);
+  // ── Drawer partagé ─────────────────────────────────────
+  await initSharedDrawer(familyId, user, { activePage: 'child-detail', currentMemberId: memberId });
 
   // ── Score du jour ───────────────────────────────────────
   let currentScore = null;
@@ -1028,25 +1063,28 @@ async function initChildDetail() {
     if (typeof rkOpenModal === 'function') rkOpenModal('otp-modal');
   });
 
-  async function generateAndShowOTP() {
-    const genBtn  = document.getElementById("detail-otp-generate-btn");
-    const display = document.getElementById("detail-otp-display");
-    if (genBtn) genBtn.disabled = true;
-    if (display) display.innerHTML = '<p class="app-hint">Génération en cours…</p>';
-    try {
-      const familyDoc  = await getFamily(familyId);
-      const familyCode = familyDoc?.familyCode || "—";
-      const otp        = await generateChildOTP(familyId, memberId, displayName);
-      if (display) {
-        display.innerHTML = `
-          <div class="app-modal-divider"></div>
-          <div style="text-align:center;padding:4px 0">
-            <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille</div>
-            <p class="app-invite-code" style="margin:0 0 12px">${familyCode}</p>
-            <div class="app-drawer-code-label" style="margin-bottom:6px">Code enfant ⏱ 30 min</div>
-            <p class="app-invite-code" style="margin:0">${otp}</p>
-          </div>`;
+  // Précharger un OTP valide existant + code famille dans la modale
+  getActiveChildOTP(familyId, memberId)
+    .then(existing => {
+      if (existing) {
+        const el = document.getElementById('detail-otp-code');
+        if (el) el.textContent = existing;
       }
+    }).catch(() => {});
+  getFamily(familyId)
+    .then(fDoc => {
+      const el = document.getElementById('detail-otp-family-code');
+      if (el && fDoc?.familyCode) el.textContent = fDoc.familyCode;
+    }).catch(() => {});
+
+  async function generateAndShowOTP() {
+    const genBtn = document.getElementById("detail-otp-generate-btn");
+    const codeEl = document.getElementById("detail-otp-code");
+    if (genBtn) genBtn.disabled = true;
+    if (codeEl) codeEl.textContent = "…";
+    try {
+      const otp = await generateChildOTP(familyId, memberId, displayName);
+      if (codeEl) codeEl.textContent = otp;
     } catch (e) {
       if (typeof rkCloseModal === 'function') rkCloseModal('otp-modal');
       alert("Erreur : " + e.message);
