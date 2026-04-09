@@ -144,6 +144,7 @@
       const overlay = document.getElementById(overlayId);
       if (drawer)  drawer.classList.add('open');
       if (overlay) overlay.classList.add('on');
+      document.body.style.overflow = 'hidden';
       hapticLight();
     }
 
@@ -152,6 +153,7 @@
       const overlay = document.getElementById(overlayId);
       if (drawer)  drawer.classList.remove('open');
       if (overlay) overlay.classList.remove('on');
+      document.body.style.overflow = '';
     }
 
     function rkOpenModal(id) {

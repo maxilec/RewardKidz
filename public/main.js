@@ -506,15 +506,20 @@ async function initParent() {
     }
   } catch (e) { console.error(e); }
 
-  // Édition du nom de famille
+  // Édition du nom de famille — inline dans le drawer
+  const _showDrawerEdit = (show) => {
+    document.getElementById('drawerEditForm').style.display  = show ? 'flex'  : 'none';
+    document.getElementById('editFamilyNameBtn').style.display = show ? 'none' : '';
+    document.getElementById('familyNameDrawer').parentElement.style.display = show ? 'none' : 'flex';
+  };
   document.getElementById('editFamilyNameBtn')?.addEventListener('click', () => {
-    rkCloseDrawer('par-drawer', 'par-ov');
     const input = document.getElementById('familyNameInput');
     if (input && familyDoc) input.value = familyDoc.name;
-    document.getElementById('familyNameEditForm').style.display = 'flex';
+    _showDrawerEdit(true);
+    input?.focus();
   });
   document.getElementById('cancelFamilyNameBtn')?.addEventListener('click', () => {
-    document.getElementById('familyNameEditForm').style.display = 'none';
+    _showDrawerEdit(false);
   });
   document.getElementById('saveFamilyNameBtn')?.addEventListener('click', async () => {
     const newName = document.getElementById('familyNameInput')?.value.trim();
@@ -524,8 +529,24 @@ async function initParent() {
       if (familyDoc) familyDoc = { ...familyDoc, name: newName };
       const el = document.getElementById('familyName');
       if (el) el.textContent = `Famille ${newName}`;
-      document.getElementById('familyNameEditForm').style.display = 'none';
+      const drawerEl = document.getElementById('familyNameDrawer');
+      if (drawerEl) drawerEl.textContent = `Famille ${newName}`;
+      _showDrawerEdit(false);
     } catch (e) { alert('Erreur : ' + e.message); }
+  });
+
+  // Toggle affichage formulaire ajout enfant dans le drawer
+  document.getElementById('drawerAddChildBtn')?.addEventListener('click', () => {
+    const form = document.getElementById('formAddChild');
+    const btn  = document.getElementById('drawerAddChildBtn');
+    if (form) { form.style.display = 'flex'; form.querySelector('input')?.focus(); }
+    if (btn)  btn.style.display = 'none';
+  });
+  document.getElementById('cancelAddChildBtn')?.addEventListener('click', () => {
+    const form = document.getElementById('formAddChild');
+    const btn  = document.getElementById('drawerAddChildBtn');
+    if (form) { form.style.display = 'none'; form.querySelector('input').value = ''; }
+    if (btn)  btn.style.display = '';
   });
 
   // Adult members list — returns all members for reuse by button setup
@@ -689,8 +710,25 @@ async function initParent() {
     } catch (e) { console.error(e); }
   }
 
+  // Render drawer children list (names only, for the drawer section)
+  async function renderDrawerChildren() {
+    const list = document.getElementById("drawerChildrenList");
+    if (!list) return;
+    try {
+      const members  = await getFamilyMembers(familyId);
+      const children = members.filter(m => m.role === "child");
+      list.innerHTML = children.length === 0
+        ? "<p class='drawer-section-hint'>Aucun enfant.</p>"
+        : children.map(c => `
+            <div class="drawer-child-row">
+              <span class="drawer-child-name">🧒 ${c.displayName}</span>
+            </div>`).join("");
+    } catch (e) { console.error(e); }
+  }
+
   const allMembers = await renderParents();
   await renderChildren();
+  await renderDrawerChildren();
 
   // ── Delete account button setup ─────────────────────────
   {
@@ -743,7 +781,11 @@ async function initParent() {
     try {
       await addChild(familyId, name);
       if (nameEl) nameEl.value = "";
+      // Hide form, restore button
+      document.getElementById("formAddChild").style.display = 'none';
+      document.getElementById("drawerAddChildBtn").style.display = '';
       await renderChildren();
+      await renderDrawerChildren();
     } catch (e) { alert("Erreur : " + e.message); }
   });
 
@@ -842,10 +884,7 @@ async function initChildDetail() {
   const nameEl   = document.getElementById("detailChildName");
   const statusEl = document.getElementById("detailChildStatus");
   if (nameEl) nameEl.textContent = displayName;
-  if (statusEl) {
-    statusEl.textContent = linkedAuthUid ? "Connecté" : "En attente";
-    statusEl.className   = `child-status ${linkedAuthUid ? 'connected' : 'pending'}`;
-  }
+  if (statusEl) statusEl.textContent = linkedAuthUid ? "Connecté" : "En attente";
 
   // ── Score du jour ───────────────────────────────────────
   let currentScore = null;
@@ -859,26 +898,30 @@ async function initChildDetail() {
   }
 
   function bindDetailScoreButtons(section) {
-    section.querySelector('.score-btn.add')?.addEventListener('click', async () => {
-      try { await addPoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
+    section.querySelector('.score-btn.pause')?.addEventListener('click', async () => {
+      try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
       catch (e) { alert("Erreur : " + e.message); }
     });
-    section.querySelector('.score-btn.remove')?.addEventListener('click', async () => {
-      if (!confirm("Retirer 1 point ?")) return;
-      try { await removePoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
-      catch (e) { alert("Erreur : " + e.message); }
-    });
-    section.querySelector('.score-btn.validate')?.addEventListener('click', async () => {
-      try { await setScoreValidated(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
-      catch (e) { alert("Erreur : " + e.message); }
+    section.querySelector('.score-btn.validate')?.addEventListener('click', () => {
+      const controls = section.querySelector('.score-controls');
+      if (!controls) return;
+      const savedHTML = controls.innerHTML;
+      controls.innerHTML = `
+        <div class="score-confirm-wrap">
+          <button class="score-confirm-yes">✓</button>
+          <button class="score-confirm-no">✗</button>
+        </div>`;
+      controls.querySelector('.score-confirm-yes').addEventListener('click', async () => {
+        try { await setScoreValidated(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
+        catch (e) { alert("Erreur : " + e.message); }
+      });
+      controls.querySelector('.score-confirm-no').addEventListener('click', () => {
+        controls.innerHTML = savedHTML;
+        bindDetailScoreButtons(section);
+      });
     });
     section.querySelector('.score-btn.unvalidate')?.addEventListener('click', async () => {
       try { await setScoreValidated(familyId, memberId, false, byUid, byName); await reloadDetailScore(); }
-      catch (e) { alert("Erreur : " + e.message); }
-    });
-    section.querySelector('.score-btn.ignore')?.addEventListener('click', async () => {
-      if (!confirm("Ignorer la journée pour cet enfant ?")) return;
-      try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
       catch (e) { alert("Erreur : " + e.message); }
     });
     section.querySelector('.score-btn.unignore')?.addEventListener('click', async () => {

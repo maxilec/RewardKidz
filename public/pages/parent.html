@@ -3,19 +3,45 @@
   <!-- ── Overlay (drawer) ─────────────────────────────────────── -->
   <div class="app-overlay" id="par-ov" onclick="rkCloseDrawer('par-drawer','par-ov')"></div>
 
-  <!-- ── Drawer droit ─────────────────────────────────────────── -->
+  <!-- ── Drawer gauche ─────────────────────────────────────────── -->
   <div class="app-drawer" id="par-drawer">
-    <div class="app-drawer-head">
+
+    <!-- En-tête drawer : nom famille + édition inline -->
+    <div class="app-drawer-head" id="drawerHead">
       <span class="app-drawer-emoji">👨‍👩‍👧</span>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div class="drawer-title-row">
         <div class="app-drawer-title" id="familyNameDrawer">Ma famille</div>
-        <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom" style="color:#fff;font-size:16px;background:rgba(255,255,255,.15);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✏️</button>
+        <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom">✏️</button>
+      </div>
+      <!-- Formulaire édition inline dans le drawer (caché par défaut) -->
+      <div id="drawerEditForm" class="drawer-edit-form" style="display:none">
+        <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
+        <div class="drawer-edit-btns">
+          <button id="saveFamilyNameBtn" class="app-btn-prim sm">✓</button>
+          <button id="cancelFamilyNameBtn" class="app-btn-outline sm">✕</button>
+        </div>
       </div>
       <div class="app-drawer-sub">Espace parent</div>
     </div>
+
+    <!-- Corps du drawer -->
     <div class="app-drawer-body">
+
+      <!-- Section Enfants -->
+      <div class="drawer-section-label">Enfants</div>
+      <div id="drawerChildrenList"><p class="drawer-section-hint">Chargement…</p></div>
+      <div id="drawerAddChildArea">
+        <button id="drawerAddChildBtn" class="drawer-add-btn">+ Ajouter un enfant</button>
+        <form id="formAddChild" class="drawer-add-form" style="display:none">
+          <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
+          <button type="submit" class="app-btn-prim sm">✓</button>
+          <button type="button" id="cancelAddChildBtn" class="app-btn-outline sm">✕</button>
+        </form>
+      </div>
+
       <div class="app-drawer-sep"></div>
-      <!-- IDs conservés pour main.js -->
+
+      <!-- Actions compte -->
       <div class="app-drawer-item danger" id="deleteAccountBtn">
         <span class="app-drawer-item-icon">👤</span>Supprimer mon compte
       </div>
@@ -28,6 +54,7 @@
         <span class="app-drawer-item-icon">🚪</span>Se déconnecter
       </div>
     </div>
+
     <div class="app-drawer-foot">
       <div class="app-drawer-code" onclick="rkCopyCode(this)" title="Appuyer pour copier">
         <div>
@@ -68,41 +95,25 @@
     <span class="app-header-emoji">👨‍👩‍👧</span>
   </div>
 
-  <!-- Formulaire édition nom (display: flex géré par main.js) -->
-  <div id="familyNameEditForm" class="app-edit-form" style="display:none;">
-    <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
-    <button id="saveFamilyNameBtn" class="app-btn-prim sm">✓</button>
-    <button id="cancelFamilyNameBtn" class="app-btn-outline sm">✕</button>
-  </div>
-
   <!-- ── Corps scrollable ─────────────────────────────────────── -->
   <div class="app-body">
 
-    <!-- 1. Enfants ─────────────────────────────────────────────── -->
+    <!-- Membres de la famille (enfants) -->
     <div class="app-section-hd">
       <span class="app-section-title">Membres de la famille</span>
     </div>
-
     <div id="childrenList"><p class="app-hint">Aucun enfant pour l'instant.</p></div>
 
-    <form id="formAddChild" class="inline-form" style="margin-top:10px;margin-bottom:4px">
-      <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
-      <button type="submit" class="secondary-btn">Ajouter</button>
-    </form>
-
-    <!-- 2. Parents et tuteurs ──────────────────────────────────── -->
+    <!-- Parents et tuteurs -->
     <div class="app-section-hd" style="margin-top:24px">
       <span class="app-section-title">👤 Parents et tuteurs</span>
     </div>
-
     <div id="parentsList"><p class="app-hint">Chargement…</p></div>
-
     <button class="app-btn-outline full" style="margin-top:10px"
             onclick="rkOpenModal('invite-modal')" id="openInviteModalBtn">
       + Inviter un membre adulte
     </button>
 
   </div><!-- /.app-body -->
-
 
 </div><!-- /.page.parent -->

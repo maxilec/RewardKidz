@@ -56,16 +56,65 @@
 
 /* En-tête du drawer (gradient) */
 .app-drawer-head {
-  padding: 28px 20px 20px;
+  padding: 24px 20px 16px;
   background: linear-gradient(135deg, var(--c-primary), var(--c-primary-end));
   flex-shrink: 0;
 }
 .app-drawer-emoji { font-size: 44px; display: block; margin-bottom: 8px; }
+.drawer-title-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+}
 .app-drawer-title { font-family: var(--f-head); font-size: 20px; font-weight: 600; color: #fff; }
 .app-drawer-sub   { font-size: 13px; color: rgba(255,255,255,.72); margin-top: 2px; }
 
+/* Formulaire édition du nom inline dans le drawer */
+.drawer-edit-form {
+  margin: 8px 0 4px; display: flex; flex-direction: column; gap: 6px;
+}
+.drawer-edit-form input {
+  height: 38px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.4);
+  background: rgba(255,255,255,.15); padding: 0 12px;
+  font-size: 15px; font-family: var(--f-body); color: #fff; outline: none;
+}
+.drawer-edit-form input::placeholder { color: rgba(255,255,255,.55); }
+.drawer-edit-form input:focus { border-color: rgba(255,255,255,.8); }
+.drawer-edit-btns { display: flex; gap: 8px; }
+.drawer-edit-btns .app-btn-prim.sm,
+.drawer-edit-btns .app-btn-outline.sm { flex: 1; }
+
 /* Corps du drawer */
 .app-drawer-body { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+/* Section enfants dans le drawer */
+.drawer-section-label {
+  font-size: 11px; font-weight: 700; color: var(--c-primary);
+  text-transform: uppercase; letter-spacing: .07em;
+  padding: 12px 20px 4px;
+}
+.drawer-section-hint { font-size: 13px; color: var(--c-txt-m); padding: 4px 20px 8px; margin: 0; }
+.drawer-child-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; font-size: 15px; color: var(--c-txt-h);
+}
+.drawer-child-name { font-family: var(--f-head); font-weight: 600; flex: 1; }
+.drawer-add-btn {
+  display: block; width: calc(100% - 40px); margin: 4px 20px 8px;
+  height: 38px; border-radius: 10px; border: 1.5px dashed #C4B5FD;
+  background: #F5F3FF; color: var(--c-primary);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: background .12s;
+}
+.drawer-add-btn:hover { background: #EDE9FE; }
+.drawer-add-form {
+  display: flex; align-items: center; gap: 8px; padding: 0 20px 8px;
+}
+.drawer-add-form input {
+  flex: 1; height: 38px; border-radius: 10px;
+  border: 1.5px solid #E5E7EB; background: #F8F7FF;
+  padding: 0 12px; font-size: 14px; font-family: var(--f-body);
+  color: var(--c-txt-h); outline: none;
+}
+.drawer-add-form input:focus { border-color: var(--c-primary); }
 
 .app-drawer-item {
   display: flex; align-items: center; gap: 14px;
@@ -313,6 +362,8 @@
 .app-btn-outline:active { transform: scale(.97); }
 .app-btn-outline.sm     { height: 36px; font-size: 13px; padding: 0 12px; }
 .app-btn-outline.full   { width: 100%; }
+.app-btn-outline.danger-outline { border-color: var(--c-error); color: var(--c-error); }
+.app-btn-outline.danger-outline:hover { background: #FEF2F2; border-color: var(--c-error); }
 
 /* ═══════════════════════════════════════════════════════════════
    DASHBOARD PARENT — Cartes membres et enfants
@@ -796,14 +847,6 @@
    TABLETTE ≥ 768 px
    ═══════════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
-
-  /* Grille 2 colonnes pour les cartes enfants */
-  .page.parent #childrenList {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-  .page.parent #childrenList .child-score-card { margin-bottom: 0; }
 
   /* Score enfant plus grand sur tablette */
   .page.child .child-score-number { font-size: 88px; }
