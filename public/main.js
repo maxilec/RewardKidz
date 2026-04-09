@@ -320,7 +320,7 @@ function buildScoreHTML(score, memberId) {
       <button class="score-btn unignore" data-memberid="${memberId}">↩ Rétablir</button>`;
   } else {
     controls = `
-      <button class="score-btn pause"    data-memberid="${memberId}">⏸ Pause</button>
+      <button class="score-btn pause"    data-memberid="${memberId}">Ignorer</button>
       <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>`;
   }
 
@@ -567,14 +567,27 @@ async function initParent() {
     if (!section) return;
 
     section.querySelector('.score-btn.pause')?.addEventListener('click', async () => {
-      if (!confirm("Mettre la journée en pause pour cet enfant ?")) return;
       try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
       catch (e) { alert("Erreur : " + e.message); }
     });
 
-    section.querySelector('.score-btn.validate')?.addEventListener('click', async () => {
-      try { await setScoreValidated(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
-      catch (e) { alert("Erreur : " + e.message); }
+    section.querySelector('.score-btn.validate')?.addEventListener('click', () => {
+      const controls = section.querySelector('.score-controls');
+      if (!controls) return;
+      const savedHTML = controls.innerHTML;
+      controls.innerHTML = `
+        <div class="score-confirm-wrap">
+          <button class="score-confirm-yes">✓</button>
+          <button class="score-confirm-no">✗</button>
+        </div>`;
+      controls.querySelector('.score-confirm-yes').addEventListener('click', async () => {
+        try { await setScoreValidated(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
+        catch (e) { alert("Erreur : " + e.message); }
+      });
+      controls.querySelector('.score-confirm-no').addEventListener('click', () => {
+        controls.innerHTML = savedHTML;
+        bindScoreHandlersFor(memberId);
+      });
     });
 
     section.querySelector('.score-btn.unvalidate')?.addEventListener('click', async () => {
@@ -614,7 +627,10 @@ async function initParent() {
             <div class="child-card-header child-card-header--clickable"
                  data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
               <span class="child-name">🧒 ${c.displayName}</span>
-              <button class="child-quick-add" data-memberid="${c.memberId}" aria-label="Ajouter un point">+</button>
+              <div class="child-quick-btns">
+                <button class="child-quick-remove" data-memberid="${c.memberId}" aria-label="Retirer un point">−</button>
+                <button class="child-quick-add"    data-memberid="${c.memberId}" aria-label="Ajouter un point">+</button>
+              </div>
             </div>
             <div class="score-section" id="score-${c.memberId}">
               ${buildScoreHTML(score, c.memberId)}
@@ -625,14 +641,21 @@ async function initParent() {
       // Bind score handlers for each child
       children.forEach(c => bindScoreHandlersFor(c.memberId));
 
-      // Bind quick-add (+1) button on each card header
+      // Bind quick-add (+) and quick-remove (-) buttons on each card header
       list.querySelectorAll('.child-quick-add').forEach(btn => {
         const mid = btn.dataset.memberid;
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const scoreEl = document.getElementById(`score-${mid}`);
-          // Prevent adding when day is already validated/ignored (check disabled state visually)
           try { await addPoint(familyId, mid, byUid, byName); await reloadChildScore(mid); }
+          catch (err) { alert("Erreur : " + err.message); }
+        });
+      });
+
+      list.querySelectorAll('.child-quick-remove').forEach(btn => {
+        const mid = btn.dataset.memberid;
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try { await removePoint(familyId, mid, byUid, byName); await reloadChildScore(mid); }
           catch (err) { alert("Erreur : " + err.message); }
         });
       });
