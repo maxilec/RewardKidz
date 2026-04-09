@@ -1,5 +1,52 @@
 <div class="page child-detail-page">
 
+  <!-- ── Overlay (drawer) ─────────────────────────────────────── -->
+  <div class="app-overlay" id="det-ov" onclick="rkCloseDrawer('det-drawer','det-ov')"></div>
+
+  <!-- ── Drawer gauche (même structure que parent dashboard) ───── -->
+  <div class="app-drawer" id="det-drawer">
+
+    <div class="app-drawer-head">
+      <span class="app-drawer-emoji">👨‍👩‍👧</span>
+      <div class="drawer-title-row">
+        <div class="app-drawer-title" id="detFamilyNameDrawer">Ma famille</div>
+      </div>
+      <div class="app-drawer-sub">Espace parent</div>
+    </div>
+
+    <div class="app-drawer-body">
+
+      <!-- Lien Dashboard -->
+      <div class="drawer-nav-item" id="detDrawerDashboardLink">
+        <span class="drawer-nav-item-icon">🏠</span>
+        <span>Tableau de bord</span>
+      </div>
+
+      <div class="app-drawer-sep"></div>
+
+      <!-- Section Enfants -->
+      <div class="drawer-section-label">Enfants</div>
+      <div id="detDrawerChildrenList"><p class="drawer-section-hint">Chargement…</p></div>
+
+      <div class="app-drawer-sep"></div>
+
+      <div class="app-drawer-item danger" id="detLogoutBtn">
+        <span class="app-drawer-item-icon">🚪</span>Se déconnecter
+      </div>
+    </div>
+
+    <div class="app-drawer-foot">
+      <div class="app-drawer-code" onclick="rkCopyCode(this)" title="Appuyer pour copier">
+        <div>
+          <div class="app-drawer-code-label">Code famille permanent</div>
+          <div class="app-drawer-code-val" id="detPermanentFamilyCode">—</div>
+        </div>
+        <span style="font-size:16px;color:var(--c-primary)">📋</span>
+      </div>
+      <div class="app-drawer-version">RewardKidz v2.0</div>
+    </div>
+  </div>
+
   <!-- ── Overlay (modale OTP) ─────────────────────────────────── -->
   <div class="app-modal-overlay" id="otp-modal-ov" onclick="rkCloseModal('otp-modal')"></div>
 
@@ -14,14 +61,18 @@
     <button id="detail-otp-generate-btn" class="app-btn-prim full">Générer un code</button>
   </div>
 
-  <!-- ── En-tête gradient (cohérent avec parent dashboard) ────── -->
+  <!-- ── En-tête gradient ──────────────────────────────────────── -->
   <div class="app-header">
-    <button id="backToParent" class="app-burger app-burger--header" aria-label="Retour">←</button>
+    <button class="app-burger app-burger--header" onclick="rkOpenDrawer('det-drawer','det-ov')" aria-label="Menu">☰</button>
     <div class="app-header-info">
       <div class="app-header-title" id="detailChildName">—</div>
-      <div class="app-header-sub" id="detailChildStatus">En attente</div>
     </div>
     <span class="app-header-emoji">🧒</span>
+  </div>
+
+  <!-- Lien retour sous le header -->
+  <div class="detail-back-row">
+    <button class="detail-back-link" id="backToParent">← Retour</button>
   </div>
 
   <!-- ── Corps scrollable ─────────────────────────────────────── -->

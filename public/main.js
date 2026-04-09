@@ -508,9 +508,8 @@ async function initParent() {
 
   // Édition du nom de famille — inline dans le drawer
   const _showDrawerEdit = (show) => {
-    document.getElementById('drawerEditForm').style.display  = show ? 'flex'  : 'none';
-    document.getElementById('editFamilyNameBtn').style.display = show ? 'none' : '';
-    document.getElementById('familyNameDrawer').parentElement.style.display = show ? 'none' : 'flex';
+    document.getElementById('drawerEditForm').style.display = show ? 'flex' : 'none';
+    document.getElementById('drawerTitleRow').style.display = show ? 'none' : 'flex';
   };
   document.getElementById('editFamilyNameBtn')?.addEventListener('click', () => {
     const input = document.getElementById('familyNameInput');
@@ -518,12 +517,22 @@ async function initParent() {
     _showDrawerEdit(true);
     input?.focus();
   });
-  document.getElementById('cancelFamilyNameBtn')?.addEventListener('click', () => {
-    _showDrawerEdit(false);
+
+  // Blur-to-cancel : quitter le champ annule la saisie (sauf si on clique Valider)
+  let _savingFamilyName = false;
+  const saveFamilyBtn = document.getElementById('saveFamilyNameBtn');
+  saveFamilyBtn?.addEventListener('mousedown',  () => { _savingFamilyName = true; });
+  saveFamilyBtn?.addEventListener('touchstart', () => { _savingFamilyName = true; }, { passive: true });
+  document.getElementById('familyNameInput')?.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!_savingFamilyName) _showDrawerEdit(false);
+      _savingFamilyName = false;
+    }, 100);
   });
-  document.getElementById('saveFamilyNameBtn')?.addEventListener('click', async () => {
+
+  saveFamilyBtn?.addEventListener('click', async () => {
     const newName = document.getElementById('familyNameInput')?.value.trim();
-    if (!newName) return;
+    if (!newName) { _savingFamilyName = false; return; }
     try {
       await updateFamilyName(familyId, newName);
       if (familyDoc) familyDoc = { ...familyDoc, name: newName };
@@ -533,6 +542,7 @@ async function initParent() {
       if (drawerEl) drawerEl.textContent = `Famille ${newName}`;
       _showDrawerEdit(false);
     } catch (e) { alert('Erreur : ' + e.message); }
+    finally { _savingFamilyName = false; }
   });
 
   // Toggle affichage formulaire ajout enfant dans le drawer
@@ -542,11 +552,22 @@ async function initParent() {
     if (form) { form.style.display = 'flex'; form.querySelector('input')?.focus(); }
     if (btn)  btn.style.display = 'none';
   });
-  document.getElementById('cancelAddChildBtn')?.addEventListener('click', () => {
-    const form = document.getElementById('formAddChild');
-    const btn  = document.getElementById('drawerAddChildBtn');
-    if (form) { form.style.display = 'none'; form.querySelector('input').value = ''; }
-    if (btn)  btn.style.display = '';
+
+  // Blur-to-cancel sur le champ prénom enfant
+  let _savingChildName = false;
+  const addChildSubmitBtn = document.getElementById('formAddChild')?.querySelector('[type=submit]');
+  addChildSubmitBtn?.addEventListener('mousedown',  () => { _savingChildName = true; });
+  addChildSubmitBtn?.addEventListener('touchstart', () => { _savingChildName = true; }, { passive: true });
+  document.getElementById('newChildName')?.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!_savingChildName) {
+        const form = document.getElementById('formAddChild');
+        const btn  = document.getElementById('drawerAddChildBtn');
+        if (form) { form.style.display = 'none'; const inp = form.querySelector('input'); if (inp) inp.value = ''; }
+        if (btn)  btn.style.display = '';
+      }
+      _savingChildName = false;
+    }, 100);
   });
 
   // Adult members list — returns all members for reuse by button setup
@@ -710,8 +731,8 @@ async function initParent() {
     } catch (e) { console.error(e); }
   }
 
-  // Render drawer children list (names only, for the drawer section)
-  async function renderDrawerChildren() {
+  // Render drawer children list (clickable rows, navigate to child-detail)
+  async function renderDrawerChildren(currentMemberId = null) {
     const list = document.getElementById("drawerChildrenList");
     if (!list) return;
     try {
@@ -720,11 +741,29 @@ async function initParent() {
       list.innerHTML = children.length === 0
         ? "<p class='drawer-section-hint'>Aucun enfant.</p>"
         : children.map(c => `
-            <div class="drawer-child-row">
+            <div class="drawer-child-row${c.memberId === currentMemberId ? ' drawer-child-row--active' : ''}"
+                 data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
               <span class="drawer-child-name">🧒 ${c.displayName}</span>
             </div>`).join("");
+      list.querySelectorAll('.drawer-child-row').forEach(row => {
+        row.addEventListener('click', () => {
+          _selectedChild = {
+            memberId:     row.dataset.memberid,
+            displayName:  row.dataset.name,
+            familyId,
+            linkedAuthUid: row.dataset.linkeduid || null
+          };
+          rkCloseDrawer('par-drawer', 'par-ov');
+          navigate("child-detail");
+        });
+      });
     } catch (e) { console.error(e); }
   }
+
+  // Dashboard link — already active, just close drawer
+  document.getElementById('drawerDashboardLink')?.addEventListener('click', () => {
+    rkCloseDrawer('par-drawer', 'par-ov');
+  });
 
   const allMembers = await renderParents();
   await renderChildren();
@@ -864,6 +903,56 @@ async function initChild() {
   } catch (e) { console.error(e); }
 }
 
+async function setupDetailDrawer(familyId, currentMemberId) {
+  // Populate family name and code
+  try {
+    const fDoc = await getFamily(familyId);
+    const nameEl = document.getElementById('detFamilyNameDrawer');
+    if (nameEl && fDoc) nameEl.textContent = `Famille ${fDoc.name}`;
+    const codeEl = document.getElementById('detPermanentFamilyCode');
+    if (codeEl && fDoc?.familyCode) codeEl.textContent = fDoc.familyCode;
+  } catch (e) { console.error(e); }
+
+  // Children list — clickable rows with current child highlighted
+  const list = document.getElementById('detDrawerChildrenList');
+  if (list) {
+    try {
+      const members  = await getFamilyMembers(familyId);
+      const children = members.filter(m => m.role === 'child');
+      list.innerHTML = children.length === 0
+        ? "<p class='drawer-section-hint'>Aucun enfant.</p>"
+        : children.map(c => `
+            <div class="drawer-child-row${c.memberId === currentMemberId ? ' drawer-child-row--active' : ''}"
+                 data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
+              <span class="drawer-child-name">🧒 ${c.displayName}</span>
+            </div>`).join("");
+      list.querySelectorAll('.drawer-child-row').forEach(row => {
+        row.addEventListener('click', () => {
+          _selectedChild = {
+            memberId:     row.dataset.memberid,
+            displayName:  row.dataset.name,
+            familyId,
+            linkedAuthUid: row.dataset.linkeduid || null
+          };
+          rkCloseDrawer('det-drawer', 'det-ov');
+          navigate("child-detail");
+        });
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  // Dashboard link
+  document.getElementById('detDrawerDashboardLink')?.addEventListener('click', () => {
+    rkCloseDrawer('det-drawer', 'det-ov');
+    navigate("parent");
+  });
+
+  // Logout
+  document.getElementById('detLogoutBtn')?.addEventListener('click', async () => {
+    try { await logout(); } catch (e) { alert("Erreur : " + e.message); }
+  });
+}
+
 async function initChildDetail() {
   // Guard — _selectedChild must be set before navigating here
   if (!_selectedChild) { navigate("parent"); return; }
@@ -881,10 +970,11 @@ async function initChildDetail() {
   document.getElementById("backToParent")?.addEventListener("click", () => navigate("parent"));
 
   // ── Header ─────────────────────────────────────────────
-  const nameEl   = document.getElementById("detailChildName");
-  const statusEl = document.getElementById("detailChildStatus");
+  const nameEl = document.getElementById("detailChildName");
   if (nameEl) nameEl.textContent = displayName;
-  if (statusEl) statusEl.textContent = linkedAuthUid ? "Connecté" : "En attente";
+
+  // ── Drawer ─────────────────────────────────────────────
+  await setupDetailDrawer(familyId, memberId);
 
   // ── Score du jour ───────────────────────────────────────
   let currentScore = null;
@@ -949,10 +1039,12 @@ async function initChildDetail() {
       const otp        = await generateChildOTP(familyId, memberId, displayName);
       if (display) {
         display.innerHTML = `
-          <div class="otp-code-block">
-            <div>Code famille&nbsp;: <strong class="code-value">${familyCode}</strong></div>
-            <div>Code enfant&nbsp;&nbsp;: <strong class="code-value otp-value">${otp}</strong></div>
-            <div class="otp-expiry">⏱ Valable 30 minutes</div>
+          <div class="app-modal-divider"></div>
+          <div style="text-align:center;padding:4px 0">
+            <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille</div>
+            <p class="app-invite-code" style="margin:0 0 12px">${familyCode}</p>
+            <div class="app-drawer-code-label" style="margin-bottom:6px">Code enfant ⏱ 30 min</div>
+            <p class="app-invite-code" style="margin:0">${otp}</p>
           </div>`;
       }
     } catch (e) {

@@ -69,18 +69,29 @@
 
 /* Formulaire édition du nom inline dans le drawer */
 .drawer-edit-form {
-  margin: 8px 0 4px; display: flex; flex-direction: column; gap: 6px;
+  margin: 8px 0 4px; display: flex; flex-direction: column; gap: 0;
 }
-.drawer-edit-form input {
-  height: 38px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.4);
+.drawer-edit-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.drawer-edit-row input,
+.drawer-add-form input {
+  flex: 1; height: 38px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,.4);
   background: rgba(255,255,255,.15); padding: 0 12px;
   font-size: 15px; font-family: var(--f-body); color: #fff; outline: none;
 }
-.drawer-edit-form input::placeholder { color: rgba(255,255,255,.55); }
-.drawer-edit-form input:focus { border-color: rgba(255,255,255,.8); }
-.drawer-edit-btns { display: flex; gap: 8px; }
-.drawer-edit-btns .app-btn-prim.sm,
-.drawer-edit-btns .app-btn-outline.sm { flex: 1; }
+.drawer-edit-row input::placeholder,
+.drawer-add-form input::placeholder { color: rgba(255,255,255,.55); }
+.drawer-edit-row input:focus,
+.drawer-add-form input:focus { border-color: rgba(255,255,255,.8); }
+/* Save button — dans le header gradient du drawer */
+.drawer-edit-save {
+  width: 38px; height: 38px; border-radius: 10px; border: none; flex-shrink: 0;
+  background: rgba(255,255,255,.9); color: var(--c-primary);
+  font-size: 18px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; transition: background .12s;
+}
 
 /* Corps du drawer */
 .app-drawer-body { flex: 1; overflow-y: auto; padding: 6px 0; }
@@ -842,6 +853,56 @@
   opacity: .5; margin-left: auto; flex-shrink: 0;
   line-height: 1;
 }
+
+/* Save button dans le corps blanc du drawer (ajout enfant) */
+.drawer-add-save {
+  width: 38px; height: 38px; border-radius: 10px; border: none; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--c-primary), var(--c-primary-end));
+  color: #fff; font-size: 18px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; transition: opacity .12s;
+  box-shadow: 0 2px 8px rgba(124,58,237,.25);
+}
+.drawer-add-save:active { opacity: .85; }
+
+/* Lien navigation dans le drawer (ex: Tableau de bord) */
+.drawer-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; cursor: pointer;
+  font-size: 15px; font-weight: 600; color: var(--c-txt-h);
+  transition: background .12s; -webkit-tap-highlight-color: transparent;
+}
+.drawer-nav-item:hover  { background: #F5F3FF; }
+.drawer-nav-item:active { background: #EDE9FE; }
+.drawer-nav-item-icon   { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.drawer-nav-item--active {
+  background: #EDE9FE; color: var(--c-primary);
+}
+.drawer-nav-item--active:hover { background: #DDD6FE; }
+
+/* Surbrillance enfant actif dans le drawer */
+.drawer-child-row--active { background: #F5F3FF; }
+.drawer-child-row--active .drawer-child-name { color: var(--c-primary); }
+.drawer-child-row { cursor: pointer; transition: background .12s; -webkit-tap-highlight-color: transparent; }
+.drawer-child-row:hover { background: #F8F7FF; }
+.drawer-child-row:active { background: #F0EEFF; }
+
+/* Lien retour sous le header (page détail enfant) */
+.detail-back-row {
+  padding: 8px 16px 0;
+  max-width: 600px; width: 100%; margin-inline: auto; box-sizing: border-box;
+}
+.detail-back-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; font-weight: 600; color: var(--c-primary);
+  padding: 4px 0; -webkit-tap-highlight-color: transparent;
+  font-family: var(--f-body);
+}
+.detail-back-link:hover { opacity: .75; }
+
+/* Empêcher le glisser-retour sur iOS Safari / Android */
+html { overscroll-behavior-x: none; }
 
 /* ═══════════════════════════════════════════════════════════════
    TABLETTE ≥ 768 px

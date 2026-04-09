@@ -9,16 +9,15 @@
     <!-- En-tête drawer : nom famille + édition inline -->
     <div class="app-drawer-head" id="drawerHead">
       <span class="app-drawer-emoji">👨‍👩‍👧</span>
-      <div class="drawer-title-row">
+      <div class="drawer-title-row" id="drawerTitleRow">
         <div class="app-drawer-title" id="familyNameDrawer">Ma famille</div>
         <button id="editFamilyNameBtn" class="app-edit-btn" aria-label="Modifier le nom">✏️</button>
       </div>
       <!-- Formulaire édition inline dans le drawer (caché par défaut) -->
       <div id="drawerEditForm" class="drawer-edit-form" style="display:none">
-        <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
-        <div class="drawer-edit-btns">
-          <button id="saveFamilyNameBtn" class="app-btn-prim sm">✓</button>
-          <button id="cancelFamilyNameBtn" class="app-btn-outline sm">✕</button>
+        <div class="drawer-edit-row">
+          <input id="familyNameInput" type="text" placeholder="Nouveau nom" maxlength="30" autocomplete="off">
+          <button id="saveFamilyNameBtn" class="drawer-edit-save" aria-label="Valider">✓</button>
         </div>
       </div>
       <div class="app-drawer-sub">Espace parent</div>
@@ -27,6 +26,14 @@
     <!-- Corps du drawer -->
     <div class="app-drawer-body">
 
+      <!-- Lien Dashboard -->
+      <div class="drawer-nav-item drawer-nav-item--active" id="drawerDashboardLink">
+        <span class="drawer-nav-item-icon">🏠</span>
+        <span>Tableau de bord</span>
+      </div>
+
+      <div class="app-drawer-sep"></div>
+
       <!-- Section Enfants -->
       <div class="drawer-section-label">Enfants</div>
       <div id="drawerChildrenList"><p class="drawer-section-hint">Chargement…</p></div>
@@ -34,8 +41,7 @@
         <button id="drawerAddChildBtn" class="drawer-add-btn">+ Ajouter un enfant</button>
         <form id="formAddChild" class="drawer-add-form" style="display:none">
           <input id="newChildName" type="text" placeholder="Prénom de l'enfant" autocomplete="off">
-          <button type="submit" class="app-btn-prim sm">✓</button>
-          <button type="button" id="cancelAddChildBtn" class="app-btn-outline sm">✕</button>
+          <button type="submit" class="drawer-add-save" aria-label="Valider">✓</button>
         </form>
       </div>
 
