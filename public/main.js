@@ -310,17 +310,23 @@ function renderHistogram(entries, compact = false) {
 // SCORE HELPERS (view)
 // ---------------------------------------------------------
 
-// Returns the inner HTML for a score section in the parent dashboard + child-detail
-function buildGaugeHTML(score) {
+// Returns the gauge row HTML — with round +/- buttons when memberId is provided
+function buildGaugeHTML(score, memberId = null) {
   const pct = (score.points / 5 * 100).toFixed(1);
+  const quickBtns = (memberId && !score.validated && !score.ignored)
+    ? `<div class="child-quick-btns">
+         <button class="child-quick-remove" data-memberid="${memberId}"${score.points <= 0 ? ' disabled' : ''} aria-label="Retirer un point">−</button>
+         <button class="child-quick-add"    data-memberid="${memberId}"${score.points >= 5 ? ' disabled' : ''} aria-label="Ajouter un point">+</button>
+       </div>` : '';
   return `
     <div class="score-gauge-row">
       <div class="score-gauge-track"><div class="score-gauge-fill" style="width:${pct}%"></div></div>
       <span class="score-points-label">${score.points}/5</span>
+      ${quickBtns}
     </div>`;
 }
 
-function buildScoreHTML(score, memberId, showAddRemove = false) {
+function buildScoreHTML(score, memberId) {
   let controls;
   if (score.validated) {
     controls = `
@@ -331,14 +337,11 @@ function buildScoreHTML(score, memberId, showAddRemove = false) {
       <span class="score-status-badge ignored">Journée ignorée</span>
       <button class="score-btn unignore" data-memberid="${memberId}">↩ Rétablir</button>`;
   } else {
-    const addRemove = showAddRemove ? `
-      <button class="score-btn add"    data-memberid="${memberId}" ${score.points >= 5 ? 'disabled' : ''}>+1</button>
-      <button class="score-btn remove" data-memberid="${memberId}" ${score.points <= 0  ? 'disabled' : ''}>−1</button>` : '';
-    controls = addRemove + `
+    controls = `
       <button class="score-btn pause"    data-memberid="${memberId}">Ignorer</button>
       <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>`;
   }
-  return buildGaugeHTML(score) + `<div class="score-controls">${controls}</div>`;
+  return buildGaugeHTML(score, memberId) + `<div class="score-controls">${controls}</div>`;
 }
 
 // SVG circular gauge for child page (arc from 8h to 4h, 240° sweep)
@@ -803,6 +806,15 @@ async function initParent() {
     const section = document.getElementById(`score-${memberId}`);
     if (!section) return;
 
+    section.querySelector('.child-quick-add')?.addEventListener('click', async () => {
+      try { await addPoint(familyId, memberId, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.child-quick-remove')?.addEventListener('click', async () => {
+      try { await removePoint(familyId, memberId, byUid, byName); await reloadChildScore(memberId); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+
     section.querySelector('.score-btn.pause')?.addEventListener('click', async () => {
       try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadChildScore(memberId); }
       catch (e) { alert("Erreur : " + e.message); }
@@ -864,10 +876,6 @@ async function initParent() {
             <div class="child-card-header child-card-header--clickable"
                  data-memberid="${c.memberId}" data-name="${c.displayName}" data-linkeduid="${c.linkedAuthUid || ''}">
               <span class="child-name">🧒 ${c.displayName}</span>
-              <div class="child-quick-btns">
-                <button class="child-quick-remove" data-memberid="${c.memberId}" aria-label="Retirer un point">−</button>
-                <button class="child-quick-add"    data-memberid="${c.memberId}" aria-label="Ajouter un point">+</button>
-              </div>
             </div>
             <div class="score-section" id="score-${c.memberId}">
               ${buildScoreHTML(score, c.memberId)}
@@ -877,25 +885,6 @@ async function initParent() {
 
       // Bind score handlers for each child
       children.forEach(c => bindScoreHandlersFor(c.memberId));
-
-      // Bind quick-add (+) and quick-remove (-) buttons on each card header
-      list.querySelectorAll('.child-quick-add').forEach(btn => {
-        const mid = btn.dataset.memberid;
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          try { await addPoint(familyId, mid, byUid, byName); await reloadChildScore(mid); }
-          catch (err) { alert("Erreur : " + err.message); }
-        });
-      });
-
-      list.querySelectorAll('.child-quick-remove').forEach(btn => {
-        const mid = btn.dataset.memberid;
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          try { await removePoint(familyId, mid, byUid, byName); await reloadChildScore(mid); }
-          catch (err) { alert("Erreur : " + err.message); }
-        });
-      });
 
       // Abonnements temps réel — met à jour le score dès qu'un parent modifie depuis un autre appareil
       children.forEach(c => {
@@ -1030,16 +1019,16 @@ async function initChildDetail() {
     currentScore = await getOrCreateDayScore(familyId, memberId);
     const section = document.getElementById("detail-score-section");
     if (!section) return;
-    section.innerHTML = buildScoreHTML(currentScore, memberId, true);
+    section.innerHTML = buildScoreHTML(currentScore, memberId);
     bindDetailScoreButtons(section);
   }
 
   function bindDetailScoreButtons(section) {
-    section.querySelector('.score-btn.add')?.addEventListener('click', async () => {
+    section.querySelector('.child-quick-add')?.addEventListener('click', async () => {
       try { await addPoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
       catch (e) { alert("Erreur : " + e.message); }
     });
-    section.querySelector('.score-btn.remove')?.addEventListener('click', async () => {
+    section.querySelector('.child-quick-remove')?.addEventListener('click', async () => {
       try { await removePoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
       catch (e) { alert("Erreur : " + e.message); }
     });
