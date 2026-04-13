@@ -306,10 +306,16 @@ function renderHistogram(entries, compact = false) {
 // ---------------------------------------------------------
 
 // Returns the inner HTML for a score section in the parent dashboard + child-detail
-function buildScoreHTML(score, memberId) {
+function buildGaugeHTML(score) {
   const pct = (score.points / 5 * 100).toFixed(1);
-  const gauge = `<div class="score-gauge-track"><div class="score-gauge-fill" style="width:${pct}%"></div></div>`;
+  return `
+    <div class="score-gauge-row">
+      <div class="score-gauge-track"><div class="score-gauge-fill" style="width:${pct}%"></div></div>
+      <span class="score-points-label">${score.points}/5</span>
+    </div>`;
+}
 
+function buildScoreHTML(score, memberId) {
   let controls;
   if (score.validated) {
     controls = `
@@ -324,13 +330,7 @@ function buildScoreHTML(score, memberId) {
       <button class="score-btn pause"    data-memberid="${memberId}">Ignorer</button>
       <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>`;
   }
-
-  return `
-    <div class="score-gauge-row">
-      ${gauge}
-      <span class="score-points-label">${score.points}/5</span>
-    </div>
-    <div class="score-controls">${controls}</div>`;
+  return buildGaugeHTML(score) + `<div class="score-controls">${controls}</div>`;
 }
 
 // SVG circular gauge for child page (arc from 8h to 4h, 240° sweep)
@@ -518,6 +518,11 @@ function getSharedDrawerHTML() {
             <button type="submit" class="drawer-add-save" aria-label="Valider">✓</button>
           </form>
         </div>
+      </div>
+      <div class="app-drawer-danger-zone">
+        <div class="app-drawer-item danger" id="logoutBtn">
+          <span class="app-drawer-item-icon">🚪</span>Se déconnecter
+        </div>
         <div class="app-drawer-sep"></div>
         <div class="app-drawer-item danger" id="deleteAccountBtn">
           <span class="app-drawer-item-icon">👤</span>Supprimer mon compte
@@ -525,10 +530,6 @@ function getSharedDrawerHTML() {
         <p id="deleteAccountHint" style="padding:0 20px 8px;font-size:12px;color:#9CA3AF"></p>
         <div class="app-drawer-item danger" id="deleteFamilyBtn">
           <span class="app-drawer-item-icon">🗑</span>Supprimer la famille
-        </div>
-        <div class="app-drawer-sep"></div>
-        <div class="app-drawer-item danger" id="logoutBtn">
-          <span class="app-drawer-item-icon">🚪</span>Se déconnecter
         </div>
       </div>
       <div class="app-drawer-foot">
@@ -1004,9 +1005,12 @@ async function initChildDetail() {
   // ── Back button ────────────────────────────────────────
   document.getElementById("backToParent")?.addEventListener("click", () => navigate("parent"));
 
-  // ── Header ─────────────────────────────────────────────
+  // ── Header — nom cliquable pour renommer ───────────────
   const nameEl = document.getElementById("detailChildName");
-  if (nameEl) nameEl.textContent = displayName;
+  if (nameEl) {
+    nameEl.textContent = displayName;
+    nameEl.classList.add('detail-name-clickable');
+  }
 
   // ── Drawer partagé ─────────────────────────────────────
   await initSharedDrawer(familyId, user, { activePage: 'child-detail', currentMemberId: memberId });
@@ -1095,15 +1099,15 @@ async function initChildDetail() {
 
   document.getElementById("detail-otp-generate-btn")?.addEventListener("click", generateAndShowOTP);
 
-  // Rename
-  document.getElementById("detail-rename-btn")?.addEventListener("click", async () => {
-    const newName = prompt(`Nouveau prénom pour ${displayName} :`, displayName);
+  // Renommer en cliquant sur le prénom dans le header
+  nameEl?.addEventListener("click", async () => {
+    const newName = prompt(`Nouveau prénom :`, displayName);
     if (!newName || newName.trim() === displayName) return;
     try {
       await updateChildName(familyId, memberId, newName.trim());
       displayName = newName.trim();
       _selectedChild.displayName = displayName;
-      if (nameEl) nameEl.textContent = displayName;
+      nameEl.textContent = displayName;
     } catch (e) { alert("Erreur : " + e.message); }
   });
 

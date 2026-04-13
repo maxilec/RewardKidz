@@ -47,16 +47,6 @@
       </div>
     </div>
 
-    <!-- Gestion -->
-    <div class="app-section-hd" style="margin-top:24px">
-      <span class="app-section-title">Gestion</span>
-    </div>
-    <div class="child-score-card" style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="app-btn-outline" style="flex:1" id="detail-otp-btn">🔑 Code connexion</button>
-      <button class="app-btn-outline" style="flex:1" id="detail-rename-btn">✏️ Renommer</button>
-      <button class="app-btn-outline danger-outline" style="flex:1" id="detail-delete-btn">🗑 Supprimer</button>
-    </div>
-
     <!-- Statistiques -->
     <div class="app-section-hd" style="margin-top:24px">
       <span class="app-section-title">Statistiques</span>
@@ -86,6 +76,12 @@
     </div>
     <div class="child-score-card">
       <div id="histogram-container"><p class="app-hint">Chargement…</p></div>
+    </div>
+
+    <!-- Actions en bas de page -->
+    <div style="margin-top:32px;display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
+      <button class="app-btn-outline full" id="detail-otp-btn">🔑 Code connexion</button>
+      <button class="app-btn-outline danger-outline full" id="detail-delete-btn">🗑 Supprimer cet enfant</button>
     </div>
 
   </div><!-- /.app-body -->
