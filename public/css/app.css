@@ -505,10 +505,11 @@
   color: #fff; flex: 1;
 }
 .page.child-detail-page .score-btn.validate {
-  background: linear-gradient(135deg, var(--c-success), #059669);
-  color: #fff; flex: 2;
+  background: linear-gradient(135deg, var(--c-primary), var(--c-primary-end));
+  color: #fff; flex: 1;
 }
-.page.parent .score-btn.pause {
+.page.parent .score-btn.pause,
+.page.child-detail-page .score-btn.pause {
   background: linear-gradient(135deg, #9CA3AF, #6B7280);
   color: #fff; flex: 1;
 }

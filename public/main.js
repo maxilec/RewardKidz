@@ -175,8 +175,13 @@ document.getElementById("goParent")?.addEventListener("click", async () => {
 });
 
 document.getElementById("goChild")?.addEventListener("click", async () => {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
   await loginAsChild();
-  // onUserStateChanged will route to child-auth
+  const user = auth.currentUser;
+  if (!user) return;
+  const userDoc = await getUser(user.uid);
+  navigate(!userDoc?.familyId ? "child-auth" : "child");
 });
 
 // ---------------------------------------------------------
@@ -315,7 +320,7 @@ function buildGaugeHTML(score) {
     </div>`;
 }
 
-function buildScoreHTML(score, memberId) {
+function buildScoreHTML(score, memberId, showAddRemove = false) {
   let controls;
   if (score.validated) {
     controls = `
@@ -326,7 +331,10 @@ function buildScoreHTML(score, memberId) {
       <span class="score-status-badge ignored">Journée ignorée</span>
       <button class="score-btn unignore" data-memberid="${memberId}">↩ Rétablir</button>`;
   } else {
-    controls = `
+    const addRemove = showAddRemove ? `
+      <button class="score-btn add"    data-memberid="${memberId}" ${score.points >= 5 ? 'disabled' : ''}>+1</button>
+      <button class="score-btn remove" data-memberid="${memberId}" ${score.points <= 0  ? 'disabled' : ''}>−1</button>` : '';
+    controls = addRemove + `
       <button class="score-btn pause"    data-memberid="${memberId}">Ignorer</button>
       <button class="score-btn validate" data-memberid="${memberId}">✓ Valider</button>`;
   }
@@ -1022,11 +1030,19 @@ async function initChildDetail() {
     currentScore = await getOrCreateDayScore(familyId, memberId);
     const section = document.getElementById("detail-score-section");
     if (!section) return;
-    section.innerHTML = buildScoreHTML(currentScore, memberId);
+    section.innerHTML = buildScoreHTML(currentScore, memberId, true);
     bindDetailScoreButtons(section);
   }
 
   function bindDetailScoreButtons(section) {
+    section.querySelector('.score-btn.add')?.addEventListener('click', async () => {
+      try { await addPoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
+    section.querySelector('.score-btn.remove')?.addEventListener('click', async () => {
+      try { await removePoint(familyId, memberId, byUid, byName); await reloadDetailScore(); }
+      catch (e) { alert("Erreur : " + e.message); }
+    });
     section.querySelector('.score-btn.pause')?.addEventListener('click', async () => {
       try { await setDayIgnored(familyId, memberId, true, byUid, byName); await reloadDetailScore(); }
       catch (e) { alert("Erreur : " + e.message); }

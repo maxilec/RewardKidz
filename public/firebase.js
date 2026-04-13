@@ -96,8 +96,13 @@ export function onForegroundMessage(callback) {
 // ---------------------------------------------------------
 
 export async function loginWithGoogle() {
-  const result = await signInWithPopup(auth, provider);
-  return result.user;
+  try {
+    const result = await signInWithPopup(auth, provider);
+    return result.user;
+  } catch (e) {
+    if (e.code === 'auth/cancelled-popup-request') return; // annulé par un autre popup — silencieux
+    throw e;
+  }
 }
 
 export async function loginAsChild() {
