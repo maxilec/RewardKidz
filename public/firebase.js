@@ -722,3 +722,37 @@ export async function resolveInvite(shortCode) {
 
   return data.familyId;
 }
+
+// ---------------------------------------------------------
+// WIDGET TOKENS (lecture seule Scriptable)
+// ---------------------------------------------------------
+
+export async function getWidgetToken(familyId, memberId) {
+  try {
+    const snap = await getDoc(doc(db, 'families', familyId, 'widgetTokens', memberId));
+    return snap.exists() ? (snap.data().token || null) : null;
+  } catch (e) { return null; }
+}
+
+export async function generateWidgetToken(familyId, memberId, childName) {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  const token = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'families', familyId, 'widgetTokens', memberId),
+    { token, childName, createdAt: Date.now() });
+  batch.set(doc(db, 'widgetTokens', token),
+    { familyId, memberId, childName });
+  await batch.commit();
+  return token;
+}
+
+export async function revokeWidgetToken(familyId, memberId) {
+  const snap = await getDoc(doc(db, 'families', familyId, 'widgetTokens', memberId));
+  if (!snap.exists()) return;
+  const { token } = snap.data();
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'families', familyId, 'widgetTokens', memberId));
+  if (token) batch.delete(doc(db, 'widgetTokens', token));
+  await batch.commit();
+}

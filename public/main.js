@@ -34,6 +34,9 @@ import {
   setDayIgnored,
   subscribeToScore,
   updateFamilyName,
+  getWidgetToken,
+  generateWidgetToken,
+  revokeWidgetToken,
   swConfig,
   initNotifications,
   onForegroundMessage,
@@ -983,6 +986,23 @@ async function initChild() {
     const unsub = subscribeToScore(familyId, memberId, renderChildScore);
     _unsubscribers.push(unsub);
 
+    // Widget Scriptable (lecture seule — le parent génère depuis child-detail)
+    document.getElementById('child-widget-btn')?.addEventListener('click', async () => {
+      const token = await getWidgetToken(familyId, memberId);
+      if (!token) {
+        alert("Aucun widget configuré. Un parent peut en créer un depuis la page de détail.");
+        return;
+      }
+      document.getElementById('child-widget-url').textContent =
+        'https://rewardkidz-4fe68.web.app/api/widget?token=' + token;
+      if (typeof rkOpenModal === 'function') rkOpenModal('widget-modal');
+    });
+
+    document.getElementById('child-widget-copy-btn')?.addEventListener('click', () => {
+      const url = document.getElementById('child-widget-url').textContent;
+      navigator.clipboard?.writeText(url).then(() => alert('URL copiée !')).catch(() => {});
+    });
+
   } catch (e) { console.error(e); }
 }
 
@@ -1103,6 +1123,36 @@ async function initChildDetail() {
   }
 
   document.getElementById("detail-otp-generate-btn")?.addEventListener("click", generateAndShowOTP);
+
+  // Widget Scriptable
+  const WIDGET_BASE = 'https://rewardkidz-4fe68.web.app/api/widget?token=';
+
+  function showWidgetModal(token) {
+    document.getElementById('detail-widget-url').textContent = WIDGET_BASE + token;
+    if (typeof rkOpenModal === 'function') rkOpenModal('widget-modal');
+  }
+
+  document.getElementById('detail-widget-btn')?.addEventListener('click', async () => {
+    try {
+      let token = await getWidgetToken(familyId, memberId);
+      if (!token) token = await generateWidgetToken(familyId, memberId, displayName);
+      showWidgetModal(token);
+    } catch (e) { alert("Erreur : " + e.message); }
+  });
+
+  document.getElementById('detail-widget-copy-btn')?.addEventListener('click', () => {
+    const url = document.getElementById('detail-widget-url').textContent;
+    navigator.clipboard?.writeText(url).then(() => alert('URL copiée !')).catch(() => {});
+  });
+
+  document.getElementById('detail-widget-revoke-btn')?.addEventListener('click', async () => {
+    if (!confirm("Révoquer le token actuel ? L'URL existante ne fonctionnera plus.")) return;
+    try {
+      await revokeWidgetToken(familyId, memberId);
+      const token = await generateWidgetToken(familyId, memberId, displayName);
+      showWidgetModal(token);
+    } catch (e) { alert("Erreur : " + e.message); }
+  });
 
   // Renommer en cliquant sur le prénom dans le header
   nameEl?.addEventListener("click", async () => {

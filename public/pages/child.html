@@ -3,6 +3,18 @@
   <!-- ── Overlay ─────────────────────────────────────────────── -->
   <div class="app-overlay" id="chi-ov" onclick="rkCloseDrawer('chi-drawer','chi-ov')"></div>
 
+  <!-- ── Overlay (modale widget) ───────────────────────────────── -->
+  <div class="app-modal-overlay" id="widget-modal-ov" onclick="rkCloseModal('widget-modal')"></div>
+
+  <!-- ── Modale widget Scriptable (lecture seule) ──────────────── -->
+  <div class="app-modal" id="widget-modal">
+    <button class="app-modal-close" onclick="rkCloseModal('widget-modal')" aria-label="Fermer">✕</button>
+    <div class="app-modal-title">📊 Widget Scriptable</div>
+    <p class="app-hint">URL de votre widget. Un parent peut la créer depuis la page de détail.</p>
+    <p id="child-widget-url" class="app-invite-code" style="font-size:11px;word-break:break-all;line-height:1.4">—</p>
+    <button id="child-widget-copy-btn" class="app-btn-prim full">📋 Copier l'URL</button>
+  </div>
+
   <!-- ── Drawer droit ─────────────────────────────────────────── -->
   <div class="app-drawer" id="chi-drawer">
     <div class="app-drawer-head">
@@ -47,6 +59,9 @@
   <div class="app-body" style="padding-top:0">
     <div class="app-score-card">
       <div id="childScoreDisplay" class="child-score-loading">Chargement…</div>
+    </div>
+    <div style="padding: 8px 0 8px">
+      <button class="app-btn-outline full" id="child-widget-btn">📊 Widget Scriptable</button>
     </div>
   </div>
 

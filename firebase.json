@@ -28,6 +28,11 @@
     ],
     "rewrites": [
       {
+        "source": "/api/widget",
+        "function": "widgetData",
+        "region": "us-central1"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

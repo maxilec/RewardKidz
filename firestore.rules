@@ -175,5 +175,18 @@ service cloud.firestore {
       allow create: if isAuth();
       allow delete: if isAuth() && isMemberOf(resource.data.familyId);
     }
+
+    // ── Widget tokens (top-level, résolution par la Cloud Function via admin SDK) ──
+    match /widgetTokens/{token} {
+      allow read:   if false;  // lecture admin SDK uniquement
+      allow create: if isAuth() && isParentOf(request.resource.data.familyId);
+      allow delete: if isAuth() && isParentOf(resource.data.familyId);
+    }
+
+    // ── Widget tokens (sous-collection, lecture par l'app) ──
+    match /families/{familyId}/widgetTokens/{memberId} {
+      allow read:   if isMemberOf(familyId);   // enfant + parent voient leur URL
+      allow write:  if isParentOf(familyId);   // seul un parent génère/révoque
+    }
   }
 }

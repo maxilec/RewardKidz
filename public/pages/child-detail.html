@@ -20,6 +20,20 @@
     </div>
   </div>
 
+  <!-- ── Overlay (modale widget) ───────────────────────────────── -->
+  <div class="app-modal-overlay" id="widget-modal-ov" onclick="rkCloseModal('widget-modal')"></div>
+
+  <!-- ── Modale widget Scriptable ──────────────────────────────── -->
+  <div class="app-modal" id="widget-modal">
+    <button class="app-modal-close" onclick="rkCloseModal('widget-modal')" aria-label="Fermer">✕</button>
+    <div class="app-modal-title">📊 Widget Scriptable</div>
+    <p class="app-hint">Collez cette URL comme paramètre de votre widget Scriptable iOS.</p>
+    <p id="detail-widget-url" class="app-invite-code" style="font-size:11px;word-break:break-all;line-height:1.4">—</p>
+    <button id="detail-widget-copy-btn" class="app-btn-prim full">📋 Copier l'URL</button>
+    <div class="app-modal-divider"></div>
+    <button id="detail-widget-revoke-btn" class="app-btn-outline danger-outline full" style="font-size:13px">🔄 Révoquer et régénérer</button>
+  </div>
+
   <!-- ── En-tête gradient ──────────────────────────────────────── -->
   <div class="app-header">
     <button class="app-burger app-burger--header" onclick="rkOpenDrawer('par-drawer','par-ov')" aria-label="Menu">☰</button>
@@ -81,6 +95,7 @@
     <!-- Actions en bas de page -->
     <div style="margin-top:32px;display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
       <button class="app-btn-outline full" id="detail-otp-btn">🔑 Code connexion</button>
+      <button class="app-btn-outline full" id="detail-widget-btn">📊 Widget Scriptable</button>
       <button class="app-btn-outline danger-outline full" id="detail-delete-btn">🗑 Supprimer cet enfant</button>
     </div>
 
