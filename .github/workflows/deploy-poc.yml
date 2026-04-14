@@ -8,6 +8,7 @@ on:
       - 'dev/main'
       - 'figma/NewUI'
       - 'claude/review-figma-ui-changes-kUMwo'
+      - 'refactoring/app'
 
 jobs:
   deploy:
