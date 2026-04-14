@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* ── Design tokens (inchangés depuis l'app vanilla) ─────────── */
+:root {
+  --c-primary:     #7C3AED;
+  --c-primary-end: #EC4899;
+  --c-accent:      #F59E0B;
+  --c-success:     #10B981;
+  --c-danger:      #EF4444;
+  --c-bg:          #F8F7FF;
+  --c-surface:     #FFFFFF;
+  --c-text:        #1F2937;
+  --c-text-muted:  #6B7280;
+  --c-border:      #E5E7EB;
+
+  /* Safe-area insets (PWA fullscreen) */
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+}
+
+/* ── Reset PWA ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  font-family: 'Nunito', system-ui, sans-serif;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  margin: 0;
+}
