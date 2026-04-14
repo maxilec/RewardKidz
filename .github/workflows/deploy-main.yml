@@ -50,20 +50,7 @@ jobs:
             --project rewardkidz-4fe68 \
             --non-interactive
 
-      # 5. Déploiement des Cloud Functions
-      - name: Installer les dépendances Cloud Functions
-        run: cd functions && npm install
-
-      - name: Deploy Cloud Functions
-        run: |
-          npm install -g firebase-tools
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json firebase deploy \
-            --only functions \
-            --project rewardkidz-4fe68 \
-            --non-interactive
-
-      # 6. Déploiement en production (canal live)
+      # 5. Déploiement en production (canal live)
       - name: Deploy to Firebase Hosting (Production)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
