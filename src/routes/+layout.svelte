@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { initAuthListener } from '$lib/stores';
+  import { initAuthListener, initFamilyListener, userDoc } from '$lib/stores';
   import { onForegroundMessage } from '$lib/firebase/notifications';
   import { pwaPrompt } from '$lib/stores';
 
@@ -20,6 +20,12 @@
     if (notifTimer) clearTimeout(notifTimer);
     notifTimer = setTimeout(() => { notifVisible = false; }, 5000);
   }
+
+  // Démarre / nettoie le listener famille dès que familyId change
+  $effect(() => {
+    const fid = $userDoc?.familyId ?? null;
+    return initFamilyListener(fid);
+  });
 
   onMount(() => {
     const cleanupAuth = initAuthListener();

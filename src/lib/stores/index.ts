@@ -19,7 +19,8 @@ export {
   familyDoc,
   members,
   children,
-  parents
+  parents,
+  initFamilyListener
 } from './family.store';
 
 export {

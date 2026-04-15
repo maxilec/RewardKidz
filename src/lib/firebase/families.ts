@@ -86,6 +86,7 @@ export async function createFamily(
   batch.set(doc(db, 'familyCodes', familyCode), { familyId });
   batch.set(doc(db, 'families', familyId, 'members', user.uid), {
     uid: user.uid,
+    memberId: user.uid,
     role: 'parent',
     displayName
   });

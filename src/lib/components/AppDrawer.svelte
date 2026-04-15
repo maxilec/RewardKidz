@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MemberDoc } from '$lib/firebase/types';
   import { addChild, updateFamilyName, deleteFamily, deleteParentAccount, logout } from '$lib/firebase';
+  import { auth } from '$lib/firebase/auth';
 
   interface Props {
     open:            boolean;
@@ -72,8 +73,10 @@
   async function handleDeleteAccount() {
     const msg = 'Supprimer votre compte ? Cette action est irréversible. Confirmer ?';
     if (!confirm(msg)) return;
+    const user = auth.currentUser;
+    if (!user) return;
     try {
-      await deleteParentAccount(familyId);
+      await deleteParentAccount(user, familyId);
     } catch (e: any) {
       alert('Erreur : ' + (e.message ?? e));
     }

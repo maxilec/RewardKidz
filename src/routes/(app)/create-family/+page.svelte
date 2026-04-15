@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { authUser } from '$lib/stores';
-  import { createFamily } from '$lib/firebase';
+  import { authUser, userDoc } from '$lib/stores';
+  import { createFamily, getUser } from '$lib/firebase';
 
   let familyName      = $state('');
   let parentNickname  = $state('');
@@ -19,6 +19,9 @@
     loading = true;
     try {
       await createFamily(user, name, parentNickname.trim() || null);
+      // Rafraîchir userDoc pour que le guard de layout voie le familyId
+      const fresh = await getUser(user.uid);
+      userDoc.set(fresh);
       goto('/parent');
     } catch (e) {
       error = (e as { message?: string }).message || 'Impossible de créer la famille.';

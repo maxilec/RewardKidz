@@ -23,8 +23,8 @@ export interface FamilyDoc {
 export interface MemberDoc {
   /** uid Firebase Auth — présent pour les parents */
   uid?: string;
-  /** ID du membre Firestore — présent pour les enfants */
-  memberId?: string;
+  /** ID du membre Firestore — uuid pour les enfants, uid pour les parents */
+  memberId: string;
   linkedAuthUid?: string | null;
   role: 'parent' | 'child';
   displayName: string;

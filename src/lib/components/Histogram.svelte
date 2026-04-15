@@ -22,7 +22,7 @@
     const empty  = e.missing || e.ignored;
     const h      = empty ? 0 : Math.round((e.points / 5) * MAX_H);
     const barCls = [e.isToday ? 'today' : '', empty ? 'empty' : ''].filter(Boolean).join(' ');
-    return { e, h, barCls, label: formatDayLabel(e.date, e.isToday) };
+    return { e, h, barCls, label: formatDayLabel(e.date, e.isToday ?? false) };
   }));
 </script>
 

@@ -19,7 +19,7 @@
   import AppModal      from '$lib/components/AppModal.svelte';
 
   // ── Paramètre URL ────────────────────────────────────────
-  let memberId   = $derived($page.params.memberId);
+  let memberId   = $derived($page.params.memberId ?? '');
   let familyId   = $derived($userDoc?.familyId ?? '');
   let familyName = $derived($familyDoc?.name ?? '');
   let familyCode = $derived($familyDoc?.familyCode ?? '—');
@@ -246,7 +246,7 @@
           onValidate={validate}
           onUnvalidate={unvalidate}
           onIgnore={doIgnore}
-          {onUnignore}
+          onUnignore={unignore}
         />
       {:else}
         <p class="app-hint">Chargement…</p>

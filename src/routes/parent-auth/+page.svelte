@@ -4,6 +4,7 @@
   import { resolveInvite, joinFamilyAsAuthenticated } from '$lib/firebase';
   import { pendingJoin, authReady, authUser, userDoc } from '$lib/stores';
   import { auth } from '$lib/firebase/auth';
+  import { getUser } from '$lib/firebase';
 
   // ── Tab state ──────────────────────────────────────────────
   type Tab = 'signin' | 'register' | 'join';
@@ -39,10 +40,17 @@
   $effect(() => {
     if (!$authReady) return;
     if (!$authUser || $authUser.isAnonymous) return;
-    if (!$userDoc?.familyId) {
-      goto('/onboarding');
-    } else {
+
+    // Déjà membre d'une famille → toujours rediriger
+    if ($userDoc?.familyId) {
       goto($userDoc.role === 'parent' ? '/parent' : '/child');
+      return;
+    }
+
+    // Pas encore de famille : si on est sur l'onglet "Rejoindre", laisser
+    // le flow du handler gérer la navigation (pour éviter la course async)
+    if (activeTab !== 'join') {
+      goto('/onboarding');
     }
   });
 
@@ -141,6 +149,9 @@
         pendingJoin.set(null);
         const familyId = await resolveInvite(pj.code);
         await joinFamilyAsAuthenticated(user, familyId, pj.name || user.displayName || 'Membre');
+        // Rafraîchir userDoc pour que le guard de layout voie le familyId
+        const fresh = await getUser(user.uid);
+        userDoc.set(fresh);
         goto('/parent');
       }
     } catch (err) {
@@ -168,6 +179,8 @@
       const user = await registerWithEmail(email, pass, name || undefined);
       const familyId = await resolveInvite(code);
       await joinFamilyAsAuthenticated(user, familyId, name || user.displayName || 'Membre');
+      const fresh = await getUser(user.uid);
+      userDoc.set(fresh);
       goto('/parent');
     } catch (err) {
       errorJoin = (err as { message?: string }).message || translateAuthError(err);
