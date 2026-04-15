@@ -136,28 +136,24 @@
   async function unignore()   { try { await setDayIgnored(familyId, memberId, false, byUid, byName); } catch (e: any) { console.error(e); } }
 
   // ── Lifecycle ────────────────────────────────────────────
+  let _initialized = false;
+
   onMount(async () => {
+    _initialized = true;
     await loadScore();
     await loadHistory(7);
   });
 
   onDestroy(() => { unsub?.(); });
 
-  // Recharger si memberId change (navigation drawer)
+  // Recharger uniquement quand memberId change (après le montage initial)
   $effect(() => {
     const id = memberId;
-    if (id && familyId) {
-      loadScore();
-      hist30Cache = null;
-      loadHistory(7);
-    }
-  });
-
-  // Charger l'historique après que score soit disponible
-  $effect(() => {
-    if (score && histEntries.length === 0 && familyId && memberId) {
-      loadHistory(histDays);
-    }
+    const fid = familyId;
+    if (!_initialized || !id || !fid) return;
+    loadScore();
+    hist30Cache = null;
+    loadHistory(7);
   });
 </script>
 
@@ -176,18 +172,14 @@
 />
 
 <!-- Modale OTP -->
-<AppModal open={otpModalOpen} title="Code de connexion" onClose={() => otpModalOpen = false}>
+<AppModal open={otpModalOpen} title="Code de connexion enfant" onClose={() => otpModalOpen = false}>
   {#snippet children()}
-    <p class="app-hint">
-      Code famille : <strong>{familyCode}</strong><br>
-      Donnez ce code + le code OTP à {displayName} pour connecter son appareil.
-    </p>
+    <p class="app-hint">Donnez ces deux codes à {displayName} pour connecter son appareil.</p>
     {#if otpCode && otpCode !== '…'}
-      <div class="otp-code-block">
-        <div class="code-value">Code famille&nbsp;: <strong>{familyCode}</strong></div>
-        <div class="otp-value">{otpCode}</div>
-        <div class="otp-expiry">⏱ Valable 10 minutes</div>
-      </div>
+      <div class="otp-label-small">Code temporaire (valable 10 min)</div>
+      <div class="app-invite-code">{otpCode}</div>
+      <div class="otp-label-small">Code famille permanent</div>
+      <div class="app-invite-code">{familyCode}</div>
     {/if}
     <button class="app-btn-prim full" onclick={generateOtp} disabled={otpGenerating}>
       {otpCode ? '🔄 Nouveau code' : '🔑 Générer un code'}

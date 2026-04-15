@@ -826,7 +826,11 @@ input:focus {
   font-family: var(--f-head); font-size: 28px; font-weight: 600;
   color: var(--c-txt-h); letter-spacing: 6px; text-align: center;
   background: #F5F3FF; border-radius: 12px; padding: 10px 16px;
-  margin: 10px 0; border: 1.5px dashed var(--c-primary);
+  margin: 4px 0 12px; border: 1.5px dashed var(--c-primary);
+}
+.otp-label-small {
+  font-size: 12px; font-weight: 600; color: var(--c-txt-sub, #6B7280);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;
 }
 
 

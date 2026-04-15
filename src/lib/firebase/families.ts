@@ -130,7 +130,7 @@ export async function deleteFamily(familyId: string): Promise<void> {
   const cleanupBatch = writeBatch(db);
   membersSnap.forEach(memberDoc => {
     const d   = memberDoc.data() as MemberDoc;
-    const uid = d.linkedAuthUid || d.uid || memberDoc.id;
+    const uid = d.linkedAuthUid || d.uid;
     if (uid) cleanupBatch.delete(doc(db, 'users', uid));
   });
   invitesSnap.forEach(inviteDoc => cleanupBatch.delete(inviteDoc.ref));

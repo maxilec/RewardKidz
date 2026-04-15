@@ -183,7 +183,7 @@
           type="text"
           placeholder="Prénom de l'enfant"
           bind:value={newChildName}
-          onblur={() => setTimeout(() => { if (!saving) cancelAddChild(); }, 150)}
+          onblur={() => setTimeout(() => { if (!saving && !newChildName.trim()) cancelAddChild(); }, 150)}
         />
         <button type="submit" class="drawer-add-save" disabled={saving} aria-label="Valider">✓</button>
       </form>
