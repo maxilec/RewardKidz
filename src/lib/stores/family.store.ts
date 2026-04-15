@@ -60,14 +60,17 @@ export function initFamilyListener(familyId: string | null): () => void {
 
   _familyUnsub = onSnapshot(
     doc(db, 'families', familyId),
-    (snap) => familyDoc.set(snap.exists() ? (snap.data() as FamilyDoc) : null),
-    (err) => console.warn('[familyDoc] listener error:', err.code)
+    (snap) => {
+      if (!snap.exists()) console.warn('[family] families/%s — document absent', familyId);
+      familyDoc.set(snap.exists() ? (snap.data() as FamilyDoc) : null);
+    },
+    (err) => console.error('[family] Erreur lecture families/%s :', familyId, err.code, err.message)
   );
 
   _membersUnsub = onSnapshot(
     collection(db, 'families', familyId, 'members'),
     (snap) => members.set(snap.docs.map(d => d.data() as MemberDoc)),
-    (err) => console.warn('[members] listener error:', err.code)
+    (err) => console.error('[family] Erreur lecture membres de families/%s :', familyId, err.code, err.message)
   );
 
   return () => {

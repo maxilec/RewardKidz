@@ -49,19 +49,12 @@ export const userRole = derived(
 
 /**
  * Promise qui se résout quand `authReady` passe à `true`.
- * À appeler en début de load() dans les routes protégées pour éviter
- * la race condition entre le chargement de page et la résolution Firebase Auth.
  */
 export function waitForAuthReady(): Promise<void> {
   return new Promise(resolve => {
-    // Déjà prêt
     if (get(authReady)) { resolve(); return; }
-
     const unsub = authReady.subscribe(ready => {
-      if (ready) {
-        unsub();
-        resolve();
-      }
+      if (ready) { unsub(); resolve(); }
     });
   });
 }
@@ -70,21 +63,28 @@ export function waitForAuthReady(): Promise<void> {
 // Auth listener
 // ─────────────────────────────────────────────────────────────
 
-import { onUserStateChanged, getUser } from '$lib/firebase';
+import { onUserStateChanged, db } from '$lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/auth';
 
 let _authListenerUnsub: Unsubscribe | null = null;
+let _userDocUnsub:      Unsubscribe | null = null;
 
 /**
  * Initialise le listener onAuthStateChanged.
- * À appeler une seule fois dans `+layout.svelte` `onMount`.
- * Retourne une fonction de nettoyage pour le unmount.
+ * Utilise onSnapshot (temps réel) pour le document utilisateur Firestore
+ * au lieu d'un getDoc() unique — plus robuste aux erreurs réseau transitoires
+ * et aux retards de propagation du token.
  */
 export function initAuthListener(): () => void {
   if (_authListenerUnsub) return _authListenerUnsub;
 
-  _authListenerUnsub = onUserStateChanged(async (user) => {
+  _authListenerUnsub = onUserStateChanged((user) => {
     authUser.set(user);
+
+    // Nettoyer le listener précédent sur le doc utilisateur
+    _userDocUnsub?.();
+    _userDocUnsub = null;
 
     if (!user) {
       userDoc.set(null);
@@ -92,18 +92,31 @@ export function initAuthListener(): () => void {
       return;
     }
 
-    try {
-      const doc = await getUser(user.uid);
-      userDoc.set(doc);
-    } catch {
-      userDoc.set(null);
-    } finally {
-      authReady.set(true);
-    }
+    // Listener temps réel sur users/{uid} — se reconnecte automatiquement
+    // si le token expire ou si une erreur réseau transitoire survient.
+    _userDocUnsub = onSnapshot(
+      doc(db, 'users', user.uid),
+      (snap) => {
+        const data = snap.exists() ? (snap.data() as UserDoc) : null;
+        if (!data) {
+          console.warn('[auth] users/%s — document absent de Firestore', user.uid);
+        }
+        userDoc.set(data);
+        if (!get(authReady)) authReady.set(true);
+      },
+      (err) => {
+        console.error('[auth] Erreur lecture users/%s :', user.uid, err.code, err.message);
+        // Ne pas bloquer l'app indéfiniment — marquer authReady même en cas d'erreur
+        userDoc.set(null);
+        if (!get(authReady)) authReady.set(true);
+      }
+    );
   });
 
   return () => {
     _authListenerUnsub?.();
+    _userDocUnsub?.();
     _authListenerUnsub = null;
+    _userDocUnsub = null;
   };
 }

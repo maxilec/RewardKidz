@@ -24,3 +24,15 @@ export const vapidKey: string = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
 // Guard HMR : évite de ré-initialiser Firebase lors du hot module replacement en dev
 export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Vérification rapide — loggue en console si des clés sont manquantes
+// (aide à diagnostiquer les problèmes de déploiement CI)
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
+if (missingKeys.length > 0) {
+  console.error('[firebase] Clés de configuration manquantes :', missingKeys.join(', '));
+  console.error('[firebase] Vérifiez les secrets GitHub Actions (VITE_FIREBASE_*)');
+} else {
+  console.info('[firebase] Initialisé sur le projet :', firebaseConfig.projectId);
+}
