@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { loginWithGoogle, loginWithEmail, registerWithEmail, translateAuthError } from '$lib/firebase';
   import { resolveInvite, joinFamilyAsAuthenticated } from '$lib/firebase';
-  import { pendingJoin } from '$lib/stores';
+  import { pendingJoin, authReady, authUser, userDoc } from '$lib/stores';
   import { auth } from '$lib/firebase/auth';
 
   // ── Tab state ──────────────────────────────────────────────
@@ -34,6 +34,17 @@
   let joinNickname   = $state('');
   let joinEmail      = $state('');
   let joinPassword   = $state('');
+
+  // ── Redirect once authenticated ────────────────────────────
+  $effect(() => {
+    if (!$authReady) return;
+    if (!$authUser || $authUser.isAnonymous) return;
+    if (!$userDoc?.familyId) {
+      goto('/onboarding');
+    } else {
+      goto($userDoc.role === 'parent' ? '/parent' : '/child');
+    }
+  });
 
   // ── Back to landing ────────────────────────────────────────
   async function goBack() {
