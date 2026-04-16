@@ -465,7 +465,7 @@ export async function deleteParentAccount(user: User, familyId: string): Promise
   const children = members.filter(m => m.role === 'child');
 
   if (parents.length === 1 && children.length > 0) {
-    throw new Error('Impossible : vous êtes le seul parent et la famille a des enfants.');
+    throw new Error('Invitez un co-parent ou retirez tous les enfants avant de supprimer votre compte.');
   }
 
   if (parents.length <= 1) {

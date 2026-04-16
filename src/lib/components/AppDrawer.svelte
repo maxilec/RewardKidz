@@ -75,10 +75,11 @@
     if (!confirm(msg)) return;
     const user = auth.currentUser;
     if (!user) return;
+    error = '';
     try {
       await deleteParentAccount(user, familyId);
     } catch (e: any) {
-      alert('Erreur : ' + (e.message ?? e));
+      error = (e as { message?: string }).message ?? 'Erreur inconnue.';
     }
   }
 
