@@ -197,12 +197,34 @@
 <!-- Page détail enfant -->
 <div class="page-dashboard">
 
-  <!-- Header gradient — même format que le dashboard -->
+  <!-- Header gradient — prénom cliquable pour renommer -->
   <header class="app-header">
     <button class="app-burger app-burger--header" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
-    <div class="app-header-info">
-      <div class="app-header-title">{displayName}</div>
-    </div>
+
+    {#if editingChildName}
+      <div style="flex:1;display:flex;gap:6px;align-items:center;min-width:0;padding:0 8px">
+        <input
+          class="ob-input"
+          style="flex:1;height:36px;font-size:15px"
+          type="text"
+          bind:value={editedChildName}
+          onkeydown={(e) => e.key === 'Escape' && (editingChildName = false)}
+        />
+        <button class="app-btn-prim sm" onclick={saveChildName} aria-label="Valider">✓</button>
+      </div>
+    {:else}
+      <div
+        class="app-header-info"
+        style="cursor:pointer"
+        onclick={startRename}
+        title="Appuyer pour renommer"
+      >
+        <div class="app-header-title">
+          {displayName} <span style="font-size:12px;opacity:0.55">✏️</span>
+        </div>
+      </div>
+    {/if}
+
     <span class="app-header-emoji">🧒</span>
   </header>
 
@@ -280,28 +302,20 @@
       {/if}
     </div>
 
-    <!-- Formulaire de renommage (sans validation par Entrée) -->
-    {#if editingChildName}
-      <div class="child-score-card" style="margin-top:16px;display:flex;gap:8px;align-items:center">
-        <input
-          class="ob-input"
-          style="flex:1"
-          type="text"
-          bind:value={editedChildName}
-          onkeydown={(e) => e.key === 'Escape' && (editingChildName = false)}
-        />
-        <button class="app-btn-prim sm" onclick={saveChildName} aria-label="Valider">✓</button>
-        <button class="app-btn-outline sm" onclick={() => (editingChildName = false)} aria-label="Annuler">✕</button>
-      </div>
-    {/if}
-
     <!-- Actions -->
     <div style="margin-top:32px;display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
       <button class="app-btn-outline full" onclick={openOtpModal}>🔑 Code connexion</button>
-      <button class="app-btn-outline full" onclick={startRename}>✏️ Renommer</button>
       <button class="app-btn-outline danger-outline full" onclick={handleDelete}>🗑 Supprimer cet enfant</button>
     </div>
 
   </main>
+
+  <!-- Barre basse -->
+  <div class="app-bottom-bar">
+    <span class="app-bottom-hint">
+      <strong>{displayName}</strong> · Famille {familyName}
+    </span>
+    <button class="app-burger" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
+  </div>
 
 </div>

@@ -187,9 +187,6 @@
         >
           <div class="child-card-header">
             <span class="child-name">🧒 {child.displayName}</span>
-            <span class="child-status {child.linkedAuthUid ? 'connected' : 'pending'}">
-              {child.linkedAuthUid ? 'Connecté' : 'En attente'}
-            </span>
             <span class="child-card-chevron">›</span>
           </div>
 
