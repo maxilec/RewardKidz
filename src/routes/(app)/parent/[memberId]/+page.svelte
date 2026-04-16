@@ -209,6 +209,7 @@
           type="text"
           bind:value={editedChildName}
           onkeydown={(e) => e.key === 'Escape' && (editingChildName = false)}
+          onblur={() => setTimeout(() => (editingChildName = false), 150)}
         />
         <button class="app-btn-prim sm" onclick={saveChildName} aria-label="Valider">✓</button>
       </div>

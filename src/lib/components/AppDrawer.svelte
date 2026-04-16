@@ -125,6 +125,7 @@
             bind:value={editedName}
             placeholder="Nom de la famille"
             onkeydown={(e) => { if (e.key === 'Escape') cancelEditName(); }}
+            onblur={() => setTimeout(() => cancelEditName(), 150)}
           />
           <button class="drawer-edit-save" onclick={saveFamily} disabled={saving} aria-label="Valider">✓</button>
         </div>
@@ -185,7 +186,7 @@
           placeholder="Prénom de l'enfant"
           bind:value={newChildName}
           onkeydown={(e) => e.key === 'Escape' && cancelAddChild()}
-          onblur={() => setTimeout(() => { if (!saving && !newChildName.trim()) cancelAddChild(); }, 150)}
+          onblur={() => setTimeout(() => { if (!saving) cancelAddChild(); }, 150)}
         />
         <button class="drawer-add-save" onclick={submitAddChild} disabled={saving} aria-label="Valider">✓</button>
       </div>
