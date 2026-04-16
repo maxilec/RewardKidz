@@ -65,14 +65,14 @@
   });
 
   async function loadHistory(days: 7 | 30) {
-    if (!familyId || !memberId || !score) return;
+    if (!familyId || !memberId) return;
     histLoading = true;
     histDays    = days;
     try {
       if (days === 7) {
-        histEntries = await getChildHistory(familyId, memberId, 7, score);
+        histEntries = await getChildHistory(familyId, memberId, 7);
       } else {
-        if (!hist30Cache) hist30Cache = await getChildHistory(familyId, memberId, 30, score);
+        if (!hist30Cache) hist30Cache = await getChildHistory(familyId, memberId, 30);
         histEntries = hist30Cache!;
       }
     } finally { histLoading = false; }
@@ -136,21 +136,26 @@
   async function unignore()   { try { await setDayIgnored(familyId, memberId, false, byUid, byName); } catch (e: any) { console.error(e); } }
 
   // ── Lifecycle ────────────────────────────────────────────
-  let _initialized = false;
+  // _prevMemberId n'est pas réactif → l'effet ne se re-souscrit pas dessus.
+  // onMount le fixe avant le premier load, ce qui permet à l'effet de distinguer
+  // le montage initial (id === _prevMemberId → skip) d'une navigation drawer
+  // (nouvel id ≠ _prevMemberId → rechargement complet).
+  let _prevMemberId = '';
 
   onMount(async () => {
-    _initialized = true;
+    _prevMemberId = memberId; // fige l'id initial avant que l'effet ne tourne
     await loadScore();
     await loadHistory(7);
   });
 
   onDestroy(() => { unsub?.(); });
 
-  // Recharger uniquement quand memberId change (après le montage initial)
+  // Recharger uniquement quand memberId change (navigation drawer)
   $effect(() => {
-    const id = memberId;
+    const id  = memberId;
     const fid = familyId;
-    if (!_initialized || !id || !fid) return;
+    if (id === _prevMemberId || !id || !fid) return;
+    _prevMemberId = id;
     loadScore();
     hist30Cache = null;
     loadHistory(7);

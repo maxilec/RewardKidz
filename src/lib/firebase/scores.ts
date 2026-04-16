@@ -203,20 +203,19 @@ export function subscribeToScore(
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Récupère l'historique des `days` derniers jours pour un enfant.
- * `todayScore` est le score du jour déjà chargé (évite un read supplémentaire).
- * Les jours manquants (parent n'a pas ouvert l'app ce jour-là) sont retournés avec `missing: true`.
+ * Récupère l'historique des `days` derniers jours pour un enfant (jours passés uniquement,
+ * aujourd'hui exclu — il est déjà affiché dans le « Score du jour »).
+ * Les jours manquants sont retournés avec `missing: true`.
  */
 export async function getChildHistory(
   familyId: string,
   memberId: string,
-  days: number,
-  todayScore: ScoreDoc
+  days: number
 ): Promise<HistoryEntry[]> {
-  // Construit la liste des jours passés (hors aujourd'hui)
-  const pastDates = Array.from({ length: days - 1 }, (_, i) => {
+  // Construit la liste des jours passés : J-days … J-1
+  const pastDates = Array.from({ length: days }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
+    d.setDate(d.getDate() - (days - i));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
@@ -227,7 +226,7 @@ export async function getChildHistory(
     )
   );
 
-  const history: HistoryEntry[] = pastDates.map((date, i) => {
+  return pastDates.map((date, i) => {
     const snap = snaps[i];
     if (snap.exists()) {
       const d = snap.data() as { points: number; validated: boolean; ignored: boolean };
@@ -235,16 +234,4 @@ export async function getChildHistory(
     }
     return { date, missing: true, points: 0, validated: false, ignored: false };
   });
-
-  // Ajoute aujourd'hui (déjà chargé par l'appelant)
-  history.push({
-    date: todayScore.date,
-    missing: false,
-    points: todayScore.points,
-    validated: todayScore.validated,
-    ignored: todayScore.ignored,
-    isToday: true
-  });
-
-  return history;
 }

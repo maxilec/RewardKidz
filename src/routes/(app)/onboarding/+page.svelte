@@ -37,7 +37,7 @@
         <span class="ob-role-card-emoji">🔑</span>
         <div class="ob-role-card-title">J'ai un code d'invitation</div>
         <div class="ob-role-card-desc">Un parent vous a envoyé un code à 6 caractères pour rejoindre sa famille.</div>
-        <button class="ob-btn-outline" onclick={() => goto('/parent-auth?tab=join')}>Rejoindre une famille</button>
+        <button class="ob-btn-outline" onclick={() => goto('/join-family')}>Rejoindre une famille</button>
       </div>
 
     </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { loginWithGoogle, loginWithEmail, registerWithEmail, translateAuthError } from '$lib/firebase';
   import { resolveInvite, joinFamilyAsAuthenticated } from '$lib/firebase';
   import { pendingJoin, authReady, authUser, userDoc } from '$lib/stores';
@@ -8,7 +9,10 @@
 
   // ── Tab state ──────────────────────────────────────────────
   type Tab = 'signin' | 'register' | 'join';
-  let activeTab = $state<Tab>('signin');
+  const _urlTab = $page.url.searchParams.get('tab');
+  let activeTab = $state<Tab>(
+    _urlTab === 'register' ? 'register' : _urlTab === 'join' ? 'join' : 'signin'
+  );
 
   // ── Error messages per panel ───────────────────────────────
   let errorSignin   = $state('');

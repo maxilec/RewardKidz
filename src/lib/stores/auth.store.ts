@@ -80,17 +80,22 @@ export function initAuthListener(): () => void {
   if (_authListenerUnsub) return _authListenerUnsub;
 
   _authListenerUnsub = onUserStateChanged((user) => {
-    authUser.set(user);
-
     // Nettoyer le listener précédent sur le doc utilisateur
     _userDocUnsub?.();
     _userDocUnsub = null;
 
     if (!user) {
+      authUser.set(null);
       userDoc.set(null);
       authReady.set(true);
       return;
     }
+
+    // Réinitialiser authReady AVANT de setter authUser pour éviter la race condition :
+    // sans ce reset, le $effect de parent-auth se déclenche avec authUser=user + userDoc=null
+    // et redirige vers /onboarding avant que onSnapshot ait retourné les données.
+    authReady.set(false);
+    authUser.set(user);
 
     // Listener temps réel sur users/{uid} — se reconnecte automatiquement
     // si le token expire ou si une erreur réseau transitoire survient.
@@ -102,13 +107,12 @@ export function initAuthListener(): () => void {
           console.warn('[auth] users/%s — document absent de Firestore', user.uid);
         }
         userDoc.set(data);
-        if (!get(authReady)) authReady.set(true);
+        authReady.set(true); // toujours, y compris lors d'une reconnexion
       },
       (err) => {
         console.error('[auth] Erreur lecture users/%s :', user.uid, err.code, err.message);
-        // Ne pas bloquer l'app indéfiniment — marquer authReady même en cas d'erreur
         userDoc.set(null);
-        if (!get(authReady)) authReady.set(true);
+        authReady.set(true); // ne pas bloquer l'app indéfiniment
       }
     );
   });
