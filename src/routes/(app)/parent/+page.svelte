@@ -121,7 +121,7 @@
 />
 
 <!-- Modale invitation parent -->
-<AppModal open={inviteModalOpen} title="Inviter un co-parent" onClose={() => inviteModalOpen = false}>
+<AppModal open={inviteModalOpen} title="🔗 Inviter un co-parent" onClose={() => inviteModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Partagez ce code à un autre parent pour qu'il rejoigne votre famille.</p>
     {#if inviteCode}
@@ -130,6 +130,11 @@
     <button class="app-btn-prim full" onclick={generateInvite} disabled={generatingInvite}>
       {inviteCode ? '🔄 Nouveau code' : '✉️ Générer un code'}
     </button>
+    <div class="app-modal-divider"></div>
+    <div style="text-align:center;padding:4px 0 2px">
+      <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille permanent (rappel)</div>
+      <div class="app-drawer-code-val" style="font-size:18px;letter-spacing:3px">{familyCode}</div>
+    </div>
   {/snippet}
 </AppModal>
 

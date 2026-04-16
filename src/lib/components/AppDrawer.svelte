@@ -123,7 +123,7 @@
             type="text"
             bind:value={editedName}
             placeholder="Nom de la famille"
-            onkeydown={(e) => { if (e.key === 'Enter') saveFamily(); if (e.key === 'Escape') cancelEditName(); }}
+            onkeydown={(e) => { if (e.key === 'Escape') cancelEditName(); }}
           />
           <button class="drawer-edit-save" onclick={saveFamily} disabled={saving} aria-label="Valider">✓</button>
         </div>
@@ -178,15 +178,16 @@
 
     <!-- Ajouter un enfant -->
     {#if addingChild}
-      <form class="drawer-add-form" onsubmit={(e) => { e.preventDefault(); submitAddChild(); }}>
+      <div class="drawer-add-form">
         <input
           type="text"
           placeholder="Prénom de l'enfant"
           bind:value={newChildName}
+          onkeydown={(e) => e.key === 'Escape' && cancelAddChild()}
           onblur={() => setTimeout(() => { if (!saving && !newChildName.trim()) cancelAddChild(); }, 150)}
         />
-        <button type="submit" class="drawer-add-save" disabled={saving} aria-label="Valider">✓</button>
-      </form>
+        <button class="drawer-add-save" onclick={submitAddChild} disabled={saving} aria-label="Valider">✓</button>
+      </div>
     {:else}
       <button class="drawer-add-btn" onclick={startAddChild}>+ Ajouter un enfant</button>
     {/if}

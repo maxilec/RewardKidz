@@ -16,12 +16,25 @@
       return;
     }
 
-    // Authenticated but no family — redirect to onboarding unless already there
     const currentPath = $page.url.pathname;
     const onExemptPage = noFamilyRequired.some(p => currentPath.startsWith(p));
 
+    // Authenticated but no family — redirect to onboarding unless already there
     if (!$userDoc?.familyId && !onExemptPage) {
       goto('/onboarding');
+      return;
+    }
+
+    // Guard rôle : un enfant ne peut pas accéder aux routes parent (et vice-versa)
+    // Reprend les mêmes règles que la branche main (loadPage guard)
+    const role = $userDoc?.role;
+    if (role === 'child' && (currentPath.startsWith('/parent') || onExemptPage)) {
+      goto('/child');
+      return;
+    }
+    if (role === 'parent' && currentPath.startsWith('/child')) {
+      goto('/parent');
+      return;
     }
   });
 </script>

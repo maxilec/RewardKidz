@@ -195,45 +195,28 @@
 <!-- Page détail enfant -->
 <div class="page-dashboard">
 
-  <!-- Header -->
-  <header class="detail-header">
-    <button class="detail-back" onclick={() => goto('/parent')} aria-label="Retour">←</button>
-
-    {#if editingChildName}
-      <form style="flex:1;display:flex;gap:8px" onsubmit={(e) => { e.preventDefault(); saveChildName(); }}>
-        <input
-          class="ob-input"
-          style="flex:1;height:40px"
-          type="text"
-          bind:value={editedChildName}
-          onkeydown={(e) => e.key === 'Escape' && (editingChildName = false)}
-        />
-        <button type="submit" class="app-btn-prim sm">✓</button>
-      </form>
-    {:else}
-      <h1>
-        🧒
-        <button
-          class="detail-name-clickable"
-          style="background:none;border:none;cursor:pointer;font:inherit;color:inherit;padding:0"
-          onclick={startRename}
-          title="Cliquer pour renommer"
-        >{displayName}</button>
-      </h1>
-      <span class="child-status {childMember?.linkedAuthUid ? 'connected' : 'pending'}">
-        {childMember?.linkedAuthUid ? 'Connecté' : 'En attente'}
-      </span>
-    {/if}
-
-    <button class="app-burger app-burger--header" style="background:transparent;box-shadow:none;color:var(--c-primary)" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
+  <!-- Header gradient — même format que le dashboard -->
+  <header class="app-header">
+    <button class="app-burger app-burger--header" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
+    <div class="app-header-info">
+      <div class="app-header-title">{displayName}</div>
+    </div>
+    <span class="app-header-emoji">🧒</span>
   </header>
 
+  <!-- Lien retour sous l'en-tête (comme dans la branche main) -->
+  <div class="detail-back-row">
+    <button class="detail-back-link" onclick={() => goto('/parent')} aria-label="Retour">← Retour</button>
+  </div>
+
   <!-- Corps scrollable -->
-  <div class="s-detail-body">
+  <main class="app-body">
 
     <!-- Score du jour -->
-    <div class="detail-card">
-      <h2>Score du jour</h2>
+    <div class="app-section-hd">
+      <span class="app-section-title">Score du jour</span>
+    </div>
+    <div class="child-score-card">
       {#if score}
         <ScoreControls
           {score}
@@ -251,8 +234,10 @@
     </div>
 
     <!-- Statistiques -->
-    <div class="detail-card">
-      <h2>Statistiques</h2>
+    <div class="app-section-hd" style="margin-top:24px">
+      <span class="app-section-title">Statistiques</span>
+    </div>
+    <div class="child-score-card">
       <div class="stats-row">
         <div class="stat-box">
           <span class="stat-label">Moy. 7j validés</span>
@@ -266,9 +251,9 @@
     </div>
 
     <!-- Historique -->
-    <div class="detail-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h2 style="margin:0">Historique</h2>
+    <div class="app-section-hd" style="margin-top:24px">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <span class="app-section-title" style="flex:1">Historique</span>
         <div class="app-hist-toggle">
           <button
             class="hist-tab"
@@ -282,7 +267,8 @@
           >30 jours</button>
         </div>
       </div>
-
+    </div>
+    <div class="child-score-card">
       {#if histLoading}
         <p class="app-hint">Chargement…</p>
       {:else if histEntries.length > 0}
@@ -292,15 +278,28 @@
       {/if}
     </div>
 
-    <!-- Gestion -->
-    <div class="detail-card">
-      <h2>Gestion</h2>
-      <div class="detail-actions-row">
-        <button class="icon-btn" onclick={openOtpModal}>🔑 Code connexion</button>
-        <button class="icon-btn" onclick={startRename}>✏️ Renommer</button>
-        <button class="icon-btn danger" onclick={handleDelete}>🗑 Supprimer</button>
+    <!-- Formulaire de renommage (sans validation par Entrée) -->
+    {#if editingChildName}
+      <div class="child-score-card" style="margin-top:16px;display:flex;gap:8px;align-items:center">
+        <input
+          class="ob-input"
+          style="flex:1"
+          type="text"
+          bind:value={editedChildName}
+          onkeydown={(e) => e.key === 'Escape' && (editingChildName = false)}
+        />
+        <button class="app-btn-prim sm" onclick={saveChildName} aria-label="Valider">✓</button>
+        <button class="app-btn-outline sm" onclick={() => (editingChildName = false)} aria-label="Annuler">✕</button>
       </div>
+    {/if}
+
+    <!-- Actions -->
+    <div style="margin-top:32px;display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
+      <button class="app-btn-outline full" onclick={openOtpModal}>🔑 Code connexion</button>
+      <button class="app-btn-outline full" onclick={startRename}>✏️ Renommer</button>
+      <button class="app-btn-outline danger-outline full" onclick={handleDelete}>🗑 Supprimer cet enfant</button>
     </div>
 
-  </div>
+  </main>
+
 </div>
