@@ -177,18 +177,20 @@
 />
 
 <!-- Modale OTP -->
-<AppModal open={otpModalOpen} title="Code de connexion enfant" onClose={() => otpModalOpen = false}>
+<AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" onClose={() => otpModalOpen = false}>
   {#snippet children()}
-    <p class="app-hint">Donnez ces deux codes à {displayName} pour connecter son appareil.</p>
+    <p class="app-hint">Code temporaire valable 10 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
     {#if otpCode && otpCode !== '…'}
-      <div class="otp-label-small">Code temporaire (valable 10 min)</div>
       <div class="app-invite-code">{otpCode}</div>
-      <div class="otp-label-small">Code famille permanent</div>
-      <div class="app-invite-code">{familyCode}</div>
     {/if}
     <button class="app-btn-prim full" onclick={generateOtp} disabled={otpGenerating}>
       {otpCode ? '🔄 Nouveau code' : '🔑 Générer un code'}
     </button>
+    <div class="app-modal-divider"></div>
+    <div style="text-align:center;padding:4px 0 2px">
+      <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille permanent (rappel)</div>
+      <div class="app-drawer-code-val" style="font-size:18px;letter-spacing:3px">{familyCode}</div>
+    </div>
   {/snippet}
 </AppModal>
 
