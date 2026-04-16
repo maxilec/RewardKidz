@@ -1,37 +1,45 @@
 <script lang="ts">
   /**
    * Page de jonction famille pour un parent déjà authentifié.
-   * Accessible via /join-family?code=XXXXXX ou directement depuis
-   * l'onboarding quand un pendingJoin est en attente.
-   *
-   * Flux : parent déjà connecté (Google/email) → saisit le code d'invitation
-   * → resolveInvite + joinFamilyAsAuthenticated → redirect /parent
+   * Deux codes requis pour la sécurité :
+   *   - Code d'invitation (court, éphémère) → transmis par un co-parent
+   *   - Code famille permanent              → confirme qu'ils appartiennent à la même famille
    */
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { authUser, userDoc, pendingJoin } from '$lib/stores';
-  import { resolveInvite, joinFamilyAsAuthenticated } from '$lib/firebase';
+  import { resolveInvite, resolveByFamilyCode, joinFamilyAsAuthenticated } from '$lib/firebase';
 
-  // Pré-remplir le code depuis l'URL ou le store pendingJoin
   let inviteCode  = $state($page.url.searchParams.get('code') ?? $pendingJoin?.code ?? '');
+  let familyCode  = $state($pendingJoin?.famCode ?? '');
   let displayName = $state($userDoc?.displayName ?? $authUser?.displayName ?? '');
   let loading     = $state(false);
   let error       = $state('');
 
-  // Si un pendingJoin est déjà complet, tenter automatiquement
+  // Si un pendingJoin complet est déjà en attente, tenter automatiquement
   $effect(() => {
     const pj = $pendingJoin;
-    if (pj?.code && pj?.name && $authUser && !$authUser.isAnonymous && !loading) {
-      handleJoin(pj.code, pj.name);
+    if (pj?.code && pj?.famCode && pj?.name && $authUser && !$authUser.isAnonymous && !loading) {
+      handleJoin(pj.code, pj.famCode, pj.name);
     }
   });
 
-  async function handleJoin(code = inviteCode.trim().toUpperCase(), name = displayName.trim()) {
+  async function handleJoin(
+    code    = inviteCode.trim().toUpperCase(),
+    famCode = familyCode.trim().toUpperCase(),
+    name    = displayName.trim()
+  ) {
     error   = '';
     loading = true;
     try {
-      const familyId = await resolveInvite(code);
-      await joinFamilyAsAuthenticated($authUser!, familyId, name || 'Membre');
+      const [familyId1, familyId2] = await Promise.all([
+        resolveInvite(code),
+        resolveByFamilyCode(famCode)
+      ]);
+      if (familyId1 !== familyId2) {
+        throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
+      }
+      await joinFamilyAsAuthenticated($authUser!, familyId1, name || 'Membre');
       pendingJoin.set(null);
       goto('/parent');
     } catch (e: any) {
@@ -42,7 +50,8 @@
   }
 
   function submit() {
-    if (!inviteCode.trim()) { error = 'Entrez le code d\'invitation.'; return; }
+    if (!inviteCode.trim())  { error = "Entrez le code d'invitation."; return; }
+    if (!familyCode.trim())  { error = 'Entrez le code famille.'; return; }
     if (!displayName.trim()) { error = 'Entrez votre prénom.'; return; }
     handleJoin();
   }
@@ -63,20 +72,34 @@
 
     <h1 class="ob-title ob-mb8">Rejoindre une famille</h1>
     <p class="ob-subtitle ob-mb24">
-      Entrez le code d'invitation reçu d'un co-parent.
+      Entrez les deux codes reçus d'un co-parent.
     </p>
 
     <div class="ob-form-field">
-      <label class="ob-label" for="joinCode">Code d'invitation</label>
+      <label class="ob-label" for="joinInviteCode">Code d'invitation</label>
       <input
-        id="joinCode"
+        id="joinInviteCode"
         class="ob-input ob-code-input"
         type="text"
-        placeholder="XXXXXXXX"
+        placeholder="XXXXXX"
         maxlength="8"
         autocomplete="off"
         bind:value={inviteCode}
         oninput={(e) => { inviteCode = (e.currentTarget as HTMLInputElement).value.toUpperCase(); }}
+      />
+    </div>
+
+    <div class="ob-form-field">
+      <label class="ob-label" for="joinFamilyCode">Code famille permanent</label>
+      <input
+        id="joinFamilyCode"
+        class="ob-input ob-code-input"
+        type="text"
+        placeholder="ABCD1234"
+        maxlength="8"
+        autocomplete="off"
+        bind:value={familyCode}
+        oninput={(e) => { familyCode = (e.currentTarget as HTMLInputElement).value.toUpperCase(); }}
       />
     </div>
 

@@ -12,7 +12,6 @@
   let familyId    = $derived($userDoc?.familyId   ?? '');
   let memberId    = $derived($userDoc?.memberId    ?? '');
   let displayName = $derived($userDoc?.displayName ?? '');
-  let familyCode  = $derived($familyDoc?.familyCode ?? '—');
   let familyName  = $derived($familyDoc?.name ?? '');
 
   // ── Score realtime ────────────────────────────────────────
@@ -25,18 +24,13 @@
   // ── Lifecycle ────────────────────────────────────────────
   onMount(() => {
     if (!familyId || !memberId) return;
-
-    // Abonnement realtime au score du jour
     unsub = subscribeToScore(familyId, memberId, s => { score = s; });
-
-    // Notifications push (non bloquant)
     sendConfigToSW();
     initNotifications(familyId, memberId);
   });
 
   onDestroy(() => { unsub?.(); });
 
-  // Si memberId change (reconnexion), relancer l'abonnement
   $effect(() => {
     const fid = familyId;
     const mid = memberId;
@@ -55,22 +49,12 @@
   ></div>
 {/if}
 
-<!-- Drawer enfant (simplifié) -->
+<!-- Drawer enfant (simplifié — déconnexion uniquement) -->
 <div class="app-drawer" class:open={drawerOpen} role="navigation" aria-label="Menu enfant">
   <div class="app-drawer-head">
     <span class="app-drawer-emoji">🧒</span>
     <div class="app-drawer-title">{displayName || 'Mon espace'}</div>
     <div class="app-drawer-sub">Espace enfant</div>
-  </div>
-
-  <div class="app-drawer-body">
-    <div class="app-drawer-foot" style="border-top:none;padding-top:16px">
-      <div class="app-drawer-code-label" style="padding:0 0 6px">Code famille</div>
-      <div class="app-drawer-code-val" style="font-size:20px;letter-spacing:4px">{familyCode}</div>
-      <p style="font-size:12px;color:var(--c-txt-m);margin-top:6px">
-        Donne ce code + un OTP à tes parents pour connecter un nouvel appareil.
-      </p>
-    </div>
   </div>
 
   <div class="app-drawer-danger-zone">
@@ -93,30 +77,21 @@
 <!-- Page enfant -->
 <div class="page-dashboard">
 
-  <!-- Header enfant (blanc, pas de gradient) -->
-  <header class="app-child-header">
-    <span class="app-child-logo">Reward<em>Kidz</em></span>
-    <button
-      class="app-burger"
-      style="width:38px;height:38px;font-size:16px"
-      onclick={() => (drawerOpen = true)}
-      aria-label="Menu"
-    >☰</button>
+  <!-- Header gradient — même visuel que le dashboard parent -->
+  <header class="app-header">
+    <button class="app-burger app-burger--header" onclick={() => (drawerOpen = true)} aria-label="Menu">☰</button>
+    <div class="app-header-info">
+      <div class="app-header-title">{displayName}</div>
+      <div class="app-header-sub">Espace enfant</div>
+    </div>
+    <span class="app-header-emoji">🧒</span>
   </header>
 
   <!-- Corps -->
-  <main class="app-body" style="display:flex;flex-direction:column;align-items:center;padding-top:8px">
-
-    <!-- Message de bienvenue -->
-    <p style="font-family:var(--f-head);font-size:20px;font-weight:600;color:var(--c-txt-h);margin-bottom:4px;text-align:center">
-      Bonjour {displayName} !
-    </p>
-    <p style="font-size:13px;color:var(--c-txt-m);margin-bottom:0;text-align:center">
-      Famille {familyName}
-    </p>
+  <main class="app-body" style="display:flex;flex-direction:column;align-items:center;padding-top:24px">
 
     <!-- Carte score -->
-    <div class="app-score-card" style="width:100%;margin-top:16px">
+    <div class="app-score-card" style="width:100%">
       {#if score}
         <CircularGauge points={score.points} />
 
@@ -150,4 +125,13 @@
     {/if}
 
   </main>
+
+  <!-- Barre basse — même visuel que le dashboard parent -->
+  <div class="app-bottom-bar">
+    <span class="app-bottom-hint">
+      <strong>{displayName}</strong> · Famille {familyName}
+    </span>
+    <button class="app-burger" onclick={() => (drawerOpen = true)} aria-label="Menu">☰</button>
+  </div>
+
 </div>

@@ -22,7 +22,7 @@ export const authReady = writable(false);
  * Code d'invitation en attente (Google / email registration flows).
  * Stocké ici plutôt qu'en variable module-level pour survivre aux navigations SvelteKit.
  */
-export const pendingJoin = writable<{ code: string; name: string } | null>(null);
+export const pendingJoin = writable<{ code: string; famCode: string; name: string } | null>(null);
 
 // ─────────────────────────────────────────────────────────────
 // Stores dérivés

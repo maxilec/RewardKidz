@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { loginWithGoogle, loginWithEmail, registerWithEmail, translateAuthError } from '$lib/firebase';
-  import { resolveInvite, joinFamilyAsAuthenticated } from '$lib/firebase';
+  import { resolveInvite, resolveByFamilyCode, joinFamilyAsAuthenticated } from '$lib/firebase';
   import { pendingJoin, authReady, authUser, userDoc } from '$lib/stores';
   import { auth } from '$lib/firebase/auth';
   import { getUser } from '$lib/firebase';
@@ -35,10 +35,11 @@
   let registerNickname        = $state('');
 
   // ── Form fields — Join ─────────────────────────────────────
-  let joinInviteCode = $state('');
-  let joinNickname   = $state('');
-  let joinEmail      = $state('');
-  let joinPassword   = $state('');
+  let joinInviteCode  = $state('');
+  let joinFamilyCode  = $state('');
+  let joinNickname    = $state('');
+  let joinEmail       = $state('');
+  let joinPassword    = $state('');
 
   // ── Redirect once authenticated ────────────────────────────
   $effect(() => {
@@ -137,23 +138,26 @@
   // ── Join with Google ───────────────────────────────────────
   async function handleJoinGoogle() {
     errorJoin = '';
-    const code = joinInviteCode.trim().toUpperCase();
-    const name = joinNickname.trim();
-    if (!code) { errorJoin = "Entre le code d'invitation."; return; }
-    pendingJoin.set({ code, name });
+    const code    = joinInviteCode.trim().toUpperCase();
+    const famCode = joinFamilyCode.trim().toUpperCase();
+    const name    = joinNickname.trim();
+    if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
+    if (!famCode) { errorJoin = 'Entre le code famille.'; return; }
+    pendingJoin.set({ code, famCode, name });
     loadingJoin = true;
     try {
       await loginWithGoogle();
-      // After login, root layout auth listener will see pendingJoin and handle it
-      // Actually pendingJoin is consumed by the auth listener in auth.store — but in SvelteKit
-      // we handle it here directly after the Google popup resolves.
       const user = auth.currentUser;
       if (user) {
-        const pj = { code, name };
         pendingJoin.set(null);
-        const familyId = await resolveInvite(pj.code);
-        await joinFamilyAsAuthenticated(user, familyId, pj.name || user.displayName || 'Membre');
-        // Rafraîchir userDoc pour que le guard de layout voie le familyId
+        const [familyId1, familyId2] = await Promise.all([
+          resolveInvite(code),
+          resolveByFamilyCode(famCode)
+        ]);
+        if (familyId1 !== familyId2) {
+          throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
+        }
+        await joinFamilyAsAuthenticated(user, familyId1, name || user.displayName || 'Membre');
         const fresh = await getUser(user.uid);
         userDoc.set(fresh);
         goto('/parent');
@@ -170,19 +174,27 @@
   async function handleJoin(e: SubmitEvent) {
     e.preventDefault();
     errorJoin = '';
-    const code = joinInviteCode.trim().toUpperCase();
-    const name = joinNickname.trim();
-    const email = joinEmail.trim();
-    const pass  = joinPassword;
-    if (!code)  { errorJoin = "Entre le code d'invitation."; return; }
-    if (!email) { errorJoin = 'Saisis ton adresse email.'; return; }
-    if (!pass)  { errorJoin = 'Saisis un mot de passe.'; return; }
+    const code    = joinInviteCode.trim().toUpperCase();
+    const famCode = joinFamilyCode.trim().toUpperCase();
+    const name    = joinNickname.trim();
+    const email   = joinEmail.trim();
+    const pass    = joinPassword;
+    if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
+    if (!famCode) { errorJoin = 'Entre le code famille.'; return; }
+    if (!email)   { errorJoin = 'Saisis ton adresse email.'; return; }
+    if (!pass)    { errorJoin = 'Saisis un mot de passe.'; return; }
 
     loadingJoin = true;
     try {
       const user = await registerWithEmail(email, pass, name || undefined);
-      const familyId = await resolveInvite(code);
-      await joinFamilyAsAuthenticated(user, familyId, name || user.displayName || 'Membre');
+      const [familyId1, familyId2] = await Promise.all([
+        resolveInvite(code),
+        resolveByFamilyCode(famCode)
+      ]);
+      if (familyId1 !== familyId2) {
+        throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
+      }
+      await joinFamilyAsAuthenticated(user, familyId1, name || user.displayName || 'Membre');
       const fresh = await getUser(user.uid);
       userDoc.set(fresh);
       goto('/parent');
@@ -337,7 +349,7 @@
     <!-- Panel: Rejoindre -->
     <div id="panel-join" class="ob-panel" class:hidden={activeTab !== 'join'} role="tabpanel">
 
-      <p class="ob-hint ob-mb16">Un parent vous a transmis un code d'invitation à 6 caractères.</p>
+      <p class="ob-hint ob-mb16">Un parent vous a transmis un code d'invitation et le code famille permanent.</p>
 
       {#if errorJoin}
         <div class="ob-error ob-mb12">{errorJoin}</div>
@@ -346,9 +358,17 @@
       <div class="ob-form-field">
         <label class="ob-label" for="joinInviteCode">Code d'invitation</label>
         <input class="ob-input ob-code-input" id="joinInviteCode" type="text"
-               maxlength="6" placeholder="AB4F9Z"
+               maxlength="8" placeholder="XXXXXX"
                autocomplete="off" style="text-transform:uppercase;letter-spacing:6px"
                bind:value={joinInviteCode}>
+      </div>
+
+      <div class="ob-form-field">
+        <label class="ob-label" for="joinFamilyCode">Code famille permanent</label>
+        <input class="ob-input ob-code-input" id="joinFamilyCode" type="text"
+               maxlength="8" placeholder="ABCD1234"
+               autocomplete="off" style="text-transform:uppercase;letter-spacing:5px"
+               bind:value={joinFamilyCode}>
       </div>
 
       <div class="ob-form-field ob-mb16">
