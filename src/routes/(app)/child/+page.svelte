@@ -57,6 +57,8 @@
     <div class="app-drawer-sub">Espace enfant</div>
   </div>
 
+  <div class="app-drawer-body"></div>
+
   <div class="app-drawer-danger-zone">
     <div
       class="app-drawer-item danger"
