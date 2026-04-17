@@ -66,16 +66,16 @@
 
     <div class="ob-choices">
       <div class="ob-role-card ob-role-card--primary">
-        <span class="ob-role-card-emoji">👨‍👩‍👧</span>
-        <div class="ob-role-card-title">Je suis un parent</div>
-        <div class="ob-role-card-desc">S'identifier ou gérer l'espace famille.</div>
-        <button class="ob-btn-primary" onclick={goParent}>Espace parent</button>
-      </div>
-      <div class="ob-role-card">
         <span class="ob-role-card-emoji">🧒</span>
         <div class="ob-role-card-title">Je suis un enfant</div>
         <div class="ob-role-card-desc">Connecter cet appareil avec mon code.</div>
-        <button class="ob-btn-outline" onclick={goChild}>Espace enfant</button>
+        <button class="ob-btn-primary" onclick={goChild}>Espace enfant</button>
+      </div>
+      <div class="ob-role-card">
+        <span class="ob-role-card-emoji">👨‍👩‍👧</span>
+        <div class="ob-role-card-title">Je suis un parent</div>
+        <div class="ob-role-card-desc">S'identifier ou gérer l'espace famille.</div>
+        <button class="ob-btn-outline" onclick={goParent}>Espace parent</button>
       </div>
     </div>
   </div>

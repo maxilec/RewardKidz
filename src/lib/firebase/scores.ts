@@ -53,11 +53,13 @@ export async function getOrCreateDayScore(familyId: string, memberId: string): P
     const data = snap.data() as Omit<ScoreDoc, 'id'>;
     if (data.date === todayStr) return { id: memberId, ...data };
 
-    // Archive le jour précédent
-    await setDoc(
-      doc(db, 'families', familyId, 'scores', memberId, 'history', data.date),
-      { ...data, archivedAt: serverTimestamp() }
-    );
+    // Archive le jour précédent uniquement si la journée a été validée
+    if (data.validated) {
+      await setDoc(
+        doc(db, 'families', familyId, 'scores', memberId, 'history', data.date),
+        { ...data, archivedAt: serverTimestamp() }
+      );
+    }
   }
 
   const fresh = emptyScore(memberId);
