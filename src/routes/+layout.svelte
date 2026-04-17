@@ -4,6 +4,7 @@
   import { initAuthListener, initFamilyListener, userDoc } from '$lib/stores';
   import { onForegroundMessage } from '$lib/firebase/notifications';
   import { pwaPrompt } from '$lib/stores';
+  import PwaBanner from '$lib/components/PwaBanner.svelte';
 
   let { children } = $props();
 
@@ -59,6 +60,8 @@
   </div>
   <button class="app-notif-close" aria-label="Fermer" onclick={() => { notifVisible = false; }}>✕</button>
 </div>
+
+<PwaBanner />
 
 {@render children()}
 

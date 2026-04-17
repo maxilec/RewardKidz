@@ -11,6 +11,7 @@
     getActiveInvite, createInvite, subscribeToScore
   } from '$lib/firebase';
   import type { ScoreDoc, MemberDoc } from '$lib/firebase/types';
+  import QRCode       from 'qrcode';
   import ScoreControls from '$lib/components/ScoreControls.svelte';
   import AppDrawer    from '$lib/components/AppDrawer.svelte';
   import AppModal     from '$lib/components/AppModal.svelte';
@@ -31,6 +32,7 @@
   // Invite parent
   let inviteModalOpen  = $state(false);
   let inviteCode       = $state('');
+  let inviteQR         = $state('');
   let generatingInvite = $state(false);
 
   // ── Chargement initial des scores + abonnements realtime ─
@@ -89,18 +91,24 @@
   }
 
   // ── Modale invitation parent ─────────────────────────────
+  async function genQR(code: string) {
+    inviteQR = code ? await QRCode.toDataURL(code, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
+  }
+
   async function openInviteModal() {
     inviteModalOpen = true;
     try {
       const existing = await getActiveInvite(familyId);
       inviteCode = existing ?? '';
-    } catch { inviteCode = ''; }
+      await genQR(inviteCode);
+    } catch { inviteCode = ''; inviteQR = ''; }
   }
   async function generateInvite() {
     generatingInvite = true;
     try {
       const active = await getActiveInvite(familyId);
       inviteCode = active ?? await createInvite(familyId);
+      await genQR(inviteCode);
     } catch (e: any) { console.error(e); }
     finally { generatingInvite = false; }
   }
@@ -126,6 +134,9 @@
     <p class="app-hint">Partagez ce code à un autre parent pour qu'il rejoigne votre famille.</p>
     {#if inviteCode}
       <div class="app-invite-code">{inviteCode}</div>
+      {#if inviteQR}
+        <img src={inviteQR} alt="QR code invitation" style="display:block;margin:12px auto 0;width:140px;height:140px;border-radius:12px" />
+      {/if}
     {/if}
     <button class="app-btn-prim full" onclick={generateInvite} disabled={generatingInvite}>
       {inviteCode ? '🔄 Nouveau code' : '✉️ Générer un code'}

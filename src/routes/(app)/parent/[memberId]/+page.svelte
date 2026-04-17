@@ -179,7 +179,7 @@
 <!-- Modale OTP -->
 <AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" onClose={() => otpModalOpen = false}>
   {#snippet children()}
-    <p class="app-hint">Code temporaire valable 10 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
+    <p class="app-hint">Code temporaire valable 30 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
     {#if otpCode && otpCode !== '…'}
       <div class="app-invite-code">{otpCode}</div>
     {/if}
