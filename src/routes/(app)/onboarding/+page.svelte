@@ -26,18 +26,30 @@
 
     <div class="ob-choices">
 
-      <div class="ob-role-card ob-role-card--primary">
+      <div
+        class="ob-role-card ob-role-card--primary"
+        role="button"
+        tabindex="0"
+        onclick={() => goto('/create-family')}
+        onkeydown={(e) => e.key === 'Enter' && goto('/create-family')}
+      >
         <span class="ob-role-card-emoji">👨‍👩‍👧</span>
         <div class="ob-role-card-title">Créer ma famille</div>
         <div class="ob-role-card-desc">Vous êtes parent et souhaitez démarrer un nouvel espace familial.</div>
-        <button class="ob-btn-primary" onclick={() => goto('/create-family')}>Créer ma famille</button>
+        <button class="ob-btn-primary" tabindex="-1" onclick={(e) => { e.stopPropagation(); goto('/create-family'); }}>Créer ma famille</button>
       </div>
 
-      <div class="ob-role-card">
+      <div
+        class="ob-role-card"
+        role="button"
+        tabindex="0"
+        onclick={() => goto('/join-family')}
+        onkeydown={(e) => e.key === 'Enter' && goto('/join-family')}
+      >
         <span class="ob-role-card-emoji">🔑</span>
         <div class="ob-role-card-title">J'ai un code d'invitation</div>
         <div class="ob-role-card-desc">Un parent vous a envoyé un code à 6 caractères pour rejoindre sa famille.</div>
-        <button class="ob-btn-outline" onclick={() => goto('/join-family')}>Rejoindre une famille</button>
+        <button class="ob-btn-outline" tabindex="-1" onclick={(e) => { e.stopPropagation(); goto('/join-family'); }}>Rejoindre une famille</button>
       </div>
 
     </div>

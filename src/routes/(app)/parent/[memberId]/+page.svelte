@@ -13,6 +13,7 @@
     getFamily, getChildHistory
   } from '$lib/firebase';
   import type { ScoreDoc, HistoryEntry } from '$lib/firebase/types';
+  import QRCode        from 'qrcode';
   import ScoreControls from '$lib/components/ScoreControls.svelte';
   import Histogram     from '$lib/components/Histogram.svelte';
   import AppDrawer     from '$lib/components/AppDrawer.svelte';
@@ -81,20 +82,30 @@
   // ── OTP modal ────────────────────────────────────────────
   let otpModalOpen  = $state(false);
   let otpCode       = $state('');
+  let otpQR         = $state('');
   let otpGenerating = $state(false);
+
+  async function genOtpQR(code: string) {
+    otpQR = code ? await QRCode.toDataURL(code, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
+  }
 
   async function openOtpModal() {
     otpModalOpen = true;
+    otpCode = '';
+    otpQR = '';
     try {
       const existing = await getActiveChildOTP(familyId, memberId);
-      if (existing) otpCode = existing;
-    } catch { otpCode = ''; }
+      otpCode = existing ?? '';
+      await genOtpQR(otpCode);
+    } catch { otpCode = ''; otpQR = ''; }
   }
   async function generateOtp() {
     otpGenerating = true;
     otpCode = '…';
+    otpQR = '';
     try {
       otpCode = await generateChildOTP(familyId, memberId, displayName);
+      await genOtpQR(otpCode);
     } catch (e: any) {
       otpCode = '';
       console.error(e);
@@ -182,9 +193,12 @@
     <p class="app-hint">Code temporaire valable 30 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
     {#if otpCode && otpCode !== '…'}
       <div class="app-invite-code">{otpCode}</div>
+      {#if otpQR}
+        <img src={otpQR} alt="QR code connexion enfant" style="display:block;margin:12px auto 0;width:140px;height:140px;border-radius:12px" />
+      {/if}
     {/if}
     <button class="app-btn-prim full" onclick={generateOtp} disabled={otpGenerating}>
-      {otpCode ? '🔄 Nouveau code' : '🔑 Générer un code'}
+      {otpGenerating ? '…' : otpCode ? '🔄 Nouveau code' : '🔑 Générer un code'}
     </button>
     <div class="app-modal-divider"></div>
     <div style="text-align:center;padding:4px 0 2px">
