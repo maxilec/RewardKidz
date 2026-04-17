@@ -33,6 +33,18 @@
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left,   0px);
   --sar: env(safe-area-inset-right,  0px);
+
+  /* ── Jauge circulaire — tokens thématisables ───────────────
+     Toutes les couleurs de la jauge passent par ces variables.
+     Pour changer de thème, il suffit de les surcharger.      */
+  --c-gauge-track:   rgba(124, 58, 237, 0.10);  /* fond des segments */
+  --c-gauge-neg-a:   #FBBF24;   /* jaune-ambre  — début dégradé négatif  */
+  --c-gauge-neg-b:   #F97316;   /* orange       — fin   dégradé négatif  */
+  --c-gauge-pos-a:   var(--c-primary);      /* dégradé positif (début) */
+  --c-gauge-pos-b:   var(--c-primary-end);  /* dégradé positif (fin)   */
+  --c-gauge-spec-a:  #A855F7;   /* violet  — dégradé spécial (fairy)     */
+  --c-gauge-spec-b:  #06B6D4;   /* cyan    — dégradé spécial (milieu)    */
+  --c-gauge-spec-c:  #10B981;   /* vert    — dégradé spécial (fin)       */
 }
 
 
@@ -1024,6 +1036,31 @@ input:focus {
 @media (min-width: 768px) {
   .child-score-number { font-size: 88px; }
   .app-score-card { max-width: 500px; margin: 24px auto 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   § 32 — VUE ENFANT : JAUGE PLEIN ÉCRAN
+   ══════════════════════════════════════════════════════════════ */
+
+/* Zone principale : occupe tout l'espace entre le header sticky et la bottom bar */
+.child-gauge-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 8px 12px calc(var(--sab, 0px) + 76px);
+}
+
+/* Conteneur carré auto-dimensionné :
+   prend le min de (largeur viewport − marges) et (hauteur disponible ≈ 100dvh − header − footer)
+   Le max-width empêche la jauge d'être trop grande sur tablette. */
+.gauge-sizer {
+  width: min(calc(100vw - 24px), calc(100dvh - 165px));
+  max-width: 480px;
+  aspect-ratio: 1 / 1;
+  position: relative;
 }
 
 /* ── CHECKPOINT 4/4 — FIN ── */

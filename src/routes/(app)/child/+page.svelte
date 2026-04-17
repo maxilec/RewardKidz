@@ -89,43 +89,19 @@
     <span class="app-header-emoji">🧒</span>
   </header>
 
-  <!-- Corps -->
-  <main class="app-body" style="display:flex;flex-direction:column;align-items:center;padding-top:24px">
-
-    <!-- Carte score -->
-    <div class="app-score-card" style="width:100%">
-      {#if score}
-        <CircularGauge points={score.points} />
-
-        {#if score.validated}
-          <div class="child-score-badge validated">✓ Journée validée</div>
-        {:else if score.ignored}
-          <div class="child-score-badge ignored">Non comptabilisée</div>
-        {/if}
-      {:else}
-        <div class="app-spinner" style="margin:32px auto"></div>
-      {/if}
-    </div>
-
-    <!-- Message d'encouragement -->
+  <!-- Jauge plein écran -->
+  <main class="child-gauge-area">
     {#if score}
-      <p style="margin-top:20px;font-size:14px;color:var(--c-txt-m);text-align:center;padding:0 16px">
-        {#if score.validated}
-          🎉 Bravo ! Ta journée est validée.
-        {:else if score.ignored}
-          Journée non comptabilisée aujourd'hui.
-        {:else if score.points >= 5}
-          🌟 Score maximum ! Tu peux encore être validé par un parent.
-        {:else if score.points >= 3}
-          👍 Bien ! Continue comme ça.
-        {:else if score.points > 0}
-          💪 C'est un bon début, continue !
-        {:else}
-          Aucun point pour l'instant aujourd'hui.
-        {/if}
-      </p>
+      <div class="gauge-sizer">
+        <CircularGauge
+          points={score.points}
+          validated={score.validated}
+          ignored={score.ignored}
+        />
+      </div>
+    {:else}
+      <div class="app-spinner" style="width:56px;height:56px"></div>
     {/if}
-
   </main>
 
   <!-- Barre basse — même visuel que le dashboard parent -->
