@@ -63,7 +63,7 @@
       >
         <div class="histogram-bar-wrap">
           {#if selectedIdx === idx && !e.missing}
-            <span class="histogram-val">{e.ignored ? '—' : e.points + '/5'}</span>
+            <span class="histogram-val">{e.ignored ? '—' : String(e.points)}</span>
           {/if}
           <div class="histogram-bar {barCls}" style="height:{h}px"></div>
         </div>
@@ -75,11 +75,12 @@
 </div>
 
 <style>
-  /* ── Scroll wrapper — gère overflow-x sans bloquer overflow-y ── */
+  /* ── Scroll wrapper ─────────────────────────────────────── */
   .histogram-scroll {
     overflow-x: auto;
     overflow-y: visible;
     width: 100%;
+    padding-top: 28px; /* espace pour le tooltip au-dessus des barres */
   }
 
   /* ── Chart principal ─────────────────────────────────────── */
@@ -88,11 +89,9 @@
     align-items: flex-end;
     gap: 4px;
     height: 90px;
-    padding-top: 24px; /* espace pour le tooltip au-dessus des barres */
     overflow: visible;
     position: relative;
     min-width: 100%;
-    box-sizing: content-box;
   }
 
   /* ── Grille Y ────────────────────────────────────────────── */
@@ -108,21 +107,23 @@
     left: 0; right: 0;
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
+    /* translateY(50%) : ancre le centre du div (= la ligne) à `bottom: X` */
+    transform: translateY(50%);
   }
   .histogram-gridline::after {
     content: '';
     flex: 1;
-    border-top: 1px dashed rgba(0, 0, 0, 0.10);
+    border-top: 1px dashed rgba(0, 0, 0, 0.13);
   }
   .histogram-y-label {
     font-size: 8px;
     font-weight: 600;
     color: var(--c-txt-m);
     line-height: 1;
-    min-width: 10px;
+    min-width: 8px;
     text-align: right;
-    opacity: 0.7;
+    opacity: 0.65;
   }
 
   /* ── Tooltip valeur ─────────────────────────────────────── */
