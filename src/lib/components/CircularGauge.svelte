@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { tweened } from 'svelte/motion';
+  import { cubicOut } from 'svelte/easing';
+
   interface Props {
     points:    number;
     maxPoints?: number;
@@ -8,16 +11,19 @@
   let { points, maxPoints = 5, validated = false, ignored = false }: Props = $props();
 
   // ── Géométrie SVG ─────────────────────────────────────────
-  const SIZE = 320;
-  const cx   = SIZE / 2;   // 160
-  const cy   = SIZE / 2;   // 160
-  const SW   = 44;          // épaisseur du trait (stroke-width)
-  const R    = cx - SW / 2 - 8;  // rayon (130) — marge pour que le glow ne soit pas rogné
+  const SIZE   = 320;
+  const MARGIN = 20;          // espace pour que le glow ne soit pas rogné aux bords
+  const cx     = SIZE / 2;   // 160
+  const cy     = SIZE / 2;   // 160
+  const SW     = 44;
+  const R      = cx - SW / 2 - 8;  // 130
 
-  // Arc : départ à 230° (7h), balayage de 260° dans le sens horaire → 5 segments
-  const START = 230;
-  const SWEEP = 260;
-  const GAP   = 4;   // espace entre segments (degrés)
+  const START  = 230;
+  const SWEEP  = 260;
+  const GAP    = 4;
+
+  // Longueur géométrique de l'arc total
+  const arcLength = (SWEEP / 360) * 2 * Math.PI * R;
 
   // ── Helpers arc ───────────────────────────────────────────
   function polar(deg: number) {
@@ -25,9 +31,16 @@
     return { x: cx + R * Math.cos(rad), y: cy + R * Math.sin(rad) };
   }
 
-  // Trace un arc de `from` à `to` (degrés croissants = sens horaire visuel).
-  // Convention figma : M(pt@to) A ... 0(sweep CCW) (pt@from).
-  function arc(from: number, to: number): string {
+  // Arc sens horaire (CW) : le dash commence au point `from` → dashoffset remplit depuis le début
+  function arcCW(from: number, to: number): string {
+    const s = polar(from);
+    const e = polar(to);
+    const large = (to - from) > 180 ? 1 : 0;
+    return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+  }
+
+  // Arc sens anti-horaire (CCW) : utilisé uniquement pour le masque segmenté
+  function arcCCW(from: number, to: number): string {
     const s = polar(to);
     const e = polar(from);
     const large = (to - from) > 180 ? 1 : 0;
@@ -35,37 +48,30 @@
   }
 
   // ── Chemins statiques ─────────────────────────────────────
-  const fullArc = arc(START, START + SWEEP);
+  const fullArc = arcCW(START, START + SWEEP);
 
   // ── Chemins réactifs ──────────────────────────────────────
   const segPaths = $derived(
     Array.from({ length: maxPoints }, (_, i) => {
-      const segAngle  = SWEEP / maxPoints;
+      const segAngle = SWEEP / maxPoints;
       const sa = START + i * segAngle + GAP / 2;
-      return arc(sa, sa + segAngle - GAP);
+      return arcCCW(sa, sa + segAngle - GAP);
     })
   );
 
-  const ratio       = $derived(points / maxPoints);
-  const state       = $derived(
+  const ratio = $derived(points / maxPoints);
+  const state = $derived(
     points >= maxPoints ? 'special' :
     ratio >= 0.5        ? 'positive' :
                           'negative'
   );
-  const progressArc = $derived(points > 0 ? arc(START, START + ratio * SWEEP) : '');
-  const gradId      = $derived(
-    state === 'special'  ? 'cg-spec' :
-    state === 'positive' ? 'cg-pos'  : 'cg-neg'
-  );
+
+  // ── Animation de remplissage ──────────────────────────────
+  const animRatio = tweened(0, { duration: 900, easing: cubicOut });
+  $effect(() => { animRatio.set(ratio); });
+  const dashOffset = $derived(arcLength * (1 - $animRatio));
 
   // ── Contenu central ───────────────────────────────────────
-  const emoji = $derived(
-    validated           ? '🏆' :
-    ignored             ? '💤' :
-    points >= maxPoints ? '🌟' :
-    ratio >= 0.5        ? '⭐' : '🌱'
-  );
-
   const label = $derived(
     validated           ? 'Journée validée !' :
     ignored             ? 'Non comptabilisée' :
@@ -80,7 +86,7 @@
 
 <div class="gw">
   <svg
-    viewBox="0 0 {SIZE} {SIZE}"
+    viewBox="{-MARGIN} {-MARGIN} {SIZE + MARGIN * 2} {SIZE + MARGIN * 2}"
     class="gw-svg"
     aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
@@ -124,32 +130,56 @@
       />
     </g>
 
-    <!-- 2. Progression + shimmer verre -->
-    {#if progressArc}
-      <g mask="url(#cg-mask)" class="gw-progress gw-progress--{state}">
-        <path
-          class="gw-arc"
-          d={progressArc}
-          fill="none"
-          stroke="url(#{gradId})"
-          stroke-width={SW}
-          stroke-linecap="butt"
-        />
-        <!-- Reflet verre (shimmer) -->
-        <path
-          d={progressArc}
-          fill="none"
-          stroke="rgba(255,255,255,0.38)"
-          stroke-width={10}
-          stroke-linecap="butt"
-        />
-      </g>
-    {/if}
+    <!-- 2. Progression — trois couches de gradient, opacité croisée selon l'état -->
+    <g mask="url(#cg-mask)" class="gw-progress gw-progress--{state}">
+      <path
+        class="gw-arc"
+        d={fullArc}
+        fill="none"
+        stroke="url(#cg-neg)"
+        stroke-width={SW}
+        stroke-linecap="butt"
+        stroke-dasharray={arcLength}
+        stroke-dashoffset={dashOffset}
+        opacity={state === 'negative' ? 1 : 0}
+      />
+      <path
+        class="gw-arc"
+        d={fullArc}
+        fill="none"
+        stroke="url(#cg-pos)"
+        stroke-width={SW}
+        stroke-linecap="butt"
+        stroke-dasharray={arcLength}
+        stroke-dashoffset={dashOffset}
+        opacity={state === 'positive' ? 1 : 0}
+      />
+      <path
+        class="gw-arc"
+        d={fullArc}
+        fill="none"
+        stroke="url(#cg-spec)"
+        stroke-width={SW}
+        stroke-linecap="butt"
+        stroke-dasharray={arcLength}
+        stroke-dashoffset={dashOffset}
+        opacity={state === 'special' ? 1 : 0}
+      />
+      <!-- Reflet verre (shimmer) -->
+      <path
+        d={fullArc}
+        fill="none"
+        stroke="rgba(255,255,255,0.38)"
+        stroke-width={10}
+        stroke-linecap="butt"
+        stroke-dasharray={arcLength}
+        stroke-dashoffset={dashOffset}
+      />
+    </g>
   </svg>
 
   <!-- Contenu central — superposé au SVG -->
   <div class="gw-center">
-    <span class="gw-emoji" class:gw-emoji--special={state === 'special'}>{emoji}</span>
     <div class="gw-score">
       <span class="gw-num">{points}</span><span class="gw-den">/{maxPoints}</span>
     </div>
@@ -158,7 +188,7 @@
 </div>
 
 <style>
-  /* ── Conteneur racine (remplit son parent .gauge-sizer) ── */
+  /* ── Conteneur racine ────────────────────────────────────── */
   .gw {
     position: relative;
     width: 100%;
@@ -168,10 +198,18 @@
   .gw-svg {
     width: 100%;
     height: 100%;
-    overflow: visible; /* permet au glow de déborder légèrement */
+    overflow: visible;
+  }
+
+  /* ── Transition de couleur entre états ──────────────────── */
+  .gw-arc {
+    transition: opacity 0.5s ease;
   }
 
   /* ── Glow selon l'état ──────────────────────────────────── */
+  .gw-progress {
+    transition: filter 0.6s ease;
+  }
   .gw-progress--negative {
     filter: drop-shadow(0 0 7px var(--c-gauge-neg-b));
   }
@@ -199,21 +237,7 @@
     justify-content: center;
     pointer-events: none;
     gap: 2px;
-    /* Léger décalage vers le haut pour centrer visuellement dans l'arc */
     padding-top: 6%;
-  }
-
-  .gw-emoji {
-    font-size: clamp(2.4rem, 11vw, 4rem);
-    line-height: 1;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12));
-  }
-  .gw-emoji--special {
-    animation: gw-star 1.6s ease-in-out infinite alternate;
-  }
-  @keyframes gw-star {
-    from { transform: scale(1)    rotate(-6deg); }
-    to   { transform: scale(1.18) rotate(6deg);  }
   }
 
   .gw-score {
