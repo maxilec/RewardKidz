@@ -1,6 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { authUser } from '$lib/stores';
+  import { logout } from '$lib/firebase';
+
+  async function handleBack() {
+    await logout();
+    goto('/');
+  }
 </script>
 
 <div class="ob-page">
@@ -10,6 +16,8 @@
     <div class="ob-blob ob-blob-2"></div>
     <div class="ob-blob ob-blob-3"></div>
   </div>
+
+  <button class="ob-btn-back" aria-label="Retour" onclick={handleBack}>←</button>
 
   <div class="ob-content">
 

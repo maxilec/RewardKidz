@@ -27,18 +27,21 @@
     goto('/parent-auth');
   }
 
+  let childLoading = $state(false);
+
   async function goChild() {
     if ($authUser?.isAnonymous) {
       const doc = $userDoc;
       goto(!doc?.familyId ? '/child-auth' : '/child');
       return;
     }
-    // Sign in anonymously first
+    childLoading = true;
     try {
       await loginAsChild();
       // onAuthStateChanged will handle routing via $effect above
     } catch (e) {
       console.error('Anonymous login failed', e);
+      childLoading = false;
     }
   }
 </script>
@@ -75,7 +78,9 @@
         <span class="ob-role-card-emoji">🧒</span>
         <div class="ob-role-card-title">Je suis un enfant</div>
         <div class="ob-role-card-desc">Connecter cet appareil avec mon code.</div>
-        <button class="ob-btn-primary" tabindex="-1" onclick={(e) => { e.stopPropagation(); goChild(); }}>Espace enfant</button>
+        <button class="ob-btn-primary" tabindex="-1" disabled={childLoading} onclick={(e) => { e.stopPropagation(); goChild(); }}>
+          {childLoading ? '…' : 'Espace enfant'}
+        </button>
       </div>
       <div
         class="ob-role-card"

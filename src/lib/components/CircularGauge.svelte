@@ -67,8 +67,14 @@
   );
 
   // ── Animation de remplissage ──────────────────────────────
-  const animRatio = tweened(0, { duration: 900, easing: cubicOut });
-  $effect(() => { animRatio.set(ratio); });
+  // Durée adaptative : saut de >1 pt → immédiat (150ms) ; 1 pt → fluide (600ms)
+  const animRatio = tweened(0, { duration: 600, easing: cubicOut });
+  let _prevTarget = 0;
+  $effect(() => {
+    const delta = Math.abs(ratio - _prevTarget);
+    _prevTarget = ratio;
+    animRatio.set(ratio, { duration: delta > 1.5 / maxPoints ? 150 : 600 });
+  });
   const dashOffset = $derived(arcLength * (1 - $animRatio));
 
   // ── Contenu central ───────────────────────────────────────
