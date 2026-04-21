@@ -33,6 +33,7 @@
   let inviteModalOpen  = $state(false);
   let inviteCode       = $state('');
   let inviteQR         = $state('');
+  let inviteShareUrl   = $state('');
   let generatingInvite = $state(false);
 
   // ── Chargement initial des scores + abonnements realtime ─
@@ -92,6 +93,7 @@
 
   // ── Modale invitation parent ─────────────────────────────
   async function genQR(url: string) {
+    inviteShareUrl = url;
     inviteQR = url ? await QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
   }
 
@@ -99,6 +101,7 @@
     inviteModalOpen = true;
     inviteCode = '';
     inviteQR = '';
+    inviteShareUrl = '';
     try {
       const existing = await getActiveInvite(familyId);
       inviteCode = existing ?? '';
@@ -144,7 +147,7 @@
 />
 
 <!-- Modale invitation parent -->
-<AppModal open={inviteModalOpen} title="🔗 Inviter un co-parent" onClose={() => inviteModalOpen = false}>
+<AppModal open={inviteModalOpen} title="🔗 Inviter un co-parent" shareUrl={inviteShareUrl} onClose={() => inviteModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Partagez ce code à un autre parent pour qu'il rejoigne votre famille.</p>
     {#if inviteCode}

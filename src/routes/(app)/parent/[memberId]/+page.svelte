@@ -84,9 +84,11 @@
   let otpModalOpen  = $state(false);
   let otpCode       = $state('');
   let otpQR         = $state('');
+  let otpShareUrl   = $state('');
   let otpGenerating = $state(false);
 
   async function genOtpQR(url: string) {
+    otpShareUrl = url;
     otpQR = url ? await QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
   }
 
@@ -94,6 +96,7 @@
     otpModalOpen = true;
     otpCode = '';
     otpQR = '';
+    otpShareUrl = '';
     try {
       const existing = await getActiveChildOTP(familyId, memberId);
       otpCode = existing ?? '';
@@ -109,6 +112,7 @@
     otpGenerating = true;
     otpCode = '…';
     otpQR = '';
+    otpShareUrl = '';
     try {
       otpCode = await generateChildOTP(familyId, memberId, displayName);
     } catch (e: any) {
@@ -201,7 +205,7 @@
 />
 
 <!-- Modale OTP -->
-<AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" onClose={() => otpModalOpen = false}>
+<AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" shareUrl={otpShareUrl} onClose={() => otpModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Code temporaire valable 30 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
     {#if otpCode && otpCode !== '…'}
