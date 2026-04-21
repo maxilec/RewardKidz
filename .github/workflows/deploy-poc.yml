@@ -9,6 +9,7 @@ on:
       - 'figma/NewUI'
       - 'claude/review-figma-ui-changes-kUMwo'
       - 'claude/setup-refactoring-branch-UypoY'
+      - 'claude/add-branch-deployment-0qozx'
 
 jobs:
   deploy:
