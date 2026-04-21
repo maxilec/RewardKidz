@@ -271,6 +271,7 @@
     <!-- Score du jour -->
     <div class="app-section-hd">
       <span class="app-section-title">Score du jour</span>
+      <button class="app-btn-outline sm" onclick={openOtpModal}>+ ajouter un appareil</button>
     </div>
     <div class="child-score-card">
       {#if score}
@@ -336,7 +337,6 @@
 
     <!-- Actions -->
     <div style="margin-top:32px;display:flex;flex-direction:column;gap:10px;padding-bottom:8px">
-      <button class="app-btn-outline full" onclick={openOtpModal}>🔑 Code connexion</button>
       <button class="app-btn-outline danger-outline full" onclick={handleDelete}>🗑 Supprimer cet enfant</button>
     </div>
 

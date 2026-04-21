@@ -191,13 +191,13 @@
       </div>
       {#each parentMembers as p}
         <div class="child-member-row">
-          <div>
-            <span class="child-name">👤 {p.displayName || '—'}</span>
+          <span class="child-name">👤 {p.displayName || '—'}</span>
+          <div style="display:flex;align-items:center;gap:8px">
             {#if p.displayedName}
               <span class="parent-label">{p.displayedName}</span>
             {/if}
+            <span class="child-status connected">{p.uid === byUid ? 'Vous' : 'Membre'}</span>
           </div>
-          <span class="child-status connected">{p.uid === byUid ? 'Vous' : 'Membre'}</span>
         </div>
       {/each}
     {/if}
@@ -258,9 +258,10 @@
 
 <style>
   .parent-label {
-    display: block;
     font-size: 0.78rem;
     opacity: 0.65;
-    margin-top: 1px;
+    background: var(--c-bg-alt, #f1f0f9);
+    border-radius: 6px;
+    padding: 1px 7px;
   }
 </style>
