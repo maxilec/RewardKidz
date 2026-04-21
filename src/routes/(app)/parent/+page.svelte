@@ -8,7 +8,7 @@
   import {
     getFamily, getFamilyMembers, getOrCreateDayScore,
     addPoint, removePoint, setScoreValidated, setDayIgnored,
-    getActiveInvite, createInvite, subscribeToScore
+    getActiveInvite, createInvite, createParentInviteLink, subscribeToScore
   } from '$lib/firebase';
   import type { ScoreDoc, MemberDoc } from '$lib/firebase/types';
   import QRCode       from 'qrcode';
@@ -91,8 +91,8 @@
   }
 
   // ── Modale invitation parent ─────────────────────────────
-  async function genQR(code: string) {
-    inviteQR = code ? await QRCode.toDataURL(code, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
+  async function genQR(url: string) {
+    inviteQR = url ? await QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
   }
 
   async function openInviteModal() {
@@ -100,7 +100,12 @@
     try {
       const existing = await getActiveInvite(familyId);
       inviteCode = existing ?? '';
-      await genQR(inviteCode);
+      if (inviteCode) {
+        const token = await createParentInviteLink(familyId);
+        await genQR(`${window.location.origin}/rejoindre?token=${token}`);
+      } else {
+        inviteQR = '';
+      }
     } catch { inviteCode = ''; inviteQR = ''; }
   }
   async function generateInvite() {
@@ -108,7 +113,8 @@
     try {
       const active = await getActiveInvite(familyId);
       inviteCode = active ?? await createInvite(familyId);
-      await genQR(inviteCode);
+      const token = await createParentInviteLink(familyId);
+      await genQR(`${window.location.origin}/rejoindre?token=${token}`);
     } catch (e: any) { console.error(e); }
     finally { generatingInvite = false; }
   }

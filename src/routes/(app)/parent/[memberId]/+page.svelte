@@ -9,7 +9,7 @@
     getOrCreateDayScore, addPoint, removePoint,
     setScoreValidated, setDayIgnored, subscribeToScore,
     updateChildName, deleteChild,
-    getActiveChildOTP, generateChildOTP,
+    getActiveChildOTP, generateChildOTP, createChildInviteLink,
     getFamily, getChildHistory
   } from '$lib/firebase';
   import type { ScoreDoc, HistoryEntry } from '$lib/firebase/types';
@@ -85,8 +85,8 @@
   let otpQR         = $state('');
   let otpGenerating = $state(false);
 
-  async function genOtpQR(code: string) {
-    otpQR = code ? await QRCode.toDataURL(code, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
+  async function genOtpQR(url: string) {
+    otpQR = url ? await QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
   }
 
   async function openOtpModal() {
@@ -96,7 +96,10 @@
     try {
       const existing = await getActiveChildOTP(familyId, memberId);
       otpCode = existing ?? '';
-      await genOtpQR(otpCode);
+      if (otpCode) {
+        const token = await createChildInviteLink(familyId, memberId, displayName);
+        await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
+      }
     } catch { otpCode = ''; otpQR = ''; }
   }
   async function generateOtp() {
@@ -105,7 +108,8 @@
     otpQR = '';
     try {
       otpCode = await generateChildOTP(familyId, memberId, displayName);
-      await genOtpQR(otpCode);
+      const token = await createChildInviteLink(familyId, memberId, displayName);
+      await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
     } catch (e: any) {
       otpCode = '';
       console.error(e);

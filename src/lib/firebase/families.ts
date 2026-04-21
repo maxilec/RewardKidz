@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, deleteUser, signOut, type User } from 'firebase/auth';
 import { firebaseApp } from './app';
-import type { FamilyDoc, MemberDoc, UserDoc } from './types';
+import type { FamilyDoc, InviteLink, MemberDoc, UserDoc } from './types';
 
 export const db = getFirestore(firebaseApp);
 
@@ -39,6 +39,13 @@ function generateFamilyCode(): string {
 function generateShortCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const arr   = new Uint8Array(6);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => chars[b % chars.length]).join('');
+}
+
+function generateToken(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const arr   = new Uint8Array(32);
   crypto.getRandomValues(arr);
   return Array.from(arr).map(b => chars[b % chars.length]).join('');
 }
@@ -453,6 +460,94 @@ export async function resolveInvite(shortCode: string): Promise<string> {
   if (Date.now() > data.expiresAt) throw new Error('Code expiré');
 
   return data.familyId;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Invite links (token-based, for QR codes)
+// ─────────────────────────────────────────────────────────────
+
+export async function createParentInviteLink(familyId: string): Promise<string> {
+  const familySnap = await getDoc(doc(db, 'families', familyId));
+  if (!familySnap.exists()) throw new Error('Famille introuvable');
+  const family = familySnap.data() as FamilyDoc;
+
+  const token  = generateToken();
+  const now    = Date.now();
+  await setDoc(doc(db, 'inviteLinks', token), {
+    token,
+    type:       'parent',
+    familyId,
+    familyCode: family.familyCode,
+    familyName: family.name,
+    createdAt:  now,
+    expiresAt:  now + 24 * 60 * 60 * 1000, // 24 h
+    used:       false
+  } satisfies InviteLink);
+  return token;
+}
+
+export async function createChildInviteLink(
+  familyId:    string,
+  memberId:    string,
+  displayName: string
+): Promise<string> {
+  const familySnap = await getDoc(doc(db, 'families', familyId));
+  if (!familySnap.exists()) throw new Error('Famille introuvable');
+  const family = familySnap.data() as FamilyDoc;
+
+  const token = generateToken();
+  const now   = Date.now();
+  await setDoc(doc(db, 'inviteLinks', token), {
+    token,
+    type:        'child',
+    familyId,
+    familyCode:  family.familyCode,
+    familyName:  family.name,
+    memberId,
+    displayName,
+    createdAt:   now,
+    expiresAt:   now + 2 * 60 * 60 * 1000, // 2 h
+    used:        false
+  } satisfies InviteLink);
+  return token;
+}
+
+export async function resolveInviteLink(token: string): Promise<InviteLink | null> {
+  const snap = await getDoc(doc(db, 'inviteLinks', token));
+  if (!snap.exists()) return null;
+  const link = snap.data() as InviteLink;
+  if (Date.now() > link.expiresAt)        return null;
+  if (link.type === 'child' && link.used) return null;
+  return link;
+}
+
+export async function connectChildDeviceViaToken(user: User, token: string): Promise<void> {
+  const linkRef  = doc(db, 'inviteLinks', token);
+  const linkSnap = await getDoc(linkRef);
+  if (!linkSnap.exists()) throw new Error('Lien invalide ou expiré');
+
+  const link = linkSnap.data() as InviteLink;
+  if (link.type !== 'child')       throw new Error("Ce lien n'est pas destiné à un enfant");
+  if (Date.now() > link.expiresAt) throw new Error('Lien expiré — demande un nouveau QR code au parent');
+  if (link.used)                   throw new Error('Ce lien a déjà été utilisé');
+
+  const { familyId, memberId, displayName = '' } = link;
+
+  const memberSnap         = await getDoc(doc(db, 'families', familyId, 'members', memberId));
+  const currentLinkedAuthUid = memberSnap.exists()
+    ? (memberSnap.data() as MemberDoc).linkedAuthUid ?? null
+    : null;
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'families', familyId, 'members', memberId), { linkedAuthUid: user.uid });
+  batch.update(linkRef, { used: true });
+  if (currentLinkedAuthUid && currentLinkedAuthUid !== user.uid) {
+    batch.delete(doc(db, 'users', currentLinkedAuthUid));
+  }
+  batch.set(doc(db, 'users', user.uid), {
+    uid: user.uid, email: null, displayName, familyId, memberId, role: 'child', createdAt: Date.now()
+  });
+  await batch.commit();
 }
 
 // ─────────────────────────────────────────────────────────────
