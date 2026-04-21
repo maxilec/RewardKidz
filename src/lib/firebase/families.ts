@@ -491,9 +491,15 @@ export async function createChildInviteLink(
   memberId:    string,
   displayName: string
 ): Promise<string> {
-  const familySnap = await getDoc(doc(db, 'families', familyId));
+  const [familySnap, memberSnap] = await Promise.all([
+    getDoc(doc(db, 'families', familyId)),
+    getDoc(doc(db, 'families', familyId, 'members', memberId))
+  ]);
   if (!familySnap.exists()) throw new Error('Famille introuvable');
   const family = familySnap.data() as FamilyDoc;
+  const currentLinkedAuthUid = memberSnap.exists()
+    ? (memberSnap.data() as MemberDoc).linkedAuthUid ?? null
+    : null;
 
   const token    = generateToken();
   const now      = Date.now();
@@ -502,15 +508,16 @@ export async function createChildInviteLink(
 
   batch.set(doc(db, 'inviteLinks', token), {
     token,
-    type:        'child',
+    type:                'child',
     familyId,
-    familyCode:  family.familyCode,
-    familyName:  family.name,
+    familyCode:          family.familyCode,
+    familyName:          family.name,
     memberId,
     displayName,
-    createdAt:   now,
+    currentLinkedAuthUid,
+    createdAt:           now,
     expiresAt,
-    used:        false
+    used:                false
   } satisfies InviteLink);
 
   // Sous-collection pour le check d'existence dans les règles Firestore members
@@ -542,12 +549,7 @@ export async function connectChildDeviceViaToken(user: User, token: string): Pro
   if (Date.now() > link.expiresAt) throw new Error('Lien expiré — demande un nouveau QR code au parent');
   if (link.used)                   throw new Error('Ce lien a déjà été utilisé');
 
-  const { familyId, memberId, displayName = '' } = link;
-
-  const memberSnap         = await getDoc(doc(db, 'families', familyId, 'members', memberId));
-  const currentLinkedAuthUid = memberSnap.exists()
-    ? (memberSnap.data() as MemberDoc).linkedAuthUid ?? null
-    : null;
+  const { familyId, memberId, displayName = '', currentLinkedAuthUid = null } = link;
 
   const batch = writeBatch(db);
   batch.update(doc(db, 'families', familyId, 'members', memberId), { linkedAuthUid: user.uid });

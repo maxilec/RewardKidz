@@ -28,8 +28,9 @@
   let byName     = $derived($userDoc?.displayName ?? $authUser?.displayName ?? 'Parent');
 
   // Données de l'enfant depuis le store members
-  let childMember = $derived($members.find(m => m.memberId === memberId));
-  let displayName = $derived(childMember?.displayName ?? '');
+  let childMember   = $derived($members.find(m => m.memberId === memberId));
+  let displayName   = $derived(childMember?.displayName ?? '');
+  let parentMembers = $derived($members.filter(m => m.role === 'parent'));
 
   // ── Score ────────────────────────────────────────────────
   let score = $state<ScoreDoc | null>(null);
@@ -191,6 +192,7 @@
   {familyName}
   {familyCode}
   childMembers={$childMembers}
+  {parentMembers}
   currentMemberId={memberId}
   isDashboard={false}
   onClose={() => drawerOpen.set(false)}

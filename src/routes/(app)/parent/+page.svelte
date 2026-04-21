@@ -135,6 +135,7 @@
   {familyName}
   {familyCode}
   childMembers={$childMembers}
+  parentMembers={parentMembers}
   isDashboard={true}
   onClose={() => drawerOpen.set(false)}
   onNavigate={(memberId) => goto(`/parent/${memberId}`)}

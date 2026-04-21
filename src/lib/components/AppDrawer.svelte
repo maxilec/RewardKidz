@@ -9,6 +9,7 @@
     familyName:      string;
     familyCode:      string;
     childMembers:    MemberDoc[];           // liste des enfants (role=child)
+    parentMembers:   MemberDoc[];           // liste des parents (role=parent)
     currentMemberId?: string;              // enfant actif dans la vue détail
     onClose:         () => void;
     onNavigate:      (memberId: string, name: string) => void;
@@ -18,7 +19,7 @@
   }
 
   let {
-    open, familyId, familyName, familyCode, childMembers,
+    open, familyId, familyName, familyCode, childMembers, parentMembers,
     currentMemberId, onClose, onNavigate, onChildAdded, onDashboard, isDashboard = false
   }: Props = $props();
 
@@ -84,11 +85,19 @@
   }
 
   async function handleDeleteFamily() {
+    if (childMembers.length > 0) {
+      error = 'Retirez tous les enfants avant de supprimer la famille.';
+      return;
+    }
+    if (parentMembers.length > 1) {
+      error = 'Retirez tous les co-parents avant de supprimer la famille.';
+      return;
+    }
     if (!confirm('Supprimer la famille entière ? Cette action est irréversible. Confirmer ?')) return;
     try {
       await deleteFamily(familyId);
     } catch (e: any) {
-      alert('Erreur : ' + (e.message ?? e));
+      error = (e.message ?? String(e));
     }
   }
 

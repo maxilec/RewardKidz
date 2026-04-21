@@ -71,6 +71,7 @@ export interface InviteLink {
   familyName: string;
   memberId?: string;
   displayName?: string;
+  currentLinkedAuthUid?: string | null;
   createdAt: number;
   expiresAt: number;
   used: boolean;
