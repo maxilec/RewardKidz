@@ -17,6 +17,7 @@
   } from '$lib/firebase/auth';
   import { auth } from '$lib/firebase/auth';
   import type { InviteLink } from '$lib/firebase/types';
+  import RegisterForm from '$lib/components/RegisterForm.svelte';
 
   // ── État principal ──────────────────────────────────────────
   type Step = 'loading' | 'invalid' | 'expired' | 'child' | 'parent' | 'joining';
@@ -49,11 +50,10 @@
 
   // ── Flux parent ─────────────────────────────────────────────
   type AuthMode = 'choose' | 'signin' | 'register';
-  let authMode        = $state<AuthMode>('choose');
-  let email           = $state('');
-  let password        = $state('');
-  let confirmPassword = $state('');
-  let authLoading     = $state(false);
+  let authMode    = $state<AuthMode>('choose');
+  let email       = $state('');
+  let password    = $state('');
+  let authLoading = $state(false);
 
   async function joinAsParent() {
     const user = auth.currentUser;
@@ -83,13 +83,11 @@
     }
   }
 
-  async function handleRegister() {
-    if (!email || !password) { error = 'Email et mot de passe requis.'; return; }
-    if (password !== confirmPassword) { error = 'Les mots de passe ne correspondent pas.'; return; }
+  async function handleRegister(regEmail: string, regPassword: string) {
     authLoading = true;
     error = '';
     try {
-      await registerWithEmail(email, password);
+      await registerWithEmail(regEmail, regPassword);
       await joinAsParent();
     } catch (e: any) {
       error = translateAuthError(e);
@@ -247,26 +245,15 @@
 
       <!-- Inscription email -->
       {:else if authMode === 'register'}
-        <div class="ob-form-field">
-          <label class="ob-label" for="regEmail">Email</label>
-          <input class="ob-input" id="regEmail" type="email" bind:value={email} autocomplete="email" />
-        </div>
-        <div class="ob-form-field">
-          <label class="ob-label" for="regPassword">Mot de passe</label>
-          <input class="ob-input" id="regPassword" type="password" bind:value={password} autocomplete="new-password" placeholder="6 caractères minimum" />
-        </div>
-        <div class="ob-form-field ob-mb8">
-          <label class="ob-label" for="regPasswordConfirm">Confirmer le mot de passe</label>
-          <input class="ob-input" id="regPasswordConfirm" type="password" bind:value={confirmPassword} autocomplete="new-password" placeholder="Répète ton mot de passe" />
-        </div>
-        <div class="ob-btn-stack">
-          <button class="ob-btn-primary" onclick={handleRegister} disabled={authLoading}>
-            {authLoading ? 'Création…' : 'Créer un compte et rejoindre'}
-          </button>
-          <button class="ob-btn-secondary" onclick={() => { authMode = 'choose'; error = ''; }}>
-            ← Retour
-          </button>
-        </div>
+        <RegisterForm
+          {error}
+          loading={authLoading}
+          submitLabel="Créer un compte et rejoindre"
+          onSubmit={handleRegister}
+        />
+        <button class="ob-btn-secondary" style="margin-top:8px" onclick={() => { authMode = 'choose'; error = ''; }}>
+          ← Retour
+        </button>
       {/if}
 
     <!-- ── Jonction en cours ── -->

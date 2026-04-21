@@ -1,11 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { authUser, userDoc } from '$lib/stores';
-  import { updateParentProfile } from '$lib/firebase';
+  import { updateParentProfile, deleteParentAccount } from '$lib/firebase';
 
   let firstName     = $state($userDoc?.displayName ?? '');
   let displayedName = $state('');
   let loading       = $state(false);
+  let cancelling    = $state(false);
   let error         = $state('');
 
   async function handleSubmit(e: SubmitEvent) {
@@ -26,6 +27,23 @@
       error = e.message || 'Erreur lors de la sauvegarde.';
     } finally {
       loading = false;
+    }
+  }
+
+  async function handleCancel() {
+    if (!confirm("Annuler l'inscription ? Votre compte et vos données seront supprimés.")) return;
+    const user = $authUser;
+    const doc  = $userDoc;
+    cancelling = true;
+    error = '';
+    try {
+      if (user && doc?.familyId) {
+        await deleteParentAccount(user, doc.familyId);
+      }
+      goto('/');
+    } catch (e: any) {
+      error = e.message || "Erreur lors de l'annulation.";
+      cancelling = false;
     }
   }
 </script>
@@ -86,8 +104,16 @@
       </div>
 
       <div class="ob-btn-stack ob-mt-a">
-        <button type="submit" class="ob-btn-primary" disabled={loading}>
+        <button type="submit" class="ob-btn-primary" disabled={loading || cancelling}>
           {loading ? 'Enregistrement…' : 'Continuer →'}
+        </button>
+        <button
+          type="button"
+          class="ob-btn-secondary"
+          onclick={handleCancel}
+          disabled={loading || cancelling}
+        >
+          {cancelling ? 'Annulation…' : 'Annuler'}
         </button>
       </div>
     </form>
