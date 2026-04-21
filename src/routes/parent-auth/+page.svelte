@@ -30,6 +30,7 @@
   // ── Form fields — Sign in ──────────────────────────────────
   let signinEmail    = $state('');
   let signinPassword = $state('');
+  let showSigninPwd  = $state(false);
 
   // ── Form fields — Créer une famille ───────────────────────
   let createFamilyName = $state('');
@@ -103,6 +104,12 @@
       await loginWithGoogle();
       const user = auth.currentUser;
       if (user) {
+        const existing = await getUser(user.uid);
+        if (existing?.familyId) {
+          userDoc.set(existing);
+          goto(existing.role === 'parent' ? '/parent' : '/child');
+          return;
+        }
         await createFamily(user, name);
         const fresh = await getUser(user.uid);
         userDoc.set(fresh);
@@ -150,6 +157,12 @@
       const user = auth.currentUser;
       if (user) {
         pendingJoin.set(null);
+        const existing = await getUser(user.uid);
+        if (existing?.familyId) {
+          userDoc.set(existing);
+          goto(existing.role === 'parent' ? '/parent' : '/child');
+          return;
+        }
         const [fid1, fid2] = await Promise.all([resolveInvite(code), resolveByFamilyCode(famCode)]);
         if (fid1 !== fid2) throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
         await joinFamilyAsAuthenticated(user, fid1);
@@ -261,9 +274,17 @@
         </div>
         <div class="ob-form-field ob-mb8">
           <label class="ob-label" for="signinPassword">Mot de passe</label>
-          <input class="ob-input" id="signinPassword" type="password"
-                 placeholder="••••••••" required autocomplete="current-password"
-                 bind:value={signinPassword}>
+          <div class="ob-input-pwd">
+            <input class="ob-input" id="signinPassword"
+                   type={showSigninPwd ? 'text' : 'password'}
+                   placeholder="••••••••" required autocomplete="current-password"
+                   bind:value={signinPassword}>
+            <button type="button" class="ob-pwd-toggle"
+                    onclick={() => showSigninPwd = !showSigninPwd}
+                    aria-label={showSigninPwd ? 'Masquer' : 'Afficher'}>
+              {showSigninPwd ? 'Cacher' : 'Voir'}
+            </button>
+          </div>
         </div>
         <button type="submit" class="ob-btn-primary" disabled={loadingSignin}>
           {loadingSignin ? 'Connexion…' : 'Se connecter'}

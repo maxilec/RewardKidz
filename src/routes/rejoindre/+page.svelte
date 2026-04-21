@@ -53,6 +53,7 @@
   let authMode    = $state<AuthMode>('choose');
   let email       = $state('');
   let password    = $state('');
+  let showPwd     = $state(false);
   let authLoading = $state(false);
 
   async function joinAsParent() {
@@ -232,7 +233,16 @@
         </div>
         <div class="ob-form-field ob-mb8">
           <label class="ob-label" for="joinPassword">Mot de passe</label>
-          <input class="ob-input" id="joinPassword" type="password" bind:value={password} autocomplete="current-password" />
+          <div class="ob-input-pwd">
+            <input class="ob-input" id="joinPassword"
+                   type={showPwd ? 'text' : 'password'}
+                   bind:value={password} autocomplete="current-password" />
+            <button type="button" class="ob-pwd-toggle"
+                    onclick={() => showPwd = !showPwd}
+                    aria-label={showPwd ? 'Masquer' : 'Afficher'}>
+              {showPwd ? 'Cacher' : 'Voir'}
+            </button>
+          </div>
         </div>
         <div class="ob-btn-stack">
           <button class="ob-btn-primary" onclick={handleSignin} disabled={authLoading}>

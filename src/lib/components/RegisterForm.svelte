@@ -18,6 +18,8 @@
   let password        = $state('');
   let confirmPassword = $state('');
   let localError      = $state('');
+  let showPwd         = $state(false);
+  let showConfirm     = $state(false);
 
   function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -31,7 +33,6 @@
     onSubmit(email.trim(), password);
   }
 
-  // Réinitialise l'erreur locale quand le parent efface son erreur
   $effect(() => { if (!error) localError = ''; });
 </script>
 
@@ -52,30 +53,43 @@
       bind:value={email}
     >
   </div>
+
   <div class="ob-form-field">
     <label class="ob-label" for="rf-password">Mot de passe</label>
-    <input
-      class="ob-input"
-      id="rf-password"
-      type="password"
-      placeholder="6 caractères minimum"
-      required
-      autocomplete="new-password"
-      bind:value={password}
-    >
+    <div class="ob-input-pwd">
+      <input
+        class="ob-input"
+        id="rf-password"
+        type={showPwd ? 'text' : 'password'}
+        placeholder="6 caractères minimum"
+        required
+        autocomplete="new-password"
+        bind:value={password}
+      >
+      <button type="button" class="ob-pwd-toggle" onclick={() => showPwd = !showPwd} aria-label={showPwd ? 'Masquer' : 'Afficher'}>
+        {showPwd ? 'Cacher' : 'Voir'}
+      </button>
+    </div>
   </div>
+
   <div class="ob-form-field ob-mb8">
     <label class="ob-label" for="rf-confirm">Confirmer le mot de passe</label>
-    <input
-      class="ob-input"
-      id="rf-confirm"
-      type="password"
-      placeholder="Répète ton mot de passe"
-      required
-      autocomplete="new-password"
-      bind:value={confirmPassword}
-    >
+    <div class="ob-input-pwd">
+      <input
+        class="ob-input"
+        id="rf-confirm"
+        type={showConfirm ? 'text' : 'password'}
+        placeholder="Répète ton mot de passe"
+        required
+        autocomplete="new-password"
+        bind:value={confirmPassword}
+      >
+      <button type="button" class="ob-pwd-toggle" onclick={() => showConfirm = !showConfirm} aria-label={showConfirm ? 'Masquer' : 'Afficher'}>
+        {showConfirm ? 'Cacher' : 'Voir'}
+      </button>
+    </div>
   </div>
+
   <button type="submit" class="ob-btn-primary" disabled={loading}>
     {loading ? 'Création…' : submitLabel}
   </button>

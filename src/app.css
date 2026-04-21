@@ -281,8 +281,33 @@ h1, h2, h3, h4, h5, h6 { margin: 0; }
 /* Input code famille / OTP */
 .ob-code-input {
   font-family: var(--f-head); font-size: 22px; font-weight: 600;
-  letter-spacing: 6px; text-align: center; text-transform: uppercase; height: 60px;
+  letter-spacing: 6px; text-align: center; text-transform: uppercase; height: 52px;
 }
+
+/* Champ mot de passe avec bouton voir/cacher */
+.ob-input-pwd {
+  position: relative;
+}
+.ob-input-pwd .ob-input {
+  padding-right: 72px;
+}
+.ob-pwd-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--c-txt-m);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  padding: 6px 4px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.ob-pwd-toggle:hover { color: var(--c-txt-h); }
 
 /* Override focus global */
 input:focus {
