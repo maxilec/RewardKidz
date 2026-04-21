@@ -49,11 +49,11 @@
 
   // ── Flux parent ─────────────────────────────────────────────
   type AuthMode = 'choose' | 'signin' | 'register';
-  let authMode    = $state<AuthMode>('choose');
-  let email       = $state('');
-  let password    = $state('');
-  let nickname    = $state('');
-  let authLoading = $state(false);
+  let authMode        = $state<AuthMode>('choose');
+  let email           = $state('');
+  let password        = $state('');
+  let confirmPassword = $state('');
+  let authLoading     = $state(false);
 
   async function joinAsParent() {
     const user = auth.currentUser;
@@ -61,7 +61,7 @@
     step = 'joining';
     error = '';
     try {
-      await joinFamilyAsAuthenticated(user, link!.familyId, nickname || undefined);
+      await joinFamilyAsAuthenticated(user, link!.familyId);
       goto('/parent');
     } catch (e: any) {
       error = e.message || 'Erreur lors de la jonction.';
@@ -85,10 +85,11 @@
 
   async function handleRegister() {
     if (!email || !password) { error = 'Email et mot de passe requis.'; return; }
+    if (password !== confirmPassword) { error = 'Les mots de passe ne correspondent pas.'; return; }
     authLoading = true;
     error = '';
     try {
-      await registerWithEmail(email, password, nickname || undefined);
+      await registerWithEmail(email, password);
       await joinAsParent();
     } catch (e: any) {
       error = translateAuthError(e);
@@ -247,16 +248,16 @@
       <!-- Inscription email -->
       {:else if authMode === 'register'}
         <div class="ob-form-field">
-          <label class="ob-label" for="regNickname">Votre prénom (affiché dans la famille)</label>
-          <input class="ob-input" id="regNickname" type="text" bind:value={nickname} autocomplete="nickname" placeholder="Ex : Sophie" />
-        </div>
-        <div class="ob-form-field">
           <label class="ob-label" for="regEmail">Email</label>
           <input class="ob-input" id="regEmail" type="email" bind:value={email} autocomplete="email" />
         </div>
-        <div class="ob-form-field ob-mb8">
+        <div class="ob-form-field">
           <label class="ob-label" for="regPassword">Mot de passe</label>
-          <input class="ob-input" id="regPassword" type="password" bind:value={password} autocomplete="new-password" />
+          <input class="ob-input" id="regPassword" type="password" bind:value={password} autocomplete="new-password" placeholder="6 caractères minimum" />
+        </div>
+        <div class="ob-form-field ob-mb8">
+          <label class="ob-label" for="regPasswordConfirm">Confirmer le mot de passe</label>
+          <input class="ob-input" id="regPasswordConfirm" type="password" bind:value={confirmPassword} autocomplete="new-password" placeholder="Répète ton mot de passe" />
         </div>
         <div class="ob-btn-stack">
           <button class="ob-btn-primary" onclick={handleRegister} disabled={authLoading}>

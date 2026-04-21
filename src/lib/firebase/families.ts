@@ -60,6 +60,18 @@ export async function getUser(uid: string): Promise<UserDoc | null> {
   return snap.exists() ? (snap.data() as UserDoc) : null;
 }
 
+export async function updateParentProfile(
+  uid: string,
+  familyId: string,
+  firstName: string,
+  displayedName: string
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', uid), { displayName: firstName, displayedName });
+  batch.update(doc(db, 'families', familyId, 'members', uid), { displayName: firstName, displayedName });
+  await batch.commit();
+}
+
 // ─────────────────────────────────────────────────────────────
 // Family
 // ─────────────────────────────────────────────────────────────

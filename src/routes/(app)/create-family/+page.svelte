@@ -3,10 +3,9 @@
   import { authUser, userDoc } from '$lib/stores';
   import { createFamily, getUser } from '$lib/firebase';
 
-  let familyName      = $state('');
-  let parentNickname  = $state('');
-  let error           = $state('');
-  let loading         = $state(false);
+  let familyName = $state('');
+  let error      = $state('');
+  let loading    = $state(false);
 
   async function handleCreate() {
     error = '';
@@ -18,7 +17,7 @@
 
     loading = true;
     try {
-      await createFamily(user, name, parentNickname.trim() || null);
+      await createFamily(user, name);
       // Rafraîchir userDoc pour que le guard de layout voie le familyId
       const fresh = await getUser(user.uid);
       userDoc.set(fresh);
@@ -57,7 +56,7 @@
       <div class="ob-error ob-mb16">{error}</div>
     {/if}
 
-    <div class="ob-form-field">
+    <div class="ob-form-field ob-mb8">
       <label class="ob-label" for="familyName">Nom de la famille</label>
       <input
         class="ob-input"
@@ -67,21 +66,6 @@
         maxlength="40"
         autocomplete="off"
         bind:value={familyName}
-      >
-    </div>
-
-    <div class="ob-form-field ob-mb8">
-      <label class="ob-label" for="parentNickname">
-        Comment vous appelle-t-on ?
-        <span style="font-weight:400;color:var(--c-txt-m)">(optionnel)</span>
-      </label>
-      <input
-        class="ob-input"
-        id="parentNickname"
-        type="text"
-        placeholder="Papa, Maman, Alex…"
-        autocomplete="given-name"
-        bind:value={parentNickname}
       >
     </div>
 

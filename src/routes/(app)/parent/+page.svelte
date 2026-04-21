@@ -175,7 +175,7 @@
     <button class="app-burger app-burger--header" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
     <div class="app-header-info">
       <div class="app-header-title">Famille {familyName}</div>
-      <div class="app-header-sub">Tableau de bord parent</div>
+      <div class="app-header-sub">Bonjour {$userDoc?.displayName ?? ''} !</div>
     </div>
     <span class="app-header-emoji">👨‍👩‍👧</span>
   </header>
@@ -191,7 +191,12 @@
       </div>
       {#each parentMembers as p}
         <div class="child-member-row">
-          <span class="child-name">👤 {p.displayName || '—'}</span>
+          <div>
+            <span class="child-name">👤 {p.displayName || '—'}</span>
+            {#if p.displayedName}
+              <span class="parent-label">{p.displayedName}</span>
+            {/if}
+          </div>
           <span class="child-status connected">{p.uid === byUid ? 'Vous' : 'Membre'}</span>
         </div>
       {/each}
@@ -250,3 +255,12 @@
     <button class="app-burger" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
   </div>
 </div>
+
+<style>
+  .parent-label {
+    display: block;
+    font-size: 0.78rem;
+    opacity: 0.65;
+    margin-top: 1px;
+  }
+</style>

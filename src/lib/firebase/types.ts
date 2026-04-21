@@ -6,6 +6,7 @@ export interface UserDoc {
   uid: string;
   email: string | null;
   displayName: string;
+  displayedName?: string;
   familyId: string;
   /** Uniquement pour les enfants (role === 'child') */
   memberId?: string;
@@ -28,6 +29,7 @@ export interface MemberDoc {
   linkedAuthUid?: string | null;
   role: 'parent' | 'child';
   displayName: string;
+  displayedName?: string;
   /** Hash PIN — uniquement pour les enfants avec PIN (ancien flux) */
   childPasswordHash?: string;
   /** Token FCM — présent si l'enfant a accordé la permission notifications */

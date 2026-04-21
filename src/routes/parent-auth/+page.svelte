@@ -32,12 +32,10 @@
   let registerEmail           = $state('');
   let registerPassword        = $state('');
   let registerPasswordConfirm = $state('');
-  let registerNickname        = $state('');
 
   // ── Form fields — Join ─────────────────────────────────────
   let joinInviteCode  = $state('');
   let joinFamilyCode  = $state('');
-  let joinNickname    = $state('');
   let joinEmail       = $state('');
   let joinPassword    = $state('');
 
@@ -124,8 +122,7 @@
     try {
       await registerWithEmail(
         registerEmail.trim(),
-        registerPassword,
-        registerNickname.trim() || undefined
+        registerPassword
       );
       // onAuthStateChanged → no family → routes to /onboarding
     } catch (err) {
@@ -140,10 +137,9 @@
     errorJoin = '';
     const code    = joinInviteCode.trim().toUpperCase();
     const famCode = joinFamilyCode.trim().toUpperCase();
-    const name    = joinNickname.trim();
     if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
     if (!famCode) { errorJoin = 'Entre le code famille.'; return; }
-    pendingJoin.set({ code, famCode, name });
+    pendingJoin.set({ code, famCode });
     loadingJoin = true;
     try {
       await loginWithGoogle();
@@ -157,7 +153,7 @@
         if (familyId1 !== familyId2) {
           throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
         }
-        await joinFamilyAsAuthenticated(user, familyId1, name || user.displayName || 'Membre');
+        await joinFamilyAsAuthenticated(user, familyId1);
         const fresh = await getUser(user.uid);
         userDoc.set(fresh);
         goto('/parent');
@@ -176,7 +172,6 @@
     errorJoin = '';
     const code    = joinInviteCode.trim().toUpperCase();
     const famCode = joinFamilyCode.trim().toUpperCase();
-    const name    = joinNickname.trim();
     const email   = joinEmail.trim();
     const pass    = joinPassword;
     if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
@@ -186,7 +181,7 @@
 
     loadingJoin = true;
     try {
-      const user = await registerWithEmail(email, pass, name || undefined);
+      const user = await registerWithEmail(email, pass);
       const [familyId1, familyId2] = await Promise.all([
         resolveInvite(code),
         resolveByFamilyCode(famCode)
@@ -194,7 +189,7 @@
       if (familyId1 !== familyId2) {
         throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
       }
-      await joinFamilyAsAuthenticated(user, familyId1, name || user.displayName || 'Membre');
+      await joinFamilyAsAuthenticated(user, familyId1);
       const fresh = await getUser(user.uid);
       userDoc.set(fresh);
       goto('/parent');
@@ -324,20 +319,11 @@
                  placeholder="6 caractères minimum" required autocomplete="new-password"
                  bind:value={registerPassword}>
         </div>
-        <div class="ob-form-field">
+        <div class="ob-form-field ob-mb8">
           <label class="ob-label" for="registerPasswordConfirm">Confirmer le mot de passe</label>
           <input class="ob-input" id="registerPasswordConfirm" type="password"
                  placeholder="Répète ton mot de passe" required autocomplete="new-password"
                  bind:value={registerPasswordConfirm}>
-        </div>
-        <div class="ob-form-field ob-mb8">
-          <label class="ob-label" for="registerNickname">
-            Comment vous appelle-t-on ?
-            <span style="font-weight:400;color:var(--c-txt-m)">(optionnel)</span>
-          </label>
-          <input class="ob-input" id="registerNickname" type="text"
-                 placeholder="Papa, Maman, Alex…" autocomplete="given-name"
-                 bind:value={registerNickname}>
         </div>
         <button type="submit" class="ob-btn-primary" disabled={loadingRegister}>
           {loadingRegister ? 'Création…' : 'Créer mon compte'}
@@ -363,19 +349,12 @@
                bind:value={joinInviteCode}>
       </div>
 
-      <div class="ob-form-field">
+      <div class="ob-form-field ob-mb16">
         <label class="ob-label" for="joinFamilyCode">Code famille permanent</label>
         <input class="ob-input ob-code-input" id="joinFamilyCode" type="text"
                maxlength="8" placeholder="ABCD1234"
                autocomplete="off" style="text-transform:uppercase;letter-spacing:5px"
                bind:value={joinFamilyCode}>
-      </div>
-
-      <div class="ob-form-field ob-mb16">
-        <label class="ob-label" for="joinNickname">Comment souhaitez-vous être appelé ?</label>
-        <input class="ob-input" id="joinNickname" type="text"
-               placeholder="Papa, Maman, Marc…" autocomplete="given-name"
-               bind:value={joinNickname}>
       </div>
 
       <button class="ob-btn-google ob-mb16" onclick={handleJoinGoogle} disabled={loadingJoin}>

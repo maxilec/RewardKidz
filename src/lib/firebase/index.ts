@@ -19,6 +19,7 @@ export {
 export {
   db,
   getUser,
+  updateParentProfile,
   getFamily,
   updateFamilyName,
   createFamily,

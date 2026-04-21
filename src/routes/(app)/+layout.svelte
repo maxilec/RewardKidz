@@ -25,6 +25,17 @@
       return;
     }
 
+    // Parent with family but profile not yet completed → account setup
+    if (
+      $userDoc?.familyId &&
+      $userDoc?.role === 'parent' &&
+      !$userDoc?.displayedName &&
+      !currentPath.startsWith('/parent-setup')
+    ) {
+      goto('/parent-setup');
+      return;
+    }
+
     // Guard rôle : un enfant ne peut pas accéder aux routes parent (et vice-versa)
     // Reprend les mêmes règles que la branche main (loadPage guard)
     const role = $userDoc?.role;

@@ -10,24 +10,22 @@
   import { authUser, userDoc, pendingJoin } from '$lib/stores';
   import { resolveInvite, resolveByFamilyCode, joinFamilyAsAuthenticated } from '$lib/firebase';
 
-  let inviteCode  = $state($page.url.searchParams.get('code') ?? $pendingJoin?.code ?? '');
-  let familyCode  = $state($pendingJoin?.famCode ?? '');
-  let displayName = $state($userDoc?.displayName ?? $authUser?.displayName ?? '');
-  let loading     = $state(false);
-  let error       = $state('');
+  let inviteCode = $state($page.url.searchParams.get('code') ?? $pendingJoin?.code ?? '');
+  let familyCode = $state($pendingJoin?.famCode ?? '');
+  let loading    = $state(false);
+  let error      = $state('');
 
   // Si un pendingJoin complet est déjà en attente, tenter automatiquement
   $effect(() => {
     const pj = $pendingJoin;
-    if (pj?.code && pj?.famCode && pj?.name && $authUser && !$authUser.isAnonymous && !loading) {
-      handleJoin(pj.code, pj.famCode, pj.name);
+    if (pj?.code && pj?.famCode && $authUser && !$authUser.isAnonymous && !loading) {
+      handleJoin(pj.code, pj.famCode);
     }
   });
 
   async function handleJoin(
     code    = inviteCode.trim().toUpperCase(),
-    famCode = familyCode.trim().toUpperCase(),
-    name    = displayName.trim()
+    famCode = familyCode.trim().toUpperCase()
   ) {
     error   = '';
     loading = true;
@@ -39,7 +37,7 @@
       if (familyId1 !== familyId2) {
         throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
       }
-      await joinFamilyAsAuthenticated($authUser!, familyId1, name || 'Membre');
+      await joinFamilyAsAuthenticated($authUser!, familyId1);
       pendingJoin.set(null);
       goto('/parent');
     } catch (e: any) {
@@ -50,9 +48,8 @@
   }
 
   function submit() {
-    if (!inviteCode.trim())  { error = "Entrez le code d'invitation."; return; }
-    if (!familyCode.trim())  { error = 'Entrez le code famille.'; return; }
-    if (!displayName.trim()) { error = 'Entrez votre prénom.'; return; }
+    if (!inviteCode.trim()) { error = "Entrez le code d'invitation."; return; }
+    if (!familyCode.trim()) { error = 'Entrez le code famille.'; return; }
     handleJoin();
   }
 </script>
@@ -89,7 +86,7 @@
       />
     </div>
 
-    <div class="ob-form-field">
+    <div class="ob-form-field ob-mb8">
       <label class="ob-label" for="joinFamilyCode">Code famille permanent</label>
       <input
         id="joinFamilyCode"
@@ -100,17 +97,6 @@
         autocomplete="off"
         bind:value={familyCode}
         oninput={(e) => { familyCode = (e.currentTarget as HTMLInputElement).value.toUpperCase(); }}
-      />
-    </div>
-
-    <div class="ob-form-field">
-      <label class="ob-label" for="joinName">Votre prénom</label>
-      <input
-        id="joinName"
-        class="ob-input"
-        type="text"
-        placeholder="Ex : Marie"
-        bind:value={displayName}
       />
     </div>
 
