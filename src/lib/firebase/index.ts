@@ -38,6 +38,10 @@ export {
   getActiveInvite,
   createInvite,
   resolveInvite,
+  createParentInviteLink,
+  createChildInviteLink,
+  resolveInviteLink,
+  connectChildDeviceViaToken,
   deleteParentAccount
 } from './families';
 
@@ -64,5 +68,6 @@ export type {
   MemberDoc,
   ScoreDoc,
   ScoreLogEntry,
-  HistoryEntry
+  HistoryEntry,
+  InviteLink
 } from './types';

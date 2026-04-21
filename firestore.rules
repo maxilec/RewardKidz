@@ -66,7 +66,11 @@ service cloud.firestore {
         // Connexion / reconnexion via OTP enfant
         (isAuth() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']) &&
-         exists(/databases/$(database)/documents/families/$(familyId)/childOTPs/$(memberId)));
+         exists(/databases/$(database)/documents/families/$(familyId)/childOTPs/$(memberId))) ||
+        // Connexion via token QR (inviteLinks)
+        (isAuth() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedAuthUid']) &&
+         exists(/databases/$(database)/documents/families/$(familyId)/childInviteLinks/$(memberId)));
       allow delete: if isParentOf(familyId);
     }
 
@@ -142,6 +146,25 @@ service cloud.firestore {
                                     isMemberOf(request.resource.data.familyId));
       allow delete: if isAuth() && (isParentOf(resource.data.familyId) ||
                                     isMemberOf(resource.data.familyId));
+    }
+
+    // ── Invite links (QR token-based, top-level) ─────────────
+    match /inviteLinks/{token} {
+      allow get:    if true;  // Lecture publique par ID exact (résolution de token QR)
+      allow create: if isParentOf(request.resource.data.familyId);
+      // Seul le champ "used" peut être mis à jour (marquage single-use enfant)
+      allow update: if isAuth() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used']);
+      allow delete: if isAuth() && isParentOf(resource.data.familyId);
+    }
+
+    // ── Child invite links (sous-collection, existence check pour règles membres) ──
+    match /families/{familyId}/childInviteLinks/{memberId} {
+      allow get:    if true;   // Requis pour le check d'existence dans les règles membres
+      allow list:   if false;
+      allow create: if isParentOf(familyId);
+      allow update: if isParentOf(familyId);  // Écrasement lors d'une nouvelle génération
+      allow delete: if isAuth();              // Enfant anonyme lors de la connexion
     }
 
     // ── Tokens d'invitation (imbriqués, héritage legacy) ────────────────────────

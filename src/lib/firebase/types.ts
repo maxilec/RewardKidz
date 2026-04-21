@@ -62,3 +62,17 @@ export interface HistoryEntry {
   ignored: boolean;
   isToday?: boolean;
 }
+
+export interface InviteLink {
+  token: string;
+  type: 'parent' | 'child';
+  familyId: string;
+  familyCode: string;
+  familyName: string;
+  memberId?: string;
+  displayName?: string;
+  currentLinkedAuthUid?: string | null;
+  createdAt: number;
+  expiresAt: number;
+  used: boolean;
+}

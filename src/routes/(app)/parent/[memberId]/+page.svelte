@@ -9,7 +9,7 @@
     getOrCreateDayScore, addPoint, removePoint,
     setScoreValidated, setDayIgnored, subscribeToScore,
     updateChildName, deleteChild,
-    getActiveChildOTP, generateChildOTP,
+    getActiveChildOTP, generateChildOTP, createChildInviteLink,
     getFamily, getChildHistory
   } from '$lib/firebase';
   import type { ScoreDoc, HistoryEntry } from '$lib/firebase/types';
@@ -28,8 +28,9 @@
   let byName     = $derived($userDoc?.displayName ?? $authUser?.displayName ?? 'Parent');
 
   // Données de l'enfant depuis le store members
-  let childMember = $derived($members.find(m => m.memberId === memberId));
-  let displayName = $derived(childMember?.displayName ?? '');
+  let childMember   = $derived($members.find(m => m.memberId === memberId));
+  let displayName   = $derived(childMember?.displayName ?? '');
+  let parentMembers = $derived($members.filter(m => m.role === 'parent'));
 
   // ── Score ────────────────────────────────────────────────
   let score = $state<ScoreDoc | null>(null);
@@ -83,33 +84,48 @@
   let otpModalOpen  = $state(false);
   let otpCode       = $state('');
   let otpQR         = $state('');
+  let otpShareUrl   = $state('');
   let otpGenerating = $state(false);
 
-  async function genOtpQR(code: string) {
-    otpQR = code ? await QRCode.toDataURL(code, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
+  async function genOtpQR(url: string) {
+    otpShareUrl = url;
+    otpQR = url ? await QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
   }
 
   async function openOtpModal() {
     otpModalOpen = true;
     otpCode = '';
     otpQR = '';
+    otpShareUrl = '';
     try {
       const existing = await getActiveChildOTP(familyId, memberId);
       otpCode = existing ?? '';
-      await genOtpQR(otpCode);
-    } catch { otpCode = ''; otpQR = ''; }
+    } catch { otpCode = ''; }
+    if (otpCode) {
+      try {
+        const token = await createChildInviteLink(familyId, memberId, displayName);
+        await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
+      } catch (e: any) { console.error('QR generation failed', e); }
+    }
   }
   async function generateOtp() {
     otpGenerating = true;
     otpCode = '…';
     otpQR = '';
+    otpShareUrl = '';
     try {
       otpCode = await generateChildOTP(familyId, memberId, displayName);
-      await genOtpQR(otpCode);
     } catch (e: any) {
       otpCode = '';
       console.error(e);
-    } finally { otpGenerating = false; }
+      otpGenerating = false;
+      return;
+    }
+    try {
+      const token = await createChildInviteLink(familyId, memberId, displayName);
+      await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
+    } catch (e: any) { console.error('QR generation failed', e); }
+    finally { otpGenerating = false; }
   }
 
   // ── Renommer l'enfant ────────────────────────────────────
@@ -180,6 +196,7 @@
   {familyName}
   {familyCode}
   childMembers={$childMembers}
+  {parentMembers}
   currentMemberId={memberId}
   isDashboard={false}
   onClose={() => drawerOpen.set(false)}
@@ -188,7 +205,7 @@
 />
 
 <!-- Modale OTP -->
-<AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" onClose={() => otpModalOpen = false}>
+<AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" shareUrl={otpShareUrl} onClose={() => otpModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Code temporaire valable 30 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
     {#if otpCode && otpCode !== '…'}

@@ -8,7 +8,7 @@
   import {
     getFamily, getFamilyMembers, getOrCreateDayScore,
     addPoint, removePoint, setScoreValidated, setDayIgnored,
-    getActiveInvite, createInvite, subscribeToScore
+    getActiveInvite, createInvite, createParentInviteLink, subscribeToScore
   } from '$lib/firebase';
   import type { ScoreDoc, MemberDoc } from '$lib/firebase/types';
   import QRCode       from 'qrcode';
@@ -33,6 +33,7 @@
   let inviteModalOpen  = $state(false);
   let inviteCode       = $state('');
   let inviteQR         = $state('');
+  let inviteShareUrl   = $state('');
   let generatingInvite = $state(false);
 
   // ── Chargement initial des scores + abonnements realtime ─
@@ -91,25 +92,41 @@
   }
 
   // ── Modale invitation parent ─────────────────────────────
-  async function genQR(code: string) {
-    inviteQR = code ? await QRCode.toDataURL(code, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
+  async function genQR(url: string) {
+    inviteShareUrl = url;
+    inviteQR = url ? await QRCode.toDataURL(url, { width: 180, margin: 1, color: { dark: '#5B21B6', light: '#fff' } }) : '';
   }
 
   async function openInviteModal() {
     inviteModalOpen = true;
+    inviteCode = '';
+    inviteQR = '';
+    inviteShareUrl = '';
     try {
       const existing = await getActiveInvite(familyId);
       inviteCode = existing ?? '';
-      await genQR(inviteCode);
-    } catch { inviteCode = ''; inviteQR = ''; }
+    } catch { inviteCode = ''; }
+    if (inviteCode) {
+      try {
+        const token = await createParentInviteLink(familyId);
+        await genQR(`${window.location.origin}/rejoindre?token=${token}`);
+      } catch (e: any) { console.error('QR generation failed', e); }
+    }
   }
   async function generateInvite() {
     generatingInvite = true;
     try {
       const active = await getActiveInvite(familyId);
       inviteCode = active ?? await createInvite(familyId);
-      await genQR(inviteCode);
-    } catch (e: any) { console.error(e); }
+    } catch (e: any) {
+      console.error(e);
+      generatingInvite = false;
+      return;
+    }
+    try {
+      const token = await createParentInviteLink(familyId);
+      await genQR(`${window.location.origin}/rejoindre?token=${token}`);
+    } catch (e: any) { console.error('QR generation failed', e); }
     finally { generatingInvite = false; }
   }
 </script>
@@ -121,6 +138,7 @@
   {familyName}
   {familyCode}
   childMembers={$childMembers}
+  parentMembers={parentMembers}
   isDashboard={true}
   onClose={() => drawerOpen.set(false)}
   onNavigate={(memberId) => goto(`/parent/${memberId}`)}
@@ -129,7 +147,7 @@
 />
 
 <!-- Modale invitation parent -->
-<AppModal open={inviteModalOpen} title="🔗 Inviter un co-parent" onClose={() => inviteModalOpen = false}>
+<AppModal open={inviteModalOpen} title="🔗 Inviter un co-parent" shareUrl={inviteShareUrl} onClose={() => inviteModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Partagez ce code à un autre parent pour qu'il rejoigne votre famille.</p>
     {#if inviteCode}
