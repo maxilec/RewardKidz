@@ -97,25 +97,33 @@
 
   async function openInviteModal() {
     inviteModalOpen = true;
+    inviteCode = '';
+    inviteQR = '';
     try {
       const existing = await getActiveInvite(familyId);
       inviteCode = existing ?? '';
-      if (inviteCode) {
+    } catch { inviteCode = ''; }
+    if (inviteCode) {
+      try {
         const token = await createParentInviteLink(familyId);
         await genQR(`${window.location.origin}/rejoindre?token=${token}`);
-      } else {
-        inviteQR = '';
-      }
-    } catch { inviteCode = ''; inviteQR = ''; }
+      } catch (e: any) { console.error('QR generation failed', e); }
+    }
   }
   async function generateInvite() {
     generatingInvite = true;
     try {
       const active = await getActiveInvite(familyId);
       inviteCode = active ?? await createInvite(familyId);
+    } catch (e: any) {
+      console.error(e);
+      generatingInvite = false;
+      return;
+    }
+    try {
       const token = await createParentInviteLink(familyId);
       await genQR(`${window.location.origin}/rejoindre?token=${token}`);
-    } catch (e: any) { console.error(e); }
+    } catch (e: any) { console.error('QR generation failed', e); }
     finally { generatingInvite = false; }
   }
 </script>

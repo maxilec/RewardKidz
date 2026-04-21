@@ -495,9 +495,12 @@ export async function createChildInviteLink(
   if (!familySnap.exists()) throw new Error('Famille introuvable');
   const family = familySnap.data() as FamilyDoc;
 
-  const token = generateToken();
-  const now   = Date.now();
-  await setDoc(doc(db, 'inviteLinks', token), {
+  const token    = generateToken();
+  const now      = Date.now();
+  const expiresAt = now + 2 * 60 * 60 * 1000; // 2 h
+  const batch    = writeBatch(db);
+
+  batch.set(doc(db, 'inviteLinks', token), {
     token,
     type:        'child',
     familyId,
@@ -506,9 +509,17 @@ export async function createChildInviteLink(
     memberId,
     displayName,
     createdAt:   now,
-    expiresAt:   now + 2 * 60 * 60 * 1000, // 2 h
+    expiresAt,
     used:        false
   } satisfies InviteLink);
+
+  // Sous-collection pour le check d'existence dans les règles Firestore members
+  batch.set(doc(db, 'families', familyId, 'childInviteLinks', memberId), {
+    token,
+    expiresAt
+  });
+
+  await batch.commit();
   return token;
 }
 
@@ -541,6 +552,7 @@ export async function connectChildDeviceViaToken(user: User, token: string): Pro
   const batch = writeBatch(db);
   batch.update(doc(db, 'families', familyId, 'members', memberId), { linkedAuthUid: user.uid });
   batch.update(linkRef, { used: true });
+  batch.delete(doc(db, 'families', familyId, 'childInviteLinks', memberId));
   if (currentLinkedAuthUid && currentLinkedAuthUid !== user.uid) {
     batch.delete(doc(db, 'users', currentLinkedAuthUid));
   }

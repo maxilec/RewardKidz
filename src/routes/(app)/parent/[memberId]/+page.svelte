@@ -96,11 +96,13 @@
     try {
       const existing = await getActiveChildOTP(familyId, memberId);
       otpCode = existing ?? '';
-      if (otpCode) {
+    } catch { otpCode = ''; }
+    if (otpCode) {
+      try {
         const token = await createChildInviteLink(familyId, memberId, displayName);
         await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
-      }
-    } catch { otpCode = ''; otpQR = ''; }
+      } catch (e: any) { console.error('QR generation failed', e); }
+    }
   }
   async function generateOtp() {
     otpGenerating = true;
@@ -108,12 +110,17 @@
     otpQR = '';
     try {
       otpCode = await generateChildOTP(familyId, memberId, displayName);
-      const token = await createChildInviteLink(familyId, memberId, displayName);
-      await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
     } catch (e: any) {
       otpCode = '';
       console.error(e);
-    } finally { otpGenerating = false; }
+      otpGenerating = false;
+      return;
+    }
+    try {
+      const token = await createChildInviteLink(familyId, memberId, displayName);
+      await genOtpQR(`${window.location.origin}/rejoindre?token=${token}`);
+    } catch (e: any) { console.error('QR generation failed', e); }
+    finally { otpGenerating = false; }
   }
 
   // ── Renommer l'enfant ────────────────────────────────────
