@@ -163,7 +163,8 @@ service cloud.firestore {
       allow get:    if true;   // Requis pour le check d'existence dans les règles membres
       allow list:   if false;
       allow create: if isParentOf(familyId);
-      allow delete: if isAuth();
+      allow update: if isParentOf(familyId);  // Écrasement lors d'une nouvelle génération
+      allow delete: if isAuth();              // Enfant anonyme lors de la connexion
     }
 
     // ── Tokens d'invitation (imbriqués, héritage legacy) ────────────────────────
