@@ -1,32 +1,16 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { authUser, userDoc } from '$lib/stores';
-  import { createFamily, getUser } from '$lib/firebase';
+  import { pendingOnboarding } from '$lib/stores';
 
   let familyName = $state('');
   let error      = $state('');
-  let loading    = $state(false);
 
-  async function handleCreate() {
+  function handleCreate() {
     error = '';
     const name = familyName.trim();
     if (!name) { error = 'Le nom de la famille est requis.'; return; }
-
-    const user = $authUser;
-    if (!user) { error = 'Utilisateur non connecté.'; return; }
-
-    loading = true;
-    try {
-      await createFamily(user, name);
-      // Rafraîchir userDoc pour que le guard de layout voie le familyId
-      const fresh = await getUser(user.uid);
-      userDoc.set(fresh);
-      goto('/parent');
-    } catch (e) {
-      error = (e as { message?: string }).message || 'Impossible de créer la famille.';
-    } finally {
-      loading = false;
-    }
+    pendingOnboarding.set({ action: 'create', familyName: name });
+    goto('/parent-setup');
   }
 </script>
 
@@ -70,8 +54,8 @@
     </div>
 
     <div class="ob-btn-stack ob-mt-a">
-      <button class="ob-btn-primary" onclick={handleCreate} disabled={loading}>
-        {loading ? 'Création…' : 'Créer ma famille'}
+      <button class="ob-btn-primary" onclick={handleCreate}>
+        Créer ma famille
       </button>
     </div>
 

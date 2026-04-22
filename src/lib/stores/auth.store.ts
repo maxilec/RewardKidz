@@ -18,11 +18,39 @@ export const userDoc = writable<UserDoc | null>(null);
  */
 export const authReady = writable(false);
 
-/**
- * Code d'invitation en attente (Google / email registration flows).
- * Stocké ici plutôt qu'en variable module-level pour survivre aux navigations SvelteKit.
- */
-export const pendingJoin = writable<{ code: string; famCode: string } | null>(null);
+// ─────────────────────────────────────────────────────────────
+// Store pendingOnboarding — contexte différé jusqu'à /parent-setup
+// ─────────────────────────────────────────────────────────────
+
+export type PendingOnboarding =
+  | { action: 'create'; familyName: string }
+  | { action: 'join';   familyId: string }
+  | { action: 'token';  familyId: string }
+  | null;
+
+const _OB_KEY = 'rk_pending_onboarding';
+
+function _readOb(): PendingOnboarding {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(_OB_KEY);
+    return raw ? (JSON.parse(raw) as PendingOnboarding) : null;
+  } catch { return null; }
+}
+
+const _obStore = writable<PendingOnboarding>(_readOb());
+
+export const pendingOnboarding = {
+  subscribe: _obStore.subscribe,
+  set(value: PendingOnboarding) {
+    try {
+      if (value) sessionStorage.setItem(_OB_KEY, JSON.stringify(value));
+      else sessionStorage.removeItem(_OB_KEY);
+    } catch { /* sessionStorage indisponible */ }
+    _obStore.set(value);
+  },
+  clear() { this.set(null); }
+};
 
 // ─────────────────────────────────────────────────────────────
 // Stores dérivés

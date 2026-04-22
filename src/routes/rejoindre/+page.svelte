@@ -2,11 +2,10 @@
   import { onMount } from 'svelte';
   import { goto }    from '$app/navigation';
   import { page }    from '$app/stores';
-  import { authUser, authReady, userDoc } from '$lib/stores';
+  import { authUser, authReady, userDoc, pendingOnboarding } from '$lib/stores';
   import {
     resolveInviteLink,
     connectChildDeviceViaToken,
-    joinFamilyAsAuthenticated,
     getUser,
     logout
   } from '$lib/firebase';
@@ -21,7 +20,7 @@
   import RegisterForm from '$lib/components/RegisterForm.svelte';
 
   // ── État principal ──────────────────────────────────────────
-  type Step = 'loading' | 'invalid' | 'expired' | 'child' | 'parent' | 'joining';
+  type Step = 'loading' | 'invalid' | 'expired' | 'child' | 'parent';
   let step  = $state<Step>('loading');
   let link  = $state<InviteLink | null>(null);
   let error = $state('');
@@ -52,18 +51,9 @@
   // ── Flux parent ─────────────────────────────────────────────
   let authLoading = $state(false);
 
-  async function joinAsParent() {
-    const user = auth.currentUser;
-    if (!user || user.isAnonymous) { error = 'Connexion requise'; return; }
-    step = 'joining';
-    error = '';
-    try {
-      await joinFamilyAsAuthenticated(user, link!.familyId);
-      goto('/parent');
-    } catch (e: any) {
-      error = e.message || 'Erreur lors de la jonction.';
-      step = 'parent';
-    }
+  function proceedToSetup() {
+    pendingOnboarding.set({ action: 'token', familyId: link!.familyId });
+    goto('/parent-setup');
   }
 
   async function handleRegister(regEmail: string, regPassword: string) {
@@ -71,7 +61,7 @@
     error = '';
     try {
       await registerWithEmail(regEmail, regPassword);
-      await joinAsParent();
+      proceedToSetup();
     } catch (e: any) {
       error = translateAuthError(e);
     } finally {
@@ -92,7 +82,7 @@
         error = 'Vous êtes déjà associé(e) à une famille. Vous ne pouvez pas en rejoindre une nouvelle.';
         return;
       }
-      await joinAsParent();
+      proceedToSetup();
     } catch (e: any) {
       error = translateAuthError(e);
     } finally {
@@ -113,7 +103,7 @@
     }
   });
 
-  // ── Auto-join si parent déjà authentifié sans famille ───────
+  // ── Auto-proceed si parent déjà authentifié sans famille ───────
   $effect(() => {
     if (!$authReady || !link || link.type !== 'parent' || step !== 'parent') return;
     const user = $authUser;
@@ -122,7 +112,7 @@
       goto($userDoc.role === 'parent' ? '/parent' : '/child');
       return;
     }
-    joinAsParent();
+    proceedToSetup();
   });
 </script>
 
@@ -219,12 +209,6 @@
         onSubmit={handleRegister}
       />
 
-    <!-- ── Jonction en cours ── -->
-    {:else if step === 'joining'}
-      <div class="ob-illus ob-mb16" style="height:80px">
-        <span class="ob-illus-emoji" style="font-size:64px">⏳</span>
-      </div>
-      <h1 class="ob-title ob-mb8">Connexion à la famille…</h1>
     {/if}
 
   </div><!-- /.ob-content -->

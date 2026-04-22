@@ -7,21 +7,13 @@
    */
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { authUser, userDoc, pendingJoin } from '$lib/stores';
-  import { resolveInvite, resolveByFamilyCode, joinFamilyAsAuthenticated } from '$lib/firebase';
+  import { pendingOnboarding } from '$lib/stores';
+  import { resolveInvite, resolveByFamilyCode } from '$lib/firebase';
 
-  let inviteCode = $state($page.url.searchParams.get('code') ?? $pendingJoin?.code ?? '');
-  let familyCode = $state($pendingJoin?.famCode ?? '');
+  let inviteCode = $state($page.url.searchParams.get('code') ?? '');
+  let familyCode = $state('');
   let loading    = $state(false);
   let error      = $state('');
-
-  // Si un pendingJoin complet est déjà en attente, tenter automatiquement
-  $effect(() => {
-    const pj = $pendingJoin;
-    if (pj?.code && pj?.famCode && $authUser && !$authUser.isAnonymous && !loading) {
-      handleJoin(pj.code, pj.famCode);
-    }
-  });
 
   async function handleJoin(
     code    = inviteCode.trim().toUpperCase(),
@@ -37,9 +29,8 @@
       if (familyId1 !== familyId2) {
         throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
       }
-      await joinFamilyAsAuthenticated($authUser!, familyId1);
-      pendingJoin.set(null);
-      goto('/parent');
+      pendingOnboarding.set({ action: 'join', familyId: familyId1 });
+      goto('/parent-setup');
     } catch (e: any) {
       error = e.message ?? 'Impossible de rejoindre la famille.';
     } finally {

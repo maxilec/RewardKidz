@@ -3,10 +3,9 @@
   import { page } from '$app/stores';
   import {
     loginWithGoogle, loginWithEmail, registerWithEmail, translateAuthError,
-    resolveInvite, resolveByFamilyCode, joinFamilyAsAuthenticated,
-    createFamily, getUser, logout
+    resolveInvite, resolveByFamilyCode, getUser, logout
   } from '$lib/firebase';
-  import { pendingJoin, authReady, authUser, userDoc } from '$lib/stores';
+  import { pendingOnboarding, authReady, authUser, userDoc } from '$lib/stores';
   import { auth } from '$lib/firebase/auth';
   import RegisterForm from '$lib/components/RegisterForm.svelte';
 
@@ -111,9 +110,7 @@
           errorCreate = ERR_ALREADY_IN_FAMILY;
           return;
         }
-        await createFamily(user, name);
-        const fresh = await getUser(user.uid);
-        userDoc.set(fresh);
+        pendingOnboarding.set({ action: 'create', familyName: name });
         goto('/parent-setup');
       }
     } catch (e) {
@@ -129,10 +126,8 @@
     if (!name) { errorCreate = 'Le nom de la famille est requis.'; return; }
     loadingCreate = true;
     try {
-      const user = await registerWithEmail(email, password);
-      await createFamily(user, name);
-      const fresh = await getUser(user.uid);
-      userDoc.set(fresh);
+      await registerWithEmail(email, password);
+      pendingOnboarding.set({ action: 'create', familyName: name });
       goto('/parent-setup');
     } catch (e) {
       errorCreate = translateAuthError(e);
@@ -151,13 +146,11 @@
     const code    = joinInviteCode.trim();
     if (!famCode) { errorJoin = 'Entre le code famille.'; return; }
     if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
-    pendingJoin.set({ code, famCode });
     loadingJoin = true;
     try {
       await loginWithGoogle();
       const user = auth.currentUser;
       if (user) {
-        pendingJoin.set(null);
         const existing = await getUser(user.uid);
         if (existing?.familyId) {
           await logout();
@@ -166,13 +159,10 @@
         }
         const [fid1, fid2] = await Promise.all([resolveInvite(code), resolveByFamilyCode(famCode)]);
         if (fid1 !== fid2) throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
-        await joinFamilyAsAuthenticated(user, fid1);
-        const fresh = await getUser(user.uid);
-        userDoc.set(fresh);
+        pendingOnboarding.set({ action: 'join', familyId: fid1 });
         goto('/parent-setup');
       }
     } catch (err) {
-      pendingJoin.set(null);
       errorJoin = (err as { message?: string }).message || translateAuthError(err);
     } finally {
       loadingJoin = false;
@@ -187,12 +177,10 @@
     if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
     loadingJoin = true;
     try {
-      const user = await registerWithEmail(email, password);
+      await registerWithEmail(email, password);
       const [fid1, fid2] = await Promise.all([resolveInvite(code), resolveByFamilyCode(famCode)]);
       if (fid1 !== fid2) throw new Error("Le code d'invitation et le code famille ne correspondent pas.");
-      await joinFamilyAsAuthenticated(user, fid1);
-      const fresh = await getUser(user.uid);
-      userDoc.set(fresh);
+      pendingOnboarding.set({ action: 'join', familyId: fid1 });
       goto('/parent-setup');
     } catch (err) {
       errorJoin = (err as { message?: string }).message || translateAuthError(err);

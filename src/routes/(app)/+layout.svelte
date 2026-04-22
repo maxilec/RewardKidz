@@ -6,7 +6,7 @@
   let { children } = $props();
 
   // Routes inside (app) that don't require a familyId yet
-  const noFamilyRequired = ['/onboarding', '/create-family', '/join-family'];
+  const noFamilyRequired = ['/onboarding', '/create-family', '/join-family', '/parent-setup'];
 
   $effect(() => {
     if (!$authReady) return; // wait for auth resolution

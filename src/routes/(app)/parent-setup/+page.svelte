@@ -1,13 +1,23 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { authUser, userDoc } from '$lib/stores';
-  import { updateParentProfile, deleteParentAccount } from '$lib/firebase';
+  import { onMount }  from 'svelte';
+  import { goto }     from '$app/navigation';
+  import { authUser, userDoc, pendingOnboarding } from '$lib/stores';
+  import { createFamily, joinFamilyAsAuthenticated, updateParentProfile, getUser, logout } from '$lib/firebase';
+  import { auth } from '$lib/firebase/auth';
 
-  let firstName     = $state($userDoc?.displayName ?? '');
+  const pending        = $pendingOnboarding;
+  const legacyFamilyId = $userDoc?.familyId ?? null;
+
+  // Pré-remplir depuis le displayName Firebase Auth (Google le renseigne automatiquement)
+  let firstName     = $state($authUser?.displayName ?? $userDoc?.displayName ?? '');
   let displayedName = $state('');
   let loading       = $state(false);
   let cancelling    = $state(false);
   let error         = $state('');
+
+  onMount(() => {
+    if (!pending && !legacyFamilyId) goto('/');
+  });
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -17,11 +27,22 @@
     if (!fn) { error = 'Votre prénom est requis.'; return; }
     if (!dn) { error = 'Votre titre pour les enfants est requis.'; return; }
     const user = $authUser;
-    const doc  = $userDoc;
-    if (!user || !doc?.familyId) { error = 'Session invalide.'; return; }
+    if (!user) { goto('/'); return; }
     loading = true;
     try {
-      await updateParentProfile(user.uid, doc.familyId, fn, dn);
+      let familyId: string;
+      if (pending?.action === 'create') {
+        familyId = await createFamily(user, pending.familyName);
+      } else if (pending?.action === 'join' || pending?.action === 'token') {
+        await joinFamilyAsAuthenticated(user, pending.familyId);
+        familyId = pending.familyId;
+      } else {
+        familyId = legacyFamilyId!;
+      }
+      await updateParentProfile(user.uid, familyId, fn, dn);
+      const fresh = await getUser(user.uid);
+      userDoc.set(fresh);
+      pendingOnboarding.clear();
       goto('/parent');
     } catch (e: any) {
       error = e.message || 'Erreur lors de la sauvegarde.';
@@ -31,15 +52,19 @@
   }
 
   async function handleCancel() {
-    if (!confirm("Annuler l'inscription ? Votre compte et vos données seront supprimés.")) return;
-    const user = $authUser;
-    const doc  = $userDoc;
+    if (!confirm("Annuler l'inscription ? Votre compte sera supprimé.")) return;
     cancelling = true;
     error = '';
     try {
-      if (user && doc?.familyId) {
-        await deleteParentAccount(user, doc.familyId);
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          await user.delete();
+        } catch {
+          await logout();
+        }
       }
+      pendingOnboarding.clear();
       goto('/');
     } catch (e: any) {
       error = e.message || "Erreur lors de l'annulation.";
@@ -107,14 +132,16 @@
         <button type="submit" class="ob-btn-primary" disabled={loading || cancelling}>
           {loading ? 'Enregistrement…' : 'Continuer →'}
         </button>
-        <button
-          type="button"
-          class="ob-btn-secondary"
-          onclick={handleCancel}
-          disabled={loading || cancelling}
-        >
-          {cancelling ? 'Annulation…' : 'Annuler'}
-        </button>
+        {#if pending}
+          <button
+            type="button"
+            class="ob-btn-secondary"
+            onclick={handleCancel}
+            disabled={loading || cancelling}
+          >
+            {cancelling ? 'Annulation…' : 'Annuler'}
+          </button>
+        {/if}
       </div>
     </form>
 

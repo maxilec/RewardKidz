@@ -2,11 +2,13 @@ export {
   authUser,
   userDoc,
   authReady,
-  pendingJoin,
+  pendingOnboarding,
   userRole,
   waitForAuthReady,
   initAuthListener
 } from './auth.store';
+
+export type { PendingOnboarding } from './auth.store';
 
 export {
   scores,
