@@ -191,15 +191,15 @@
       </div>
       {#each parentMembers as p}
         <div class="child-member-row">
-          <span class="child-name">👤 {p.displayName || '—'}</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            {#if p.displayedName}
-              <span class="parent-label">{p.displayedName}</span>
-            {/if}
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="child-name">👤 {p.displayName || '—'}</span>
             {#if p.uid === byUid}
               <span class="child-status connected">Vous</span>
             {/if}
           </div>
+          {#if p.displayedName}
+            <span class="parent-label">{p.displayedName}</span>
+          {/if}
         </div>
       {/each}
     {/if}

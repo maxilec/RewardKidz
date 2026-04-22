@@ -590,7 +590,7 @@ export async function connectChildDeviceViaToken(user: User, token: string): Pro
 
   const batch = writeBatch(db);
   batch.update(doc(db, 'families', familyId, 'members', memberId), { linkedAuthUid: user.uid });
-  batch.delete(linkRef);
+  batch.update(linkRef, { used: true });
   batch.delete(doc(db, 'families', familyId, 'childInviteLinks', memberId));
   if (currentLinkedAuthUid && currentLinkedAuthUid !== user.uid) {
     batch.delete(doc(db, 'users', currentLinkedAuthUid));

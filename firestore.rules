@@ -151,6 +151,7 @@ service cloud.firestore {
     // ── Invite links (QR token-based, top-level) ─────────────
     match /inviteLinks/{token} {
       allow get:    if true;  // Lecture publique par ID exact (résolution de token QR)
+      allow list:   if isAuth(); // Requis pour createParentInviteLink/createChildInviteLink/deleteFamily (query where familyId)
       allow create: if isParentOf(request.resource.data.familyId);
       // Seul le champ "used" peut être mis à jour (marquage single-use enfant)
       allow update: if isAuth() &&
