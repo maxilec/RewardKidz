@@ -146,10 +146,10 @@
 
   async function handleJoinGoogle() {
     errorJoin = '';
-    const code    = joinInviteCode.trim().toUpperCase();
     const famCode = joinFamilyCode.trim().toUpperCase();
-    if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
+    const code    = joinInviteCode.trim();
     if (!famCode) { errorJoin = 'Entre le code famille.'; return; }
+    if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
     pendingJoin.set({ code, famCode });
     loadingJoin = true;
     try {
@@ -180,10 +180,10 @@
 
   async function handleJoinEmail(email: string, password: string) {
     errorJoin = '';
-    const code    = joinInviteCode.trim().toUpperCase();
     const famCode = joinFamilyCode.trim().toUpperCase();
-    if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
+    const code    = joinInviteCode.trim();
     if (!famCode) { errorJoin = 'Entre le code famille.'; return; }
+    if (!code)    { errorJoin = "Entre le code d'invitation."; return; }
     loadingJoin = true;
     try {
       const user = await registerWithEmail(email, password);
@@ -296,24 +296,27 @@
     <!-- ── Panel : Créer une famille ── -->
     <div id="panel-create" class="ob-panel" class:hidden={activeTab !== 'create'} role="tabpanel">
 
-      <p class="ob-hint ob-mb16">Créez votre famille et votre compte parent en une seule étape.</p>
-
       {#if errorCreate}
         <div class="ob-error ob-mb12">{errorCreate}</div>
       {/if}
 
-      <div class="ob-form-field ob-mb16">
-        <label class="ob-label" for="createFamilyName">Nom de la famille</label>
-        <input
-          class="ob-input"
-          id="createFamilyName"
-          type="text"
-          placeholder="Les Dupont, Ma Super Famille…"
-          maxlength="40"
-          autocomplete="off"
-          bind:value={createFamilyName}
-        >
+      <div class="ob-card ob-mb20">
+        <p class="ob-card-title">Votre famille</p>
+        <div class="ob-form-field ob-mb0">
+          <label class="ob-label" for="createFamilyName">Nom de la famille</label>
+          <input
+            class="ob-input"
+            id="createFamilyName"
+            type="text"
+            placeholder="Les Dupont, Ma Super Famille…"
+            maxlength="40"
+            autocomplete="off"
+            bind:value={createFamilyName}
+          >
+        </div>
       </div>
+
+      <div class="ob-card-auth-title ob-mb12">Créer votre compte</div>
 
       <button class="ob-btn-google ob-mb16" onclick={handleCreateGoogle} disabled={loadingCreate}>
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
@@ -339,27 +342,36 @@
     <!-- ── Panel : Rejoindre ── -->
     <div id="panel-join" class="ob-panel" class:hidden={activeTab !== 'join'} role="tabpanel">
 
-      <p class="ob-hint ob-mb16">Un parent vous a transmis un code d'invitation et le code famille permanent.</p>
-
       {#if errorJoin}
         <div class="ob-error ob-mb12">{errorJoin}</div>
       {/if}
 
-      <div class="ob-form-field">
-        <label class="ob-label" for="joinInviteCode">Code d'invitation</label>
-        <input class="ob-input ob-code-input" id="joinInviteCode" type="text"
-               maxlength="8" placeholder="XXXXXX"
-               autocomplete="off" style="text-transform:uppercase;letter-spacing:6px"
-               bind:value={joinInviteCode}>
+      <div class="ob-card ob-mb20">
+        <p class="ob-card-title">Codes d'accès</p>
+        <div class="ob-form-field">
+          <label class="ob-label" for="joinFamilyCode">
+            Code famille
+            <span style="font-weight:400;color:var(--c-txt-m)">(8 caractères)</span>
+          </label>
+          <input class="ob-input ob-code-input" id="joinFamilyCode" type="text"
+                 maxlength="8" placeholder="ABCD1234"
+                 autocomplete="off" style="text-transform:uppercase;letter-spacing:5px"
+                 bind:value={joinFamilyCode}>
+        </div>
+        <div class="ob-form-field ob-mb0">
+          <label class="ob-label" for="joinInviteCode">
+            Code d'invitation
+            <span style="font-weight:400;color:var(--c-txt-m)">(6 chiffres — valable 15 min)</span>
+          </label>
+          <input class="ob-input ob-code-input otp-input" id="joinInviteCode"
+                 type="tel" inputmode="numeric"
+                 maxlength="6" placeholder="••••••"
+                 autocomplete="one-time-code" style="letter-spacing:8px"
+                 bind:value={joinInviteCode}>
+        </div>
       </div>
 
-      <div class="ob-form-field ob-mb16">
-        <label class="ob-label" for="joinFamilyCode">Code famille permanent</label>
-        <input class="ob-input ob-code-input" id="joinFamilyCode" type="text"
-               maxlength="8" placeholder="ABCD1234"
-               autocomplete="off" style="text-transform:uppercase;letter-spacing:5px"
-               bind:value={joinFamilyCode}>
-      </div>
+      <div class="ob-card-auth-title ob-mb12">Créer votre compte</div>
 
       <button class="ob-btn-google ob-mb16" onclick={handleJoinGoogle} disabled={loadingJoin}>
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
@@ -395,4 +407,27 @@
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
   }
+  .ob-card {
+    background: var(--c-bg-alt, #f8f9fb);
+    border: 1.5px solid var(--c-border, #e5e7eb);
+    border-radius: 14px;
+    padding: 1rem 1rem 0.75rem;
+  }
+  .ob-card-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-txt-m);
+    margin: 0 0 0.75rem;
+  }
+  .ob-card-auth-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c-txt-m);
+  }
+  .ob-mb0 { margin-bottom: 0 !important; }
+  .ob-mb20 { margin-bottom: 1.25rem; }
 </style>
