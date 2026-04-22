@@ -25,7 +25,7 @@ export const authReady = writable(false);
 export type PendingOnboarding =
   | { action: 'create'; familyName: string }
   | { action: 'join';   familyId: string }
-  | { action: 'token';  familyId: string }
+  | { action: 'token';  familyId: string; token: string }
   | null;
 
 const _OB_KEY = 'rk_pending_onboarding';

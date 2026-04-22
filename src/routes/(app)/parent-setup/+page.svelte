@@ -2,7 +2,7 @@
   import { onMount }  from 'svelte';
   import { goto }     from '$app/navigation';
   import { authUser, userDoc, pendingOnboarding } from '$lib/stores';
-  import { createFamily, joinFamilyAsAuthenticated, updateParentProfile, getUser, logout } from '$lib/firebase';
+  import { createFamily, joinFamilyAsAuthenticated, updateParentProfile, getUser, logout, deleteInviteLink } from '$lib/firebase';
   import { auth } from '$lib/firebase/auth';
 
   const pending        = $pendingOnboarding;
@@ -33,9 +33,13 @@
       let familyId: string;
       if (pending?.action === 'create') {
         familyId = await createFamily(user, pending.familyName);
-      } else if (pending?.action === 'join' || pending?.action === 'token') {
+      } else if (pending?.action === 'join') {
         await joinFamilyAsAuthenticated(user, pending.familyId);
         familyId = pending.familyId;
+      } else if (pending?.action === 'token') {
+        await joinFamilyAsAuthenticated(user, pending.familyId);
+        familyId = pending.familyId;
+        try { await deleteInviteLink(pending.token); } catch { /* best-effort */ }
       } else {
         familyId = legacyFamilyId!;
       }

@@ -8,6 +8,8 @@
   import { pendingOnboarding, authReady, authUser, userDoc } from '$lib/stores';
   import { auth } from '$lib/firebase/auth';
   import RegisterForm from '$lib/components/RegisterForm.svelte';
+  import GoogleIcon   from '$lib/components/icons/GoogleIcon.svelte';
+  import EyeIcon      from '$lib/components/icons/EyeIcon.svelte';
 
   // ── Tab state ──────────────────────────────────────────────
   type Tab = 'signin' | 'create' | 'join';
@@ -243,13 +245,7 @@
       {/if}
 
       <button class="ob-btn-google ob-mb16" onclick={handleLoginGoogle} disabled={loadingSignin}>
-        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
-          <path fill="#EA4335" d="M24 9.5c3.5 0 6.4 1.2 8.7 3.1l6.5-6.5C35.4 2.5 30.1 0 24 0 14.7 0 6.7 5.5 2.9 13.5l7.6 5.9C12.4 13.3 17.8 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-17.2h.4z"/>
-          <path fill="#FBBC05" d="M10.5 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6l-7.6-5.9A24 24 0 0 0 0 24c0 3.9.9 7.6 2.6 10.8l7.9-6.2z"/>
-          <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.4l-7.4-5.7c-2 1.4-4.6 2.2-7.6 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.9 6.2C6.7 42.5 14.7 48 24 48z"/>
-        </svg>
-        Continuer avec Google
+        <GoogleIcon /> Continuer avec Google
       </button>
 
       <div class="ob-sep">ou par email</div>
@@ -271,11 +267,7 @@
             <button type="button" class="ob-pwd-toggle"
                     onclick={() => showSigninPwd = !showSigninPwd}
                     aria-label={showSigninPwd ? 'Masquer' : 'Afficher'}>
-              {#if showSigninPwd}
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              {:else}
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              {/if}
+              <EyeIcon closed={!showSigninPwd} />
             </button>
           </div>
         </div>
@@ -312,13 +304,7 @@
       <div class="ob-card-auth-title ob-mb12">Créer votre compte</div>
 
       <button class="ob-btn-google ob-mb16" onclick={handleCreateGoogle} disabled={loadingCreate}>
-        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
-          <path fill="#EA4335" d="M24 9.5c3.5 0 6.4 1.2 8.7 3.1l6.5-6.5C35.4 2.5 30.1 0 24 0 14.7 0 6.7 5.5 2.9 13.5l7.6 5.9C12.4 13.3 17.8 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-17.2h.4z"/>
-          <path fill="#FBBC05" d="M10.5 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6l-7.6-5.9A24 24 0 0 0 0 24c0 3.9.9 7.6 2.6 10.8l7.9-6.2z"/>
-          <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.4l-7.4-5.7c-2 1.4-4.6 2.2-7.6 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.9 6.2C6.7 42.5 14.7 48 24 48z"/>
-        </svg>
-        Continuer avec Google
+        <GoogleIcon /> Continuer avec Google
       </button>
 
       <div class="ob-sep">ou par email</div>
@@ -367,13 +353,7 @@
       <div class="ob-card-auth-title ob-mb12">Créer votre compte</div>
 
       <button class="ob-btn-google ob-mb16" onclick={handleJoinGoogle} disabled={loadingJoin}>
-        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
-          <path fill="#EA4335" d="M24 9.5c3.5 0 6.4 1.2 8.7 3.1l6.5-6.5C35.4 2.5 30.1 0 24 0 14.7 0 6.7 5.5 2.9 13.5l7.6 5.9C12.4 13.3 17.8 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-17.2h.4z"/>
-          <path fill="#FBBC05" d="M10.5 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6l-7.6-5.9A24 24 0 0 0 0 24c0 3.9.9 7.6 2.6 10.8l7.9-6.2z"/>
-          <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.4l-7.4-5.7c-2 1.4-4.6 2.2-7.6 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.9 6.2C6.7 42.5 14.7 48 24 48z"/>
-        </svg>
-        Continuer avec Google
+        <GoogleIcon /> Continuer avec Google
       </button>
 
       <div class="ob-sep">ou par email</div>

@@ -196,7 +196,9 @@
             {#if p.displayedName}
               <span class="parent-label">{p.displayedName}</span>
             {/if}
-            <span class="child-status connected">{p.uid === byUid ? 'Vous' : 'Membre'}</span>
+            {#if p.uid === byUid}
+              <span class="child-status connected">Vous</span>
+            {/if}
           </div>
         </div>
       {/each}

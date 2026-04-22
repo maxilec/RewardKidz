@@ -43,6 +43,7 @@ export {
   createChildInviteLink,
   resolveInviteLink,
   connectChildDeviceViaToken,
+  deleteInviteLink,
   deleteParentAccount
 } from './families';
 
