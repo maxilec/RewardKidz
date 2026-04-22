@@ -6,7 +6,9 @@
   import {
     resolveInviteLink,
     connectChildDeviceViaToken,
-    joinFamilyAsAuthenticated
+    joinFamilyAsAuthenticated,
+    getUser,
+    logout
   } from '$lib/firebase';
   import {
     loginAsChild,
@@ -82,6 +84,14 @@
     error = '';
     try {
       await loginWithGoogle();
+      const user = auth.currentUser;
+      if (!user) return;
+      const existing = await getUser(user.uid);
+      if (existing?.familyId) {
+        await logout();
+        error = 'Vous êtes déjà associé(e) à une famille. Vous ne pouvez pas en rejoindre une nouvelle.';
+        return;
+      }
       await joinAsParent();
     } catch (e: any) {
       error = translateAuthError(e);

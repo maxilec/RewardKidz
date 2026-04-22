@@ -4,7 +4,7 @@
   import {
     loginWithGoogle, loginWithEmail, registerWithEmail, translateAuthError,
     resolveInvite, resolveByFamilyCode, joinFamilyAsAuthenticated,
-    createFamily, getUser
+    createFamily, getUser, logout
   } from '$lib/firebase';
   import { pendingJoin, authReady, authUser, userDoc } from '$lib/stores';
   import { auth } from '$lib/firebase/auth';
@@ -40,27 +40,28 @@
   let joinFamilyCode = $state('');
 
   // ── Redirect once authenticated (signin tab only) ──────────
+  // Les onglets create/join gèrent leur propre navigation et déconnexion
+  // en cas d'utilisateur déjà associé à une famille.
   $effect(() => {
     if (!$authReady) return;
     if (!$authUser || $authUser.isAnonymous) return;
+    if (activeTab !== 'signin') return;
     if ($userDoc?.familyId) {
       goto($userDoc.role === 'parent' ? '/parent' : '/child');
       return;
     }
-    // Seul l'onglet s'identifier redirige vers onboarding ;
-    // les autres onglets gèrent eux-mêmes la navigation.
-    if (activeTab === 'signin') goto('/onboarding');
+    goto('/onboarding');
   });
 
   // ── Back to landing ────────────────────────────────────────
   async function goBack() {
     const user = auth.currentUser;
-    if (user) {
-      const { logout } = await import('$lib/firebase');
-      await logout();
-    }
+    if (user) await logout();
     goto('/');
   }
+
+  const ERR_ALREADY_IN_FAMILY =
+    'Vous êtes déjà associé(e) à une famille. Vous ne pouvez pas en créer ou rejoindre une nouvelle.';
 
   // ─────────────────────────────────────────────────────────
   // Onglet : S'identifier
@@ -106,8 +107,8 @@
       if (user) {
         const existing = await getUser(user.uid);
         if (existing?.familyId) {
-          userDoc.set(existing);
-          goto(existing.role === 'parent' ? '/parent' : '/child');
+          await logout();
+          errorCreate = ERR_ALREADY_IN_FAMILY;
           return;
         }
         await createFamily(user, name);
@@ -159,8 +160,8 @@
         pendingJoin.set(null);
         const existing = await getUser(user.uid);
         if (existing?.familyId) {
-          userDoc.set(existing);
-          goto(existing.role === 'parent' ? '/parent' : '/child');
+          await logout();
+          errorJoin = ERR_ALREADY_IN_FAMILY;
           return;
         }
         const [fid1, fid2] = await Promise.all([resolveInvite(code), resolveByFamilyCode(famCode)]);
