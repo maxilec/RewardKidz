@@ -10,7 +10,6 @@
   } from '$lib/firebase';
   import {
     loginAsChild,
-    loginWithEmail,
     registerWithEmail,
     loginWithGoogle,
     translateAuthError
@@ -49,11 +48,6 @@
   }
 
   // ── Flux parent ─────────────────────────────────────────────
-  type AuthMode = 'choose' | 'signin' | 'register';
-  let authMode    = $state<AuthMode>('choose');
-  let email       = $state('');
-  let password    = $state('');
-  let showPwd     = $state(false);
   let authLoading = $state(false);
 
   async function joinAsParent() {
@@ -67,20 +61,6 @@
     } catch (e: any) {
       error = e.message || 'Erreur lors de la jonction.';
       step = 'parent';
-    }
-  }
-
-  async function handleSignin() {
-    if (!email || !password) { error = 'Email et mot de passe requis.'; return; }
-    authLoading = true;
-    error = '';
-    try {
-      await loginWithEmail(email, password);
-      await joinAsParent();
-    } catch (e: any) {
-      error = translateAuthError(e);
-    } finally {
-      authLoading = false;
     }
   }
 
@@ -203,72 +183,31 @@
       </div>
       <h1 class="ob-title ob-mb8">Rejoindre la famille</h1>
       <p class="ob-subtitle ob-mb24">
-        Vous êtes invité(e) à rejoindre la famille <strong>{link.familyName}</strong>.
+        Créez votre compte pour rejoindre la famille <strong>{link.familyName}</strong>.
       </p>
 
       {#if error}
         <div class="ob-error ob-mb16">{error}</div>
       {/if}
 
-      <!-- Choix du mode d'auth -->
-      {#if authMode === 'choose'}
-        <div class="ob-btn-stack">
-          <button class="ob-btn-primary" onclick={() => authMode = 'register'}>
-            Créer un compte
-          </button>
-          <button class="ob-btn-secondary" onclick={() => authMode = 'signin'}>
-            J'ai déjà un compte
-          </button>
-          <div class="ob-divider">ou</div>
-          <button class="ob-btn-google" onclick={handleGoogle} disabled={authLoading}>
-            {authLoading ? '…' : 'Continuer avec Google'}
-          </button>
-        </div>
+      <button class="ob-btn-google ob-mb16" onclick={handleGoogle} disabled={authLoading}>
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.5 0 6.4 1.2 8.7 3.1l6.5-6.5C35.4 2.5 30.1 0 24 0 14.7 0 6.7 5.5 2.9 13.5l7.6 5.9C12.4 13.3 17.8 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.4 5.7c4.3-4 6.8-9.9 6.8-17.2h.4z"/>
+          <path fill="#FBBC05" d="M10.5 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6l-7.6-5.9A24 24 0 0 0 0 24c0 3.9.9 7.6 2.6 10.8l7.9-6.2z"/>
+          <path fill="#34A853" d="M24 48c6.1 0 11.3-2 15-5.4l-7.4-5.7c-2 1.4-4.6 2.2-7.6 2.2-6.2 0-11.5-4.2-13.4-9.8l-7.9 6.2C6.7 42.5 14.7 48 24 48z"/>
+        </svg>
+        Continuer avec Google
+      </button>
 
-      <!-- Connexion email -->
-      {:else if authMode === 'signin'}
-        <div class="ob-form-field">
-          <label class="ob-label" for="joinEmail">Email</label>
-          <input class="ob-input" id="joinEmail" type="email" bind:value={email} autocomplete="email" />
-        </div>
-        <div class="ob-form-field ob-mb8">
-          <label class="ob-label" for="joinPassword">Mot de passe</label>
-          <div class="ob-input-pwd">
-            <input class="ob-input" id="joinPassword"
-                   type={showPwd ? 'text' : 'password'}
-                   bind:value={password} autocomplete="current-password" />
-            <button type="button" class="ob-pwd-toggle"
-                    onclick={() => showPwd = !showPwd}
-                    aria-label={showPwd ? 'Masquer' : 'Afficher'}>
-              {#if showPwd}
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              {:else}
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              {/if}
-            </button>
-          </div>
-        </div>
-        <div class="ob-btn-stack">
-          <button class="ob-btn-primary" onclick={handleSignin} disabled={authLoading}>
-            {authLoading ? 'Connexion…' : 'Se connecter et rejoindre'}
-          </button>
-          <button class="ob-btn-secondary" onclick={() => { authMode = 'choose'; error = ''; }}>
-            ← Retour
-          </button>
-        </div>
+      <div class="ob-sep">ou par email</div>
 
-      <!-- Inscription email -->
-      {:else if authMode === 'register'}
-        <RegisterForm
-          {error}
-          loading={authLoading}
-          submitLabel="Créer un compte et rejoindre"
-          onSubmit={handleRegister}
-        />
-        <button class="ob-btn-secondary" style="margin-top:8px" onclick={() => { authMode = 'choose'; error = ''; }}>
-          ← Retour
-        </button>
-      {/if}
+      <RegisterForm
+        {error}
+        loading={authLoading}
+        submitLabel="Créer un compte et rejoindre"
+        onSubmit={handleRegister}
+      />
 
     <!-- ── Jonction en cours ── -->
     {:else if step === 'joining'}
@@ -291,12 +230,6 @@
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
   }
-  .ob-divider {
-    text-align: center;
-    color: var(--c-txt-m);
-    font-size: 0.85rem;
-    margin: 0.25rem 0;
-  }
   .ob-btn-google {
     width: 100%;
     padding: 0.875rem;
@@ -307,6 +240,10 @@
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     transition: background 0.15s;
   }
   .ob-btn-google:hover:not(:disabled) { background: var(--c-bg-alt); }
