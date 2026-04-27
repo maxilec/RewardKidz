@@ -1,18 +1,21 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { auth } from '$lib/firebase/auth';
-  import { connectChildDevice } from '$lib/firebase';
-  import { logout } from '$lib/firebase';
+  import { goto }    from '$app/navigation';
+  import { auth, loginAsChild } from '$lib/firebase/auth';
+  import { connectChildDevice, resolveInviteLink, connectChildDeviceViaToken, logout } from '$lib/firebase';
+  import QrScanner from '$lib/components/QrScanner.svelte';
 
-  let familyCode = $state('');
-  let otpCode    = $state('');
-  let error      = $state('');
-  let loading    = $state(false);
+  let familyCode    = $state('');
+  let otpCode       = $state('');
+  let error         = $state('');
+  let loading       = $state(false);
+  let scannerOpen   = $state(false);
 
   async function goBack() {
     await logout();
     goto('/');
   }
+
+  // ── Connexion par codes ──────────────────────────────────────
 
   async function connect() {
     error = '';
@@ -31,6 +34,35 @@
       goto('/child');
     } catch (e) {
       error = (e as { message?: string }).message || 'Erreur de connexion.';
+    } finally {
+      loading = false;
+    }
+  }
+
+  // ── Connexion par QR code ────────────────────────────────────
+
+  async function handleScan(raw: string) {
+    scannerOpen = false;
+    error = '';
+    loading = true;
+    try {
+      // Extraire le token depuis l'URL scannée
+      let token: string | null = null;
+      try { token = new URL(raw).searchParams.get('token'); } catch { /* pas une URL */ }
+      if (!token) { error = 'QR code non reconnu — ce code n\'appartient pas à RewardKidz.'; return; }
+
+      // S'assurer qu'une session anonyme existe
+      let user = auth.currentUser;
+      if (!user) user = await loginAsChild();
+
+      const link = await resolveInviteLink(token);
+      if (!link)                 { error = 'QR code expiré. Demande un nouveau code à ton parent.'; return; }
+      if (link.type !== 'child') { error = 'Ce QR code est destiné aux parents, pas aux enfants.'; return; }
+
+      await connectChildDeviceViaToken(user, token);
+      goto('/child');
+    } catch (e: any) {
+      error = e.message || 'Erreur de connexion.';
     } finally {
       loading = false;
     }
@@ -94,7 +126,7 @@
       >
     </div>
 
-    <div class="ob-warn-box ob-mb24">
+    <div class="ob-warn-box ob-mb8">
       ⚠️ Si tu te déconnectes, tu auras besoin de ces deux codes pour revenir. Demande-les à ton parent.
     </div>
 
@@ -104,9 +136,27 @@
       </button>
     </div>
 
+    <!-- Séparateur QR code -->
+    <div class="ob-sep ob-mt16">ou par QR code</div>
+
+    <button class="btn-qr" onclick={() => scannerOpen = true} disabled={loading}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <path d="M14 14h2v2h-2z M18 14h3 M14 18v3 M18 18h3v3h-3z"/>
+      </svg>
+      Scanner un QR code
+    </button>
+
   </div><!-- /.ob-content -->
 
 </div><!-- /.page.child-auth -->
+
+{#if scannerOpen}
+  <QrScanner onScan={handleScan} onClose={() => scannerOpen = false} />
+{/if}
 
 <style>
   .ob-error {
@@ -117,4 +167,29 @@
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
   }
+
+  .ob-mt16 { margin-top: 1rem; }
+
+  .btn-qr {
+    width: 100%;
+    padding: 0.875rem;
+    border-radius: 12px;
+    border: 1.5px dashed var(--c-border, #d1d5db);
+    background: transparent;
+    color: var(--c-txt, #1e1b4b);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-qr:hover:not(:disabled) {
+    background: var(--c-bg-alt, #f1f0f9);
+    border-color: var(--c-purple, #7c3aed);
+    color: var(--c-purple, #7c3aed);
+  }
+  .btn-qr:disabled { opacity: 0.5; cursor: default; }
 </style>

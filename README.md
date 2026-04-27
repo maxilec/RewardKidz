@@ -24,8 +24,8 @@ Système de récompenses familial sous forme de PWA (Progressive Web App). Les p
 
 | Rôle | Fonctionnalités principales |
 |------|-----------------------------|
-| **Parent** | Créer/gérer la famille, ajouter des enfants, attribuer des points (±1), valider ou ignorer une journée, consulter l'historique et les statistiques, inviter des co-parents, générer des codes de connexion enfant |
-| **Enfant** | Voir son score du jour (jauge circulaire), recevoir des notifications push en temps réel quand le score change ou que la journée est validée |
+| **Parent** | Créer/gérer la famille, ajouter des enfants, attribuer des points (±1), valider ou ignorer une journée, consulter l'historique et les statistiques, inviter des co-parents via code ou QR code, générer des codes/QR de connexion enfant |
+| **Enfant** | Voir son score du jour (jauge circulaire), recevoir des notifications push en temps réel quand le score change ou que la journée est validée, se connecter via codes ou QR code |
 
 ---
 
@@ -51,17 +51,27 @@ Interface à onglets.
 - Aucune écriture Firestore avant la confirmation du profil sur `/parent-setup`
 
 **Onglet « Rejoindre »**
-- Code d'invitation (6 caractères) + code famille permanent (8 caractères) — double vérification
+Toggle entre deux modes :
+- **Codes d'accès** : code d'invitation (6 chiffres, 15 min) + code famille permanent (8 caractères)
+- **QR code** : scan de la caméra → résolution du token → bannière de confirmation → auth
 - Connexion Google ou email/mot de passe pour finaliser sur `/parent-setup`
+- Contrôle : un parent déjà lié à une famille ne peut pas en rejoindre une nouvelle
 
 ---
 
 ### Authentification enfant — `/child-auth`
-Connexion pour les enfants via codes générés par le parent.
+Connexion pour les enfants via codes générés par le parent, ou QR code.
 
+**Par codes :**
 - Saisie du **code famille** permanent (8 caractères)
 - Saisie du **code enfant** OTP à 6 chiffres (valable 30 minutes)
-- Crée une session anonyme Firebase et lie le device à l'enfant
+
+**Par QR code :**
+- Bouton "Scanner un QR code" → modale caméra (`QrScanner`)
+- Détection automatique → connexion directe sans autre action
+- Erreur explicite si QR expiré ou destiné aux parents
+
+Dans les deux cas : crée une session anonyme Firebase et lie le device à l'enfant.
 
 ---
 
@@ -165,7 +175,7 @@ Vue simplifiée.
 **Stack front-end** : SvelteKit 2 + Svelte 5, TypeScript strict, CSS custom (design system maison)  
 **Stack back-end** : Firebase (Firestore, Auth, Hosting, Functions v2, FCM)  
 **PWA** : vite-plugin-pwa + Workbox (stratégie `injectManifest`)  
-**Bibliothèques** : Firebase SDK 10.8.0, qrcode (npm), Workbox 7.4  
+**Bibliothèques** : Firebase SDK 10.8.0, qrcode (génération QR), jsqr (lecture QR via caméra), Workbox 7.4  
 **Runtime fonctions** : Node.js 20
 
 ---
@@ -386,6 +396,7 @@ RewardKidz/
 │   │       ├── LinearGauge.svelte  # Barre de progression score
 │   │       ├── CircularGauge.svelte # Jauge SVG circulaire (vue enfant)
 │   │       ├── Histogram.svelte    # Histogramme 7j / 30j
+│   │       ├── QrScanner.svelte    # Modale caméra lecteur QR (enfant + parent)
 │   │       └── icons/
 │   │           ├── GoogleIcon.svelte # Logo Google (boutons OAuth)
 │   │           └── EyeIcon.svelte    # Toggle afficher/masquer mot de passe

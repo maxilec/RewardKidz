@@ -25,6 +25,7 @@
   "dependencies": {
     "@vite-pwa/sveltekit": "^1.1.0",
     "firebase": "^10.8.0",
+    "jsqr": "^1.4.0",
     "qrcode": "^1.5.4",
     "vite-plugin-pwa": "^1.2.0",
     "workbox-core": "^7.4.0",
