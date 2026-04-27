@@ -47,11 +47,12 @@ Interface à onglets.
 - Connexion email + mot de passe
 
 **Onglet « Créer un compte »**
-- Inscription email + mot de passe
+- Saisie du nom de la famille, puis inscription Google ou email + mot de passe
+- Aucune écriture Firestore avant la confirmation du profil sur `/parent-setup`
 
 **Onglet « Rejoindre »**
 - Code d'invitation (6 caractères) + code famille permanent (8 caractères) — double vérification
-- Connexion Google ou email/mot de passe pour finaliser
+- Connexion Google ou email/mot de passe pour finaliser sur `/parent-setup`
 
 ---
 
@@ -83,6 +84,25 @@ Pour un parent déjà authentifié recevant un code d'invitation.
 
 - Code d'invitation (6 caractères) + code famille permanent (8 caractères)
 - Les deux codes doivent pointer vers la même famille
+
+---
+
+### Rejoindre via QR code — `/rejoindre`
+Page token-based pour les liens QR générés depuis le dashboard parent.
+
+- Résolution du token (24 h pour les parents, 2 h pour les enfants)
+- **Flux enfant** : connexion anonyme + liaison device → `/child`
+- **Flux parent** : inscription Google ou email → `/parent-setup`
+- Vérifie qu'un parent déjà lié à une famille ne peut pas rejoindre une nouvelle
+
+---
+
+### Profil parent — `/parent-setup`
+Page de confirmation post-authentification. Tous les écrits Firestore se font ici.
+
+- Saisie du prénom et du titre affiché aux enfants (Papa, Maman, Mamie…)
+- Crée la famille **ou** rejoint la famille selon le contexte (`pendingOnboarding`)
+- Bouton **Annuler** : supprime uniquement le compte Firebase Auth (aucun doc Firestore à nettoyer)
 
 ---
 
@@ -159,6 +179,7 @@ Vue simplifiée.
 | `uid` | string | Firebase Auth UID |
 | `email` | string\|null | Email (null pour les enfants anonymes) |
 | `displayName` | string | Prénom affiché |
+| `displayedName` | string | Titre affiché aux enfants (Papa, Maman…) — parents uniquement |
 | `familyId` | string | ID de la famille |
 | `memberId` | string | ID dans la famille (= uid pour les parents) |
 | `role` | `"parent"` \| `"child"` | Rôle |
@@ -214,16 +235,37 @@ Code d'invitation co-parent (6 caractères, valable 15 min).
 
 ---
 
+### `/inviteLinks/{token}`
+Lien QR token-based (token 32 caractères).
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `token` | string | Token URL-safe 32 caractères |
+| `type` | `"parent"` \| `"child"` | Destinataire du lien |
+| `familyId` | string | Famille cible |
+| `familyName` | string | Nom affiché sur la page d'accueil du lien |
+| `familyCode` | string | Code permanent de la famille |
+| `memberId` | string | ID de l'enfant (liens enfant uniquement) |
+| `displayName` | string | Prénom de l'enfant (liens enfant uniquement) |
+| `expiresAt` | number | Expiration : 24 h (parent), 2 h (enfant) |
+| `used` | boolean | Marqué `true` après utilisation enfant |
+
+Nettoyage automatique : un nouveau lien parent supprime les liens parent précédents pour la même famille ; idem pour les liens enfant par `memberId`. Purge complète lors de la suppression de la famille.
+
+---
+
 ### `/childOTPs/{otpCode}`
 Code OTP enfant (6 chiffres, valable 30 min).
 
 ---
 
-### Collections réservées *(non implémentées)*
+### Collections disponibles *(UI non encore construite)*
 - `/families/{familyId}/economy/` — Monnaie virtuelle
-- `/families/{familyId}/missions/` — Missions / tâches
+- `/families/{familyId}/missions/` — Tâches journalières
+- `/families/{familyId}/missionCatalog/` — Catalogue de missions personnalisable
 - `/families/{familyId}/avatars/` — Avatars enfants
 - `/families/{familyId}/shop/` — Boutique de récompenses
+- `/families/{familyId}/shop/{itemId}/purchaseRequests/` — Workflow demandes d'achat enfant
 
 ---
 
@@ -238,8 +280,9 @@ Principe d'**anti-énumération** : lecture publique autorisée uniquement par I
 | `/families/{…}/members/{…}` | Parents + membres | Parents + enfant (fcmToken, PIN) |
 | `/families/{…}/scores/{…}` | Parents + membres | **Parents uniquement** |
 | `/families/{…}/scores/{…}/history/{…}` | Parents + membres | Parents uniquement |
-| `/invites/{shortCode}` | Public (ID exact) | Membres authentifiés |
-| `/childOTPs/{otpCode}` | Public (ID exact) | Parents créent |
+| `/invites/{shortCode}` | Public (ID exact) + list (authentifiés) | Membres authentifiés |
+| `/inviteLinks/{token}` | Public (ID exact) + list (authentifiés) | Parents créent/suppriment |
+| `/childOTPs/{otpCode}` | Public (ID exact) + list (authentifiés) | Parents créent |
 | `/familyCodes/{code}` | Public (ID exact) | Authentifiés créent |
 
 ---
@@ -288,16 +331,15 @@ Parent : +1 point
 | Workflow | Branches déclenchantes | Canal Firebase |
 |----------|------------------------|----------------|
 | `deploy-main.yml` | `main` | `live` (production) |
-| `deploy-poc.yml` | `dev/main`, `claude/setup-refactoring-*` | `poc` |
+| `deploy-poc.yml` | `dev/main`, `claude/parent-auth-account-setup-vLbHi`, … | `poc` |
 
-### Étapes build
+### Étapes build (identiques pour les deux workflows)
 1. Checkout du dépôt
-2. Création du fichier `.env` depuis les secrets GitHub (`VITE_FIREBASE_*`)
-3. `npm install`
+2. Création du fichier `.env.production` depuis les secrets GitHub (`VITE_FIREBASE_*`)
+3. `npm ci`
 4. `npm run build` → génère `build/`
-5. Déploiement des règles Firestore
-6. Déploiement des Cloud Functions (production seulement)
-7. Déploiement Firebase Hosting (`build/`)
+5. Déploiement des règles Firestore (`firebase deploy --only firestore:rules`)
+6. Déploiement Firebase Hosting (`build/`)
 
 ### Secrets GitHub requis
 | Secret | Description |
@@ -331,7 +373,7 @@ RewardKidz/
 │   │   │   ├── types.ts            # Interfaces TypeScript Firestore
 │   │   │   └── index.ts            # Barrel export
 │   │   ├── stores/
-│   │   │   ├── auth.store.ts       # authUser, userDoc, authReady, pendingJoin
+│   │   │   ├── auth.store.ts       # authUser, userDoc, authReady, pendingOnboarding
 │   │   │   ├── family.store.ts     # familyDoc, members, children, parents
 │   │   │   ├── score.store.ts      # scores par memberId
 │   │   │   ├── ui.store.ts         # drawerOpen, activeModal, pwaPrompt
@@ -343,19 +385,24 @@ RewardKidz/
 │   │       ├── ScoreControls.svelte # Boutons +/- valider/ignorer
 │   │       ├── LinearGauge.svelte  # Barre de progression score
 │   │       ├── CircularGauge.svelte # Jauge SVG circulaire (vue enfant)
-│   │       └── Histogram.svelte    # Histogramme 7j / 30j
+│   │       ├── Histogram.svelte    # Histogramme 7j / 30j
+│   │       └── icons/
+│   │           ├── GoogleIcon.svelte # Logo Google (boutons OAuth)
+│   │           └── EyeIcon.svelte    # Toggle afficher/masquer mot de passe
 │   └── routes/
 │       ├── +layout.svelte          # Root : auth listener, FCM, PWA banner
 │       ├── +layout.ts              # ssr=false, prerender=true
 │       ├── +page.svelte            # Landing : choix rôle
 │       ├── parent-auth/+page.svelte
 │       ├── child-auth/+page.svelte
+│       ├── rejoindre/+page.svelte  # Rejoindre via QR code (parent et enfant)
 │       └── (app)/
 │           ├── +layout.svelte      # Guard auth + role
 │           ├── +layout.ts
 │           ├── onboarding/+page.svelte
 │           ├── create-family/+page.svelte
 │           ├── join-family/+page.svelte
+│           ├── parent-setup/+page.svelte # Profil parent + écriture Firestore différée
 │           ├── child/+page.svelte
 │           └── parent/
 │               ├── +page.svelte
