@@ -6,6 +6,7 @@ import {
   getDocs,
   writeBatch,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -58,6 +59,18 @@ export async function getUser(uid: string): Promise<UserDoc | null> {
   const ref  = doc(db, 'users', uid);
   const snap = await getDoc(ref);
   return snap.exists() ? (snap.data() as UserDoc) : null;
+}
+
+export async function updateParentProfile(
+  uid: string,
+  familyId: string,
+  firstName: string,
+  displayedName: string
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', uid), { displayName: firstName, displayedName });
+  batch.update(doc(db, 'families', familyId, 'members', uid), { displayName: firstName, displayedName });
+  await batch.commit();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -125,14 +138,15 @@ export async function migrateFamilyCode(familyId: string): Promise<string> {
 }
 
 export async function deleteFamily(familyId: string): Promise<void> {
-  const [membersSnap, invitesSnap, reconnectSnap, familySnap] = await Promise.all([
+  const [membersSnap, invitesSnap, reconnectSnap, familySnap, inviteLinksSnap] = await Promise.all([
     getDocs(collection(db, 'families', familyId, 'members')),
     getDocs(query(collection(db, 'invites'), where('familyId', '==', familyId))),
     getDocs(collection(db, 'families', familyId, 'reconnectPublic')),
-    getDoc(doc(db, 'families', familyId))
+    getDoc(doc(db, 'families', familyId)),
+    getDocs(query(collection(db, 'inviteLinks'), where('familyId', '==', familyId)))
   ]);
 
-  // Batch 1 : suppression user docs + invites + reconnectPublic
+  // Batch 1 : suppression user docs + invites + reconnectPublic + inviteLinks
   // (pendant que la famille existe encore pour que isParentOf() s'évalue correctement)
   const cleanupBatch = writeBatch(db);
   membersSnap.forEach(memberDoc => {
@@ -142,6 +156,7 @@ export async function deleteFamily(familyId: string): Promise<void> {
   });
   invitesSnap.forEach(inviteDoc => cleanupBatch.delete(inviteDoc.ref));
   reconnectSnap.forEach(r => cleanupBatch.delete(r.ref));
+  inviteLinksSnap.forEach(d => cleanupBatch.delete(d.ref));
 
   const familyCode = familySnap.exists()
     ? (familySnap.data() as FamilyDoc).familyCode
@@ -466,14 +481,29 @@ export async function resolveInvite(shortCode: string): Promise<string> {
 // Invite links (token-based, for QR codes)
 // ─────────────────────────────────────────────────────────────
 
+async function _deleteInviteLinkDoc(token: string): Promise<void> {
+  await deleteDoc(doc(db, 'inviteLinks', token));
+}
+
+export async function deleteInviteLink(token: string): Promise<void> {
+  await _deleteInviteLinkDoc(token);
+}
+
 export async function createParentInviteLink(familyId: string): Promise<string> {
-  const familySnap = await getDoc(doc(db, 'families', familyId));
+  const [familySnap, existingLinks] = await Promise.all([
+    getDoc(doc(db, 'families', familyId)),
+    getDocs(query(collection(db, 'inviteLinks'),
+      where('familyId', '==', familyId),
+      where('type', '==', 'parent')))
+  ]);
   if (!familySnap.exists()) throw new Error('Famille introuvable');
   const family = familySnap.data() as FamilyDoc;
 
   const token  = generateToken();
   const now    = Date.now();
-  await setDoc(doc(db, 'inviteLinks', token), {
+  const batch  = writeBatch(db);
+  existingLinks.docs.forEach(d => batch.delete(d.ref));
+  batch.set(doc(db, 'inviteLinks', token), {
     token,
     type:       'parent',
     familyId,
@@ -483,6 +513,7 @@ export async function createParentInviteLink(familyId: string): Promise<string> 
     expiresAt:  now + 24 * 60 * 60 * 1000, // 24 h
     used:       false
   } satisfies InviteLink);
+  await batch.commit();
   return token;
 }
 
@@ -491,9 +522,13 @@ export async function createChildInviteLink(
   memberId:    string,
   displayName: string
 ): Promise<string> {
-  const [familySnap, memberSnap] = await Promise.all([
+  const [familySnap, memberSnap, existingLinks] = await Promise.all([
     getDoc(doc(db, 'families', familyId)),
-    getDoc(doc(db, 'families', familyId, 'members', memberId))
+    getDoc(doc(db, 'families', familyId, 'members', memberId)),
+    getDocs(query(collection(db, 'inviteLinks'),
+      where('familyId', '==', familyId),
+      where('type', '==', 'child'),
+      where('memberId', '==', memberId)))
   ]);
   if (!familySnap.exists()) throw new Error('Famille introuvable');
   const family = familySnap.data() as FamilyDoc;
@@ -505,6 +540,8 @@ export async function createChildInviteLink(
   const now      = Date.now();
   const expiresAt = now + 2 * 60 * 60 * 1000; // 2 h
   const batch    = writeBatch(db);
+
+  existingLinks.docs.forEach(d => batch.delete(d.ref));
 
   batch.set(doc(db, 'inviteLinks', token), {
     token,

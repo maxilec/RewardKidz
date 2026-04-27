@@ -6,7 +6,7 @@
   let { children } = $props();
 
   // Routes inside (app) that don't require a familyId yet
-  const noFamilyRequired = ['/onboarding', '/create-family', '/join-family'];
+  const noFamilyRequired = ['/onboarding', '/create-family', '/join-family', '/parent-setup'];
 
   $effect(() => {
     if (!$authReady) return; // wait for auth resolution
@@ -22,6 +22,17 @@
     // Authenticated but no family — redirect to onboarding unless already there
     if (!$userDoc?.familyId && !onExemptPage) {
       goto('/onboarding');
+      return;
+    }
+
+    // Parent with family but profile not yet completed → account setup
+    if (
+      $userDoc?.familyId &&
+      $userDoc?.role === 'parent' &&
+      !$userDoc?.displayedName &&
+      !currentPath.startsWith('/parent-setup')
+    ) {
+      goto('/parent-setup');
       return;
     }
 

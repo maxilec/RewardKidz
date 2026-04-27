@@ -10,6 +10,7 @@ on:
       - 'claude/review-figma-ui-changes-kUMwo'
       - 'claude/setup-refactoring-branch-UypoY'
       - 'claude/add-branch-deployment-0qozx'
+      - 'claude/parent-auth-account-setup-vLbHi'
 
 jobs:
   deploy:

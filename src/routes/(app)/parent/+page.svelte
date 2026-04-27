@@ -175,7 +175,7 @@
     <button class="app-burger app-burger--header" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
     <div class="app-header-info">
       <div class="app-header-title">Famille {familyName}</div>
-      <div class="app-header-sub">Tableau de bord parent</div>
+      <div class="app-header-sub">Bonjour {$userDoc?.displayName ?? ''} !</div>
     </div>
     <span class="app-header-emoji">👨‍👩‍👧</span>
   </header>
@@ -191,8 +191,15 @@
       </div>
       {#each parentMembers as p}
         <div class="child-member-row">
-          <span class="child-name">👤 {p.displayName || '—'}</span>
-          <span class="child-status connected">{p.uid === byUid ? 'Vous' : 'Membre'}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="child-name">👤 {p.displayName || '—'}</span>
+            {#if p.uid === byUid}
+              <span class="child-status connected">Vous</span>
+            {/if}
+          </div>
+          {#if p.displayedName}
+            <span class="parent-label">{p.displayedName}</span>
+          {/if}
         </div>
       {/each}
     {/if}
@@ -250,3 +257,13 @@
     <button class="app-burger" onclick={() => drawerOpen.set(true)} aria-label="Menu">☰</button>
   </div>
 </div>
+
+<style>
+  .parent-label {
+    font-size: 0.78rem;
+    opacity: 0.65;
+    background: var(--c-bg-alt, #f1f0f9);
+    border-radius: 6px;
+    padding: 1px 7px;
+  }
+</style>

@@ -1,33 +1,16 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { authUser, userDoc } from '$lib/stores';
-  import { createFamily, getUser } from '$lib/firebase';
+  import { pendingOnboarding } from '$lib/stores';
 
-  let familyName      = $state('');
-  let parentNickname  = $state('');
-  let error           = $state('');
-  let loading         = $state(false);
+  let familyName = $state('');
+  let error      = $state('');
 
-  async function handleCreate() {
+  function handleCreate() {
     error = '';
     const name = familyName.trim();
     if (!name) { error = 'Le nom de la famille est requis.'; return; }
-
-    const user = $authUser;
-    if (!user) { error = 'Utilisateur non connecté.'; return; }
-
-    loading = true;
-    try {
-      await createFamily(user, name, parentNickname.trim() || null);
-      // Rafraîchir userDoc pour que le guard de layout voie le familyId
-      const fresh = await getUser(user.uid);
-      userDoc.set(fresh);
-      goto('/parent');
-    } catch (e) {
-      error = (e as { message?: string }).message || 'Impossible de créer la famille.';
-    } finally {
-      loading = false;
-    }
+    pendingOnboarding.set({ action: 'create', familyName: name });
+    goto('/parent-setup');
   }
 </script>
 
@@ -57,7 +40,7 @@
       <div class="ob-error ob-mb16">{error}</div>
     {/if}
 
-    <div class="ob-form-field">
+    <div class="ob-form-field ob-mb8">
       <label class="ob-label" for="familyName">Nom de la famille</label>
       <input
         class="ob-input"
@@ -70,24 +53,9 @@
       >
     </div>
 
-    <div class="ob-form-field ob-mb8">
-      <label class="ob-label" for="parentNickname">
-        Comment vous appelle-t-on ?
-        <span style="font-weight:400;color:var(--c-txt-m)">(optionnel)</span>
-      </label>
-      <input
-        class="ob-input"
-        id="parentNickname"
-        type="text"
-        placeholder="Papa, Maman, Alex…"
-        autocomplete="given-name"
-        bind:value={parentNickname}
-      >
-    </div>
-
     <div class="ob-btn-stack ob-mt-a">
-      <button class="ob-btn-primary" onclick={handleCreate} disabled={loading}>
-        {loading ? 'Création…' : 'Créer ma famille'}
+      <button class="ob-btn-primary" onclick={handleCreate}>
+        Créer ma famille
       </button>
     </div>
 

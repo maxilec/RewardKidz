@@ -2,24 +2,26 @@
   import { onMount } from 'svelte';
   import { goto }    from '$app/navigation';
   import { page }    from '$app/stores';
-  import { authUser, authReady, userDoc } from '$lib/stores';
+  import { authUser, authReady, userDoc, pendingOnboarding } from '$lib/stores';
   import {
     resolveInviteLink,
     connectChildDeviceViaToken,
-    joinFamilyAsAuthenticated
+    getUser,
+    logout
   } from '$lib/firebase';
   import {
     loginAsChild,
-    loginWithEmail,
     registerWithEmail,
     loginWithGoogle,
     translateAuthError
   } from '$lib/firebase/auth';
   import { auth } from '$lib/firebase/auth';
   import type { InviteLink } from '$lib/firebase/types';
+  import RegisterForm from '$lib/components/RegisterForm.svelte';
+  import GoogleIcon   from '$lib/components/icons/GoogleIcon.svelte';
 
   // ── État principal ──────────────────────────────────────────
-  type Step = 'loading' | 'invalid' | 'expired' | 'child' | 'parent' | 'joining';
+  type Step = 'loading' | 'invalid' | 'expired' | 'child' | 'parent';
   let step  = $state<Step>('loading');
   let link  = $state<InviteLink | null>(null);
   let error = $state('');
@@ -48,48 +50,19 @@
   }
 
   // ── Flux parent ─────────────────────────────────────────────
-  type AuthMode = 'choose' | 'signin' | 'register';
-  let authMode    = $state<AuthMode>('choose');
-  let email       = $state('');
-  let password    = $state('');
-  let nickname    = $state('');
   let authLoading = $state(false);
 
-  async function joinAsParent() {
-    const user = auth.currentUser;
-    if (!user || user.isAnonymous) { error = 'Connexion requise'; return; }
-    step = 'joining';
-    error = '';
-    try {
-      await joinFamilyAsAuthenticated(user, link!.familyId, nickname || undefined);
-      goto('/parent');
-    } catch (e: any) {
-      error = e.message || 'Erreur lors de la jonction.';
-      step = 'parent';
-    }
+  function proceedToSetup() {
+    pendingOnboarding.set({ action: 'token', familyId: link!.familyId, token });
+    goto('/parent-setup');
   }
 
-  async function handleSignin() {
-    if (!email || !password) { error = 'Email et mot de passe requis.'; return; }
+  async function handleRegister(regEmail: string, regPassword: string) {
     authLoading = true;
     error = '';
     try {
-      await loginWithEmail(email, password);
-      await joinAsParent();
-    } catch (e: any) {
-      error = translateAuthError(e);
-    } finally {
-      authLoading = false;
-    }
-  }
-
-  async function handleRegister() {
-    if (!email || !password) { error = 'Email et mot de passe requis.'; return; }
-    authLoading = true;
-    error = '';
-    try {
-      await registerWithEmail(email, password, nickname || undefined);
-      await joinAsParent();
+      await registerWithEmail(regEmail, regPassword);
+      proceedToSetup();
     } catch (e: any) {
       error = translateAuthError(e);
     } finally {
@@ -102,7 +75,15 @@
     error = '';
     try {
       await loginWithGoogle();
-      await joinAsParent();
+      const user = auth.currentUser;
+      if (!user) return;
+      const existing = await getUser(user.uid);
+      if (existing?.familyId) {
+        await logout();
+        error = 'Vous êtes déjà associé(e) à une famille. Vous ne pouvez pas en rejoindre une nouvelle.';
+        return;
+      }
+      proceedToSetup();
     } catch (e: any) {
       error = translateAuthError(e);
     } finally {
@@ -123,7 +104,7 @@
     }
   });
 
-  // ── Auto-join si parent déjà authentifié sans famille ───────
+  // ── Auto-proceed si parent déjà authentifié sans famille ───────
   $effect(() => {
     if (!$authReady || !link || link.type !== 'parent' || step !== 'parent') return;
     const user = $authUser;
@@ -132,7 +113,7 @@
       goto($userDoc.role === 'parent' ? '/parent' : '/child');
       return;
     }
-    joinAsParent();
+    proceedToSetup();
   });
 </script>
 
@@ -203,77 +184,26 @@
       </div>
       <h1 class="ob-title ob-mb8">Rejoindre la famille</h1>
       <p class="ob-subtitle ob-mb24">
-        Vous êtes invité(e) à rejoindre la famille <strong>{link.familyName}</strong>.
+        Créez votre compte pour rejoindre la famille <strong>{link.familyName}</strong>.
       </p>
 
       {#if error}
         <div class="ob-error ob-mb16">{error}</div>
       {/if}
 
-      <!-- Choix du mode d'auth -->
-      {#if authMode === 'choose'}
-        <div class="ob-btn-stack">
-          <button class="ob-btn-primary" onclick={() => authMode = 'register'}>
-            Créer un compte
-          </button>
-          <button class="ob-btn-secondary" onclick={() => authMode = 'signin'}>
-            J'ai déjà un compte
-          </button>
-          <div class="ob-divider">ou</div>
-          <button class="ob-btn-google" onclick={handleGoogle} disabled={authLoading}>
-            {authLoading ? '…' : 'Continuer avec Google'}
-          </button>
-        </div>
+      <button class="ob-btn-google ob-mb16" onclick={handleGoogle} disabled={authLoading}>
+        <GoogleIcon /> Continuer avec Google
+      </button>
 
-      <!-- Connexion email -->
-      {:else if authMode === 'signin'}
-        <div class="ob-form-field">
-          <label class="ob-label" for="joinEmail">Email</label>
-          <input class="ob-input" id="joinEmail" type="email" bind:value={email} autocomplete="email" />
-        </div>
-        <div class="ob-form-field ob-mb8">
-          <label class="ob-label" for="joinPassword">Mot de passe</label>
-          <input class="ob-input" id="joinPassword" type="password" bind:value={password} autocomplete="current-password" />
-        </div>
-        <div class="ob-btn-stack">
-          <button class="ob-btn-primary" onclick={handleSignin} disabled={authLoading}>
-            {authLoading ? 'Connexion…' : 'Se connecter et rejoindre'}
-          </button>
-          <button class="ob-btn-secondary" onclick={() => { authMode = 'choose'; error = ''; }}>
-            ← Retour
-          </button>
-        </div>
+      <div class="ob-sep">ou par email</div>
 
-      <!-- Inscription email -->
-      {:else if authMode === 'register'}
-        <div class="ob-form-field">
-          <label class="ob-label" for="regNickname">Votre prénom (affiché dans la famille)</label>
-          <input class="ob-input" id="regNickname" type="text" bind:value={nickname} autocomplete="nickname" placeholder="Ex : Sophie" />
-        </div>
-        <div class="ob-form-field">
-          <label class="ob-label" for="regEmail">Email</label>
-          <input class="ob-input" id="regEmail" type="email" bind:value={email} autocomplete="email" />
-        </div>
-        <div class="ob-form-field ob-mb8">
-          <label class="ob-label" for="regPassword">Mot de passe</label>
-          <input class="ob-input" id="regPassword" type="password" bind:value={password} autocomplete="new-password" />
-        </div>
-        <div class="ob-btn-stack">
-          <button class="ob-btn-primary" onclick={handleRegister} disabled={authLoading}>
-            {authLoading ? 'Création…' : 'Créer un compte et rejoindre'}
-          </button>
-          <button class="ob-btn-secondary" onclick={() => { authMode = 'choose'; error = ''; }}>
-            ← Retour
-          </button>
-        </div>
-      {/if}
+      <RegisterForm
+        {error}
+        loading={authLoading}
+        submitLabel="Créer un compte et rejoindre"
+        onSubmit={handleRegister}
+      />
 
-    <!-- ── Jonction en cours ── -->
-    {:else if step === 'joining'}
-      <div class="ob-illus ob-mb16" style="height:80px">
-        <span class="ob-illus-emoji" style="font-size:64px">⏳</span>
-      </div>
-      <h1 class="ob-title ob-mb8">Connexion à la famille…</h1>
     {/if}
 
   </div><!-- /.ob-content -->
@@ -289,12 +219,6 @@
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
   }
-  .ob-divider {
-    text-align: center;
-    color: var(--c-txt-m);
-    font-size: 0.85rem;
-    margin: 0.25rem 0;
-  }
   .ob-btn-google {
     width: 100%;
     padding: 0.875rem;
@@ -305,6 +229,10 @@
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     transition: background 0.15s;
   }
   .ob-btn-google:hover:not(:disabled) { background: var(--c-bg-alt); }
