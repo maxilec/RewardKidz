@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { MemberDoc } from '$lib/firebase/types';
-  import { addChild, updateFamilyName, deleteFamily, deleteParentAccount, logout } from '$lib/firebase';
-  import { auth } from '$lib/firebase/auth';
+  import { addChild, updateFamilyName, logout } from '$lib/firebase';
+  import { goto } from '$app/navigation';
 
   interface Props {
     open:            boolean;
@@ -71,34 +71,9 @@
     await logout();
   }
 
-  async function handleDeleteAccount() {
-    const msg = 'Supprimer votre compte ? Cette action est irréversible. Confirmer ?';
-    if (!confirm(msg)) return;
-    const user = auth.currentUser;
-    if (!user) return;
-    error = '';
-    try {
-      await deleteParentAccount(user, familyId);
-    } catch (e: any) {
-      error = (e as { message?: string }).message ?? 'Erreur inconnue.';
-    }
-  }
-
-  async function handleDeleteFamily() {
-    if (childMembers.length > 0) {
-      error = 'Retirez tous les enfants avant de supprimer la famille.';
-      return;
-    }
-    if (parentMembers.length > 1) {
-      error = 'Retirez tous les co-parents avant de supprimer la famille.';
-      return;
-    }
-    if (!confirm('Supprimer la famille entière ? Cette action est irréversible. Confirmer ?')) return;
-    try {
-      await deleteFamily(familyId);
-    } catch (e: any) {
-      error = (e.message ?? String(e));
-    }
+  function handleSettings() {
+    goto('/parent/settings');
+    onClose();
   }
 
   async function copyCode() {
@@ -208,16 +183,16 @@
     {/if}
   </div>
 
-  <!-- Danger zone -->
+  <!-- Actions bas de drawer -->
   <div class="app-drawer-danger-zone">
     <div
-      class="app-drawer-item danger"
+      class="app-drawer-item"
       role="button"
       tabindex="0"
-      onclick={handleLogout}
-      onkeydown={(e) => e.key === 'Enter' && handleLogout()}
+      onclick={handleSettings}
+      onkeydown={(e) => e.key === 'Enter' && handleSettings()}
     >
-      <span class="app-drawer-item-icon">🚪</span>Se déconnecter
+      <span class="app-drawer-item-icon">⚙️</span>Paramètres
     </div>
 
     <div class="app-drawer-sep"></div>
@@ -226,20 +201,10 @@
       class="app-drawer-item danger"
       role="button"
       tabindex="0"
-      onclick={handleDeleteAccount}
-      onkeydown={(e) => e.key === 'Enter' && handleDeleteAccount()}
+      onclick={handleLogout}
+      onkeydown={(e) => e.key === 'Enter' && handleLogout()}
     >
-      <span class="app-drawer-item-icon">👤</span>Supprimer mon compte
-    </div>
-
-    <div
-      class="app-drawer-item danger"
-      role="button"
-      tabindex="0"
-      onclick={handleDeleteFamily}
-      onkeydown={(e) => e.key === 'Enter' && handleDeleteFamily()}
-    >
-      <span class="app-drawer-item-icon">🗑</span>Supprimer la famille
+      <span class="app-drawer-item-icon">🚪</span>Se déconnecter
     </div>
   </div>
 
