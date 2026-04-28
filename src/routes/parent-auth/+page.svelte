@@ -41,22 +41,12 @@
   let joinInviteCode = $state('');
   let joinFamilyCode = $state('');
 
-  // ── Mode rejoindre : codes ou QR ──────────────────────────
-  type JoinMode = 'codes' | 'qr';
-  let joinMode        = $state<JoinMode>('codes');
-  let joinScannerOpen = $state(false);
-  let joinQrToken     = $state('');
-  let joinQrFamilyId  = $state('');
+  // ── Mode rejoindre : QR ───────────────────────────────────
+  let joinScannerOpen  = $state(false);
+  let joinQrToken      = $state('');
+  let joinQrFamilyId   = $state('');
   let joinQrFamilyName = $state('');
-  let joinQrResolved  = $state(false);
-
-  function switchJoinMode(mode: JoinMode) {
-    joinMode       = mode;
-    joinQrResolved = false;
-    joinQrToken    = '';
-    joinQrFamilyId = '';
-    errorJoin      = '';
-  }
+  let joinQrResolved   = $state(false);
 
   async function handleJoinScan(raw: string) {
     joinScannerOpen = false;
@@ -186,8 +176,7 @@
 
   // Résolution des codes ou du token QR → { familyId, token? }
   async function resolveJoinTarget(): Promise<{ familyId: string; token?: string }> {
-    if (joinMode === 'qr') {
-      if (!joinQrResolved) throw new Error('Scannez d\'abord le QR code.');
+    if (joinQrResolved) {
       return { familyId: joinQrFamilyId, token: joinQrToken };
     }
     const famCode = joinFamilyCode.trim().toUpperCase();
@@ -202,7 +191,7 @@
   async function handleJoinGoogle() {
     errorJoin = '';
     // Validation anticipée en mode codes (avant d'ouvrir le popup Google)
-    if (joinMode === 'codes') {
+    if (!joinQrResolved) {
       if (!joinFamilyCode.trim()) { errorJoin = 'Entrez le code famille.'; return; }
       if (!joinInviteCode.trim()) { errorJoin = "Entrez le code d'invitation."; return; }
     }
@@ -377,92 +366,77 @@
         <div class="ob-error ob-mb12">{errorJoin}</div>
       {/if}
 
-      <!-- Toggle codes / QR -->
-      <div class="join-mode-toggle ob-mb16">
-        <button
-          class="join-mode-btn"
-          class:active={joinMode === 'codes'}
-          onclick={() => switchJoinMode('codes')}
-        >Codes d'accès</button>
-        <button
-          class="join-mode-btn"
-          class:active={joinMode === 'qr'}
-          onclick={() => switchJoinMode('qr')}
-        >QR code</button>
-      </div>
-
-      <!-- Mode codes -->
-      {#if joinMode === 'codes'}
-        <div class="ob-card ob-mb20">
+      <div class="ob-card ob-mb20">
+        <div class="join-card-header">
           <p class="ob-card-title">Codes d'accès</p>
-          <div class="ob-form-field">
-            <label class="ob-label" for="joinFamilyCode">
-              Code famille
-              <span style="font-weight:400;color:var(--c-txt-m)">(8 caractères)</span>
-            </label>
-            <input class="ob-input ob-code-input" id="joinFamilyCode" type="text"
-                   maxlength="8" placeholder="ABCD1234"
-                   autocomplete="off" style="text-transform:uppercase;letter-spacing:5px"
-                   bind:value={joinFamilyCode}>
-          </div>
-          <div class="ob-form-field ob-mb0">
-            <label class="ob-label" for="joinInviteCode">
-              Code d'invitation
-              <span style="font-weight:400;color:var(--c-txt-m)">(6 chiffres — valable 15 min)</span>
-            </label>
-            <input class="ob-input ob-code-input otp-input" id="joinInviteCode"
-                   type="tel" inputmode="numeric"
-                   maxlength="6" placeholder="••••••"
-                   autocomplete="one-time-code" style="letter-spacing:8px"
-                   bind:value={joinInviteCode}>
-          </div>
-        </div>
-      {/if}
-
-      <!-- Mode QR -->
-      {#if joinMode === 'qr'}
-        {#if !joinQrResolved}
-          <button class="btn-qr ob-mb20" onclick={() => joinScannerOpen = true} disabled={loadingJoin}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <button
+            class="btn-qr-pill"
+            onclick={() => joinScannerOpen = true}
+            disabled={loadingJoin}
+            aria-label="Scanner un QR code"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1"/>
               <rect x="14" y="3" width="7" height="7" rx="1"/>
               <rect x="3" y="14" width="7" height="7" rx="1"/>
               <path d="M14 14h2v2h-2z M18 14h3 M14 18v3 M18 18h3v3h-3z"/>
             </svg>
-            {loadingJoin ? 'Vérification…' : 'Scanner le QR code'}
           </button>
-        {:else}
-          <div class="join-qr-success ob-mb20">
+        </div>
+
+        {#if joinQrResolved}
+          <div class="join-qr-success ob-mb12">
             <div class="join-qr-check">✅</div>
             <div class="join-qr-info">
               <div class="join-qr-label">Famille détectée</div>
               <div class="join-qr-name">{joinQrFamilyName}</div>
             </div>
-            <button class="join-qr-rescan" onclick={() => { joinQrResolved = false; joinScannerOpen = true; }}>
-              Rescanner
+            <button class="join-qr-rescan" onclick={() => { joinQrResolved = false; joinQrToken = ''; joinQrFamilyId = ''; }}>
+              ✕
             </button>
           </div>
         {/if}
-      {/if}
 
-      <!-- Section auth — visible en mode codes toujours, en mode QR seulement après scan -->
-      {#if joinMode === 'codes' || joinQrResolved}
-        <div class="ob-card-auth-title ob-mb12">Créer votre compte</div>
+        <div class="ob-form-field" class:field-secondary={joinQrResolved}>
+          <label class="ob-label" for="joinFamilyCode">
+            Code famille
+            <span style="font-weight:400;color:var(--c-txt-m)">(8 caractères)</span>
+          </label>
+          <input class="ob-input ob-code-input" id="joinFamilyCode" type="text"
+                 maxlength="8" placeholder="ABCD1234"
+                 autocomplete="off" style="text-transform:uppercase;letter-spacing:5px"
+                 disabled={joinQrResolved}
+                 bind:value={joinFamilyCode}>
+        </div>
+        <div class="ob-form-field ob-mb0" class:field-secondary={joinQrResolved}>
+          <label class="ob-label" for="joinInviteCode">
+            Code d'invitation
+            <span style="font-weight:400;color:var(--c-txt-m)">(6 chiffres — valable 15 min)</span>
+          </label>
+          <input class="ob-input ob-code-input otp-input" id="joinInviteCode"
+                 type="tel" inputmode="numeric"
+                 maxlength="6" placeholder="••••••"
+                 autocomplete="one-time-code" style="letter-spacing:8px"
+                 disabled={joinQrResolved}
+                 bind:value={joinInviteCode}>
+        </div>
+      </div>
 
-        <button class="ob-btn-google ob-mb16" onclick={handleJoinGoogle} disabled={loadingJoin}>
-          <GoogleIcon /> Continuer avec Google
-        </button>
+      <div class="ob-card-auth-title ob-mb12">Créer votre compte</div>
 
-        <div class="ob-sep">ou par email</div>
+      <button class="ob-btn-google ob-mb16" onclick={handleJoinGoogle} disabled={loadingJoin}>
+        <GoogleIcon /> Continuer avec Google
+      </button>
 
-        <RegisterForm
-          error={errorJoin}
-          loading={loadingJoin}
-          submitLabel="Créer un compte et rejoindre"
-          onSubmit={handleJoinEmail}
-        />
-      {/if}
+      <div class="ob-sep">ou par email</div>
+
+      <RegisterForm
+        error={errorJoin}
+        loading={loadingJoin}
+        submitLabel="Créer un compte et rejoindre"
+        onSubmit={handleJoinEmail}
+      />
 
     </div><!-- /#panel-join -->
 
@@ -507,55 +481,36 @@
   .ob-mb0 { margin-bottom: 0 !important; }
   .ob-mb20 { margin-bottom: 1.25rem; }
 
-  /* ── Toggle codes / QR ── */
-  .join-mode-toggle {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    background: var(--c-bg-alt, #f1f0f9);
-    border-radius: 10px;
-    padding: 3px;
-    gap: 3px;
+  /* ── En-tête carte codes avec pastille QR ── */
+  .join-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
   }
-  .join-mode-btn {
-    padding: 0.5rem;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--c-txt-m, #6b7280);
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-  .join-mode-btn.active {
-    background: #fff;
-    color: var(--c-purple, #7c3aed);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  }
-
-  /* ── Bouton scanner ── */
-  .btn-qr {
-    width: 100%;
-    padding: 1rem;
-    border-radius: 12px;
-    border: 1.5px dashed var(--c-border, #d1d5db);
-    background: transparent;
-    color: var(--c-txt, #1e1b4b);
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
+  .join-card-header .ob-card-title { margin: 0; }
+  .btn-qr-pill {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1.5px solid var(--c-border, #d1d5db);
+    background: var(--c-bg, #fff);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    cursor: pointer;
+    color: var(--c-txt-m, #6b7280);
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
   }
-  .btn-qr:hover:not(:disabled) {
-    background: var(--c-bg-alt, #f1f0f9);
+  .btn-qr-pill:hover:not(:disabled) {
     border-color: var(--c-purple, #7c3aed);
     color: var(--c-purple, #7c3aed);
   }
-  .btn-qr:disabled { opacity: 0.5; cursor: default; }
+  .btn-qr-pill:disabled { opacity: 0.4; cursor: default; }
+
+  /* Champs secondaires quand QR résolu */
+  .field-secondary { opacity: 0.4; pointer-events: none; }
 
   /* ── Succès QR ── */
   .join-qr-success {

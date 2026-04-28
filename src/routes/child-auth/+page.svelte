@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto }    from '$app/navigation';
+  import { onMount } from 'svelte';
   import { auth, loginAsChild } from '$lib/firebase/auth';
   import { connectChildDevice, resolveInviteLink, connectChildDeviceViaToken, logout } from '$lib/firebase';
   import QrScanner from '$lib/components/QrScanner.svelte';
@@ -9,6 +10,14 @@
   let error         = $state('');
   let loading       = $state(false);
   let scannerOpen   = $state(false);
+  let sessionReady  = $state(false);
+
+  onMount(async () => {
+    if (!auth.currentUser) {
+      await loginAsChild();
+    }
+    sessionReady = true;
+  });
 
   async function goBack() {
     await logout();
@@ -87,6 +96,10 @@
     <h1 class="ob-title ob-mb8">Connexion enfant</h1>
     <p class="ob-subtitle ob-mb24">Entre les deux codes que ton parent t'a donnés.</p>
 
+    {#if !sessionReady}
+      <div class="ob-session-init">Préparation de ta session…</div>
+    {:else}
+
     {#if error}
       <div class="ob-error ob-mb16">{error}</div>
     {/if}
@@ -150,6 +163,8 @@
       Scanner un QR code
     </button>
 
+    {/if}<!-- /sessionReady -->
+
   </div><!-- /.ob-content -->
 
 </div><!-- /.page.child-auth -->
@@ -169,6 +184,13 @@
   }
 
   .ob-mt16 { margin-top: 1rem; }
+
+  .ob-session-init {
+    text-align: center;
+    color: var(--c-txt-m, #6b7280);
+    font-size: 0.875rem;
+    padding: 2rem 0;
+  }
 
   .btn-qr {
     width: 100%;
