@@ -1,6 +1,5 @@
 <script lang="ts">
   import { authUser, userDoc, authReady } from '$lib/stores';
-  import { loginAsChild } from '$lib/firebase';
   import { goto } from '$app/navigation';
 
   // After auth resolves, redirect authenticated users with a family
@@ -27,22 +26,12 @@
     goto('/parent-auth');
   }
 
-  let childLoading = $state(false);
-
-  async function goChild() {
+  function goChild() {
     if ($authUser?.isAnonymous) {
-      const doc = $userDoc;
-      goto(!doc?.familyId ? '/child-auth' : '/child');
+      goto(!$userDoc?.familyId ? '/child-auth' : '/child');
       return;
     }
-    childLoading = true;
-    try {
-      await loginAsChild();
-      // onAuthStateChanged will handle routing via $effect above
-    } catch (e) {
-      console.error('Anonymous login failed', e);
-      childLoading = false;
-    }
+    goto('/child-auth');
   }
 </script>
 
@@ -78,8 +67,8 @@
         <span class="ob-role-card-emoji">🧒</span>
         <div class="ob-role-card-title">Je suis un enfant</div>
         <div class="ob-role-card-desc">Connecter cet appareil avec mon code.</div>
-        <button class="ob-btn-primary" tabindex="-1" disabled={childLoading} onclick={(e) => { e.stopPropagation(); goChild(); }}>
-          {childLoading ? '…' : 'Espace enfant'}
+        <button class="ob-btn-primary" tabindex="-1" onclick={(e) => { e.stopPropagation(); goChild(); }}>
+          Espace enfant
         </button>
       </div>
       <div
