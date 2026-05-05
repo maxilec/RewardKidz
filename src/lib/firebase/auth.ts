@@ -10,6 +10,7 @@ import {
   updateProfile,
   deleteUser,
   sendPasswordResetEmail,
+  confirmPasswordReset,
   reauthenticateWithCredential,
   EmailAuthProvider,
   updatePassword,
@@ -72,7 +73,14 @@ export async function deleteCurrentUser(user: User): Promise<void> {
 }
 
 export async function resetPassword(email: string): Promise<void> {
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(auth, email, {
+    url: `${window.location.origin}/auth/action`,
+    handleCodeInApp: true,
+  });
+}
+
+export async function applyPasswordReset(oobCode: string, newPassword: string): Promise<void> {
+  await confirmPasswordReset(auth, oobCode, newPassword);
 }
 
 export async function changePassword(

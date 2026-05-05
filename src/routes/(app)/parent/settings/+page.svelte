@@ -7,6 +7,7 @@
     deleteParentAccount, deleteFamily
   } from '$lib/firebase';
   import ProfileCard from '$lib/components/ProfileCard.svelte';
+  import EyeIcon     from '$lib/components/icons/EyeIcon.svelte';
 
   let familyId = $derived($userDoc?.familyId ?? '');
 
@@ -196,7 +197,7 @@
             >
             <button type="button" class="s-eye" onclick={() => showCurrent = !showCurrent}
                     aria-label={showCurrent ? 'Masquer' : 'Afficher'}>
-              {showCurrent ? '🙈' : '👁'}
+              <EyeIcon closed={!showCurrent} />
             </button>
           </div>
         </div>
@@ -214,7 +215,7 @@
             >
             <button type="button" class="s-eye" onclick={() => showNew = !showNew}
                     aria-label={showNew ? 'Masquer' : 'Afficher'}>
-              {showNew ? '🙈' : '👁'}
+              <EyeIcon closed={!showNew} />
             </button>
           </div>
         </div>
