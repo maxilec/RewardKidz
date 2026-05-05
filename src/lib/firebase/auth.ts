@@ -9,6 +9,10 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   deleteUser,
+  sendPasswordResetEmail,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  updatePassword,
   type User,
   type Unsubscribe
 } from 'firebase/auth';
@@ -67,6 +71,20 @@ export async function deleteCurrentUser(user: User): Promise<void> {
   await deleteUser(user);
 }
 
+export async function resetPassword(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email);
+}
+
+export async function changePassword(
+  user: User,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const credential = EmailAuthProvider.credential(user.email!, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
+}
+
 export { signOut } from 'firebase/auth';
 
 // ─────────────────────────────────────────────────────────────
@@ -74,13 +92,15 @@ export { signOut } from 'firebase/auth';
 // ─────────────────────────────────────────────────────────────
 
 const AUTH_ERROR_MAP: Record<string, string> = {
-  'auth/email-already-in-use':  'Cet email est déjà utilisé.',
-  'auth/invalid-email':         'Adresse email invalide.',
-  'auth/weak-password':         'Mot de passe trop court (6 caractères minimum).',
-  'auth/user-not-found':        'Aucun compte trouvé pour cet email.',
-  'auth/wrong-password':        'Mot de passe incorrect.',
-  'auth/invalid-credential':    'Email ou mot de passe incorrect.',
-  'auth/popup-closed-by-user':  'Connexion annulée.',
+  'auth/email-already-in-use':   'Cet email est déjà utilisé.',
+  'auth/invalid-email':          'Adresse email invalide.',
+  'auth/weak-password':          'Mot de passe trop court (6 caractères minimum).',
+  'auth/user-not-found':         'Aucun compte trouvé pour cet email.',
+  'auth/wrong-password':         'Mot de passe incorrect.',
+  'auth/invalid-credential':     'Email ou mot de passe incorrect.',
+  'auth/popup-closed-by-user':   'Connexion annulée.',
+  'auth/too-many-requests':      'Trop de tentatives. Réessayez dans quelques minutes.',
+  'auth/requires-recent-login':  'Session expirée. Déconnectez-vous et reconnectez-vous avant de changer le mot de passe.',
 };
 
 export function translateAuthError(err: unknown): string {

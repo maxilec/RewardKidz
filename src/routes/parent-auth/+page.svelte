@@ -6,7 +6,7 @@
     resolveInvite, resolveByFamilyCode, resolveInviteLink, getUser, logout
   } from '$lib/firebase';
   import { pendingOnboarding, authReady, authUser, userDoc } from '$lib/stores';
-  import { auth } from '$lib/firebase/auth';
+  import { auth, resetPassword } from '$lib/firebase/auth';
   import RegisterForm  from '$lib/components/RegisterForm.svelte';
   import GoogleIcon    from '$lib/components/icons/GoogleIcon.svelte';
   import EyeIcon       from '$lib/components/icons/EyeIcon.svelte';
@@ -100,6 +100,25 @@
   // ─────────────────────────────────────────────────────────
   // Onglet : S'identifier
   // ─────────────────────────────────────────────────────────
+
+  let resetSent    = $state(false);
+  let resetLoading = $state(false);
+
+  async function handleForgotPassword() {
+    const email = signinEmail.trim();
+    if (!email) { errorSignin = 'Entrez votre email avant de réinitialiser le mot de passe.'; return; }
+    errorSignin  = '';
+    resetSent    = false;
+    resetLoading = true;
+    try {
+      await resetPassword(email);
+      resetSent = true;
+    } catch (e) {
+      errorSignin = translateAuthError(e);
+    } finally {
+      resetLoading = false;
+    }
+  }
 
   async function handleLoginGoogle() {
     errorSignin = '';
@@ -299,7 +318,7 @@
                  placeholder="votre@email.com" required autocomplete="email"
                  bind:value={signinEmail}>
         </div>
-        <div class="ob-form-field ob-mb8">
+        <div class="ob-form-field ob-mb4">
           <label class="ob-label" for="signinPassword">Mot de passe</label>
           <div class="ob-input-pwd">
             <input class="ob-input" id="signinPassword"
@@ -312,6 +331,14 @@
               <EyeIcon closed={!showSigninPwd} />
             </button>
           </div>
+        </div>
+        <div class="ob-forgot-row ob-mb8">
+          <button type="button" class="ob-forgot-link" onclick={handleForgotPassword} disabled={resetLoading}>
+            {resetLoading ? 'Envoi…' : 'Mot de passe oublié ?'}
+          </button>
+          {#if resetSent}
+            <span class="ob-reset-sent">✓ Email envoyé</span>
+          {/if}
         </div>
         <button type="submit" class="ob-btn-primary" disabled={loadingSignin}>
           {loadingSignin ? 'Connexion…' : 'Se connecter'}
@@ -473,8 +500,32 @@
     text-transform: uppercase;
     color: var(--c-txt-m);
   }
-  .ob-mb0 { margin-bottom: 0 !important; }
+  .ob-mb0  { margin-bottom: 0 !important; }
+  .ob-mb4  { margin-bottom: 0.25rem; }
   .ob-mb20 { margin-bottom: 1.25rem; }
+
+  /* ── Mot de passe oublié ── */
+  .ob-forgot-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ob-forgot-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.8rem;
+    color: var(--c-purple, #7c3aed);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .ob-forgot-link:disabled { opacity: 0.5; cursor: default; }
+  .ob-reset-sent {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #10b981;
+  }
 
   /* ── En-tête carte codes avec pastille QR ── */
   .join-card-header {

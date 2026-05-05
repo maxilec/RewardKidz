@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { authUser, userDoc, familyDoc, children as childMembers, members } from '$lib/stores';
-  import { auth } from '$lib/firebase/auth';
+  import { auth, changePassword, translateAuthError } from '$lib/firebase/auth';
   import {
     updateParentProfile, updateFamilyName,
     deleteParentAccount, deleteFamily
@@ -67,6 +67,44 @@
       error = e.message || 'Erreur lors de l\'enregistrement.';
     } finally {
       saving = false;
+    }
+  }
+
+  // ── Changement de mot de passe ─────────────────────────
+  let isEmailProvider = $derived(
+    $authUser?.providerData.some(p => p.providerId === 'password') ?? false
+  );
+
+  let currentPwd  = $state('');
+  let newPwd      = $state('');
+  let confirmPwd  = $state('');
+  let pwdSaving   = $state(false);
+  let pwdSaved    = $state(false);
+  let pwdError    = $state('');
+  let showCurrent = $state(false);
+  let showNew     = $state(false);
+
+  async function handleChangePassword() {
+    pwdError = '';
+    if (!currentPwd) { pwdError = 'Entrez votre mot de passe actuel.'; return; }
+    if (newPwd.length < 6) { pwdError = 'Le nouveau mot de passe doit faire au moins 6 caractères.'; return; }
+    if (newPwd !== confirmPwd) { pwdError = 'Les deux mots de passe ne correspondent pas.'; return; }
+
+    const user = auth.currentUser;
+    if (!user) return;
+
+    pwdSaving = true;
+    try {
+      await changePassword(user, currentPwd, newPwd);
+      currentPwd = '';
+      newPwd     = '';
+      confirmPwd = '';
+      pwdSaved   = true;
+      setTimeout(() => { pwdSaved = false; }, 2500);
+    } catch (e) {
+      pwdError = translateAuthError(e);
+    } finally {
+      pwdSaving = false;
     }
   }
 
@@ -139,6 +177,77 @@
         >
       </div>
     </div>
+
+    <!-- Section Sécurité — uniquement pour les comptes email -->
+    {#if isEmailProvider}
+      <div class="s-section-label">Sécurité</div>
+      <div class="s-card">
+
+        <div class="pc-field">
+          <label class="pc-label" for="s-curr-pwd">Mot de passe actuel</label>
+          <div class="s-pwd-row">
+            <input
+              class="pc-input"
+              id="s-curr-pwd"
+              type={showCurrent ? 'text' : 'password'}
+              placeholder="••••••••"
+              autocomplete="current-password"
+              bind:value={currentPwd}
+            >
+            <button type="button" class="s-eye" onclick={() => showCurrent = !showCurrent}
+                    aria-label={showCurrent ? 'Masquer' : 'Afficher'}>
+              {showCurrent ? '🙈' : '👁'}
+            </button>
+          </div>
+        </div>
+
+        <div class="pc-field">
+          <label class="pc-label" for="s-new-pwd">Nouveau mot de passe</label>
+          <div class="s-pwd-row">
+            <input
+              class="pc-input"
+              id="s-new-pwd"
+              type={showNew ? 'text' : 'password'}
+              placeholder="••••••••"
+              autocomplete="new-password"
+              bind:value={newPwd}
+            >
+            <button type="button" class="s-eye" onclick={() => showNew = !showNew}
+                    aria-label={showNew ? 'Masquer' : 'Afficher'}>
+              {showNew ? '🙈' : '👁'}
+            </button>
+          </div>
+        </div>
+
+        <div class="pc-field">
+          <label class="pc-label" for="s-confirm-pwd">Confirmer le nouveau mot de passe</label>
+          <input
+            class="pc-input"
+            id="s-confirm-pwd"
+            type={showNew ? 'text' : 'password'}
+            placeholder="••••••••"
+            autocomplete="new-password"
+            bind:value={confirmPwd}
+          >
+        </div>
+
+        {#if pwdError}
+          <p class="s-pwd-error">{pwdError}</p>
+        {/if}
+
+        <button class="s-pwd-btn" class:s-pwd-btn--saved={pwdSaved}
+                onclick={handleChangePassword} disabled={pwdSaving}>
+          {#if pwdSaving}
+            Modification…
+          {:else if pwdSaved}
+            ✓ Mot de passe modifié
+          {:else}
+            Modifier le mot de passe
+          {/if}
+        </button>
+
+      </div>
+    {/if}
 
     <!-- Zone danger -->
     <div class="s-section-label s-section-label--danger">Zone danger</div>
@@ -233,6 +342,46 @@
     width: 100%; box-sizing: border-box;
   }
   :global(.pc-input:focus) { border-color: var(--c-primary, #7c3aed); }
+
+  /* ── Section Sécurité ── */
+  .s-pwd-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .s-pwd-row :global(.pc-input) { padding-right: 40px; }
+  .s-eye {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    color: var(--c-txt-m, #6b7280);
+  }
+  .s-pwd-error {
+    font-size: 0.8rem;
+    color: #dc2626;
+    margin: 0;
+  }
+  .s-pwd-btn {
+    width: 100%;
+    height: 44px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, var(--c-primary, #7c3aed), var(--c-primary-end, #6d28d9));
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: var(--f-head, sans-serif);
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .s-pwd-btn:hover:not(:disabled) { opacity: 0.9; }
+  .s-pwd-btn:disabled { opacity: 0.5; cursor: default; }
+  .s-pwd-btn--saved { background: linear-gradient(135deg, #10b981, #059669) !important; }
 
   /* ── Erreur ── */
   .s-error {
