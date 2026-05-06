@@ -11,6 +11,7 @@ import {
   deleteUser,
   sendPasswordResetEmail,
   confirmPasswordReset,
+  verifyPasswordResetCode,
   reauthenticateWithCredential,
   EmailAuthProvider,
   updatePassword,
@@ -78,6 +79,10 @@ export async function resetPassword(email: string): Promise<void> {
 
 export async function applyPasswordReset(oobCode: string, newPassword: string): Promise<void> {
   await confirmPasswordReset(auth, oobCode, newPassword);
+}
+
+export async function getEmailFromResetCode(oobCode: string): Promise<string> {
+  return await verifyPasswordResetCode(auth, oobCode);
 }
 
 export async function changePassword(
