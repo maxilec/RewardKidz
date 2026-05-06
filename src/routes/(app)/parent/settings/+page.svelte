@@ -76,18 +76,16 @@
     $authUser?.providerData.some(p => p.providerId === 'password') ?? false
   );
 
-  let currentPwd  = $state('');
   let newPwd      = $state('');
   let confirmPwd  = $state('');
   let pwdSaving   = $state(false);
   let pwdSaved    = $state(false);
   let pwdError    = $state('');
-  let showCurrent = $state(false);
   let showNew     = $state(false);
+  let showConfirm = $state(false);
 
   async function handleChangePassword() {
     pwdError = '';
-    if (!currentPwd) { pwdError = 'Entrez votre mot de passe actuel.'; return; }
     if (newPwd.length < 6) { pwdError = 'Le nouveau mot de passe doit faire au moins 6 caractères.'; return; }
     if (newPwd !== confirmPwd) { pwdError = 'Les deux mots de passe ne correspondent pas.'; return; }
 
@@ -96,8 +94,7 @@
 
     pwdSaving = true;
     try {
-      await changePassword(user, currentPwd, newPwd);
-      currentPwd = '';
+      await changePassword(user, newPwd);
       newPwd     = '';
       confirmPwd = '';
       pwdSaved   = true;
@@ -185,24 +182,6 @@
       <div class="s-card">
 
         <div class="pc-field">
-          <label class="pc-label" for="s-curr-pwd">Mot de passe actuel</label>
-          <div class="s-pwd-row">
-            <input
-              class="pc-input"
-              id="s-curr-pwd"
-              type={showCurrent ? 'text' : 'password'}
-              placeholder="••••••••"
-              autocomplete="current-password"
-              bind:value={currentPwd}
-            >
-            <button type="button" class="s-eye" onclick={() => showCurrent = !showCurrent}
-                    aria-label={showCurrent ? 'Masquer' : 'Afficher'}>
-              <EyeIcon closed={!showCurrent} />
-            </button>
-          </div>
-        </div>
-
-        <div class="pc-field">
           <label class="pc-label" for="s-new-pwd">Nouveau mot de passe</label>
           <div class="s-pwd-row">
             <input
@@ -222,14 +201,20 @@
 
         <div class="pc-field">
           <label class="pc-label" for="s-confirm-pwd">Confirmer le nouveau mot de passe</label>
-          <input
-            class="pc-input"
-            id="s-confirm-pwd"
-            type={showNew ? 'text' : 'password'}
-            placeholder="••••••••"
-            autocomplete="new-password"
-            bind:value={confirmPwd}
-          >
+          <div class="s-pwd-row">
+            <input
+              class="pc-input"
+              id="s-confirm-pwd"
+              type={showConfirm ? 'text' : 'password'}
+              placeholder="••••••••"
+              autocomplete="new-password"
+              bind:value={confirmPwd}
+            >
+            <button type="button" class="s-eye" onclick={() => showConfirm = !showConfirm}
+                    aria-label={showConfirm ? 'Masquer' : 'Afficher'}>
+              <EyeIcon closed={!showConfirm} />
+            </button>
+          </div>
         </div>
 
         {#if pwdError}

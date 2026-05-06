@@ -87,11 +87,8 @@ export async function getEmailFromResetCode(oobCode: string): Promise<string> {
 
 export async function changePassword(
   user: User,
-  currentPassword: string,
   newPassword: string
 ): Promise<void> {
-  const credential = EmailAuthProvider.credential(user.email!, currentPassword);
-  await reauthenticateWithCredential(user, credential);
   await updatePassword(user, newPassword);
 }
 
