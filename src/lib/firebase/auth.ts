@@ -73,10 +73,7 @@ export async function deleteCurrentUser(user: User): Promise<void> {
 }
 
 export async function resetPassword(email: string): Promise<void> {
-  await sendPasswordResetEmail(auth, email, {
-    url: `${window.location.origin}/auth/action`,
-    handleCodeInApp: true,
-  });
+  await sendPasswordResetEmail(auth, email);
 }
 
 export async function applyPasswordReset(oobCode: string, newPassword: string): Promise<void> {
