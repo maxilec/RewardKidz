@@ -15,6 +15,7 @@
   import ScoreControls from '$lib/components/ScoreControls.svelte';
   import AppDrawer    from '$lib/components/AppDrawer.svelte';
   import AppModal     from '$lib/components/AppModal.svelte';
+  import InviteCodeBlock from '$lib/components/InviteCodeBlock.svelte';
 
   // ── État ────────────────────────────────────────────────
   let familyId    = $derived($userDoc?.familyId ?? '');
@@ -150,20 +151,15 @@
 <AppModal open={inviteModalOpen} title="🔗 Inviter un co-parent" shareUrl={inviteShareUrl} onClose={() => inviteModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Partagez ce code à un autre parent pour qu'il rejoigne votre famille.</p>
-    {#if inviteCode}
-      <div class="app-invite-code">{inviteCode}</div>
-      {#if inviteQR}
-        <img src={inviteQR} alt="QR code invitation" style="display:block;margin:12px auto 0;width:140px;height:140px;border-radius:12px" />
-      {/if}
-    {/if}
-    <button class="app-btn-prim full" onclick={generateInvite} disabled={generatingInvite}>
-      {inviteCode ? '🔄 Nouveau code' : '✉️ Générer un code'}
-    </button>
-    <div class="app-modal-divider"></div>
-    <div style="text-align:center;padding:4px 0 2px">
-      <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille permanent (rappel)</div>
-      <div class="app-drawer-code-val" style="font-size:18px;letter-spacing:3px">{familyCode}</div>
-    </div>
+    <InviteCodeBlock
+      code={inviteCode}
+      qrSrc={inviteQR}
+      qrAlt="QR code invitation"
+      {familyCode}
+      loading={generatingInvite}
+      generateIcon="✉️"
+      onGenerate={generateInvite}
+    />
   {/snippet}
 </AppModal>
 

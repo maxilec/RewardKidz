@@ -18,6 +18,7 @@
   import Histogram     from '$lib/components/Histogram.svelte';
   import AppDrawer     from '$lib/components/AppDrawer.svelte';
   import AppModal      from '$lib/components/AppModal.svelte';
+  import InviteCodeBlock from '$lib/components/InviteCodeBlock.svelte';
 
   // ── Paramètre URL ────────────────────────────────────────
   let memberId   = $derived($page.params.memberId ?? '');
@@ -208,20 +209,15 @@
 <AppModal open={otpModalOpen} title="🔑 Code de connexion enfant" shareUrl={otpShareUrl} onClose={() => otpModalOpen = false}>
   {#snippet children()}
     <p class="app-hint">Code temporaire valable 30 min — à saisir sur l'appareil de {displayName} lors de la première connexion.</p>
-    {#if otpCode && otpCode !== '…'}
-      <div class="app-invite-code">{otpCode}</div>
-      {#if otpQR}
-        <img src={otpQR} alt="QR code connexion enfant" style="display:block;margin:12px auto 0;width:140px;height:140px;border-radius:12px" />
-      {/if}
-    {/if}
-    <button class="app-btn-prim full" onclick={generateOtp} disabled={otpGenerating}>
-      {otpGenerating ? '…' : otpCode ? '🔄 Nouveau code' : '🔑 Générer un code'}
-    </button>
-    <div class="app-modal-divider"></div>
-    <div style="text-align:center;padding:4px 0 2px">
-      <div class="app-drawer-code-label" style="margin-bottom:6px">Code famille permanent (rappel)</div>
-      <div class="app-drawer-code-val" style="font-size:18px;letter-spacing:3px">{familyCode}</div>
-    </div>
+    <InviteCodeBlock
+      code={otpCode !== '…' ? otpCode : ''}
+      qrSrc={otpQR}
+      qrAlt="QR code connexion enfant"
+      {familyCode}
+      loading={otpGenerating}
+      generateIcon="🔑"
+      onGenerate={generateOtp}
+    />
   {/snippet}
 </AppModal>
 
