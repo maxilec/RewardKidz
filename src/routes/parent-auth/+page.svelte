@@ -31,7 +31,7 @@
   let loadingJoin   = $state(false);
 
   // ── Form fields — Sign in ──────────────────────────────────
-  let signinEmail    = $state('');
+  let signinEmail    = $state($page.url.searchParams.get('email') ?? '');
   let signinPassword = $state('');
   let showSigninPwd  = $state(false);
 

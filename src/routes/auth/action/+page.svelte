@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto }    from '$app/navigation';
   import { page }    from '$app/stores';
-  import { applyPasswordReset, translateAuthError } from '$lib/firebase/auth';
+  import { applyPasswordReset, getEmailFromResetCode, translateAuthError } from '$lib/firebase/auth';
   import EyeIcon from '$lib/components/icons/EyeIcon.svelte';
 
   const mode    = $page.url.searchParams.get('mode') ?? '';
@@ -13,8 +13,15 @@
   let loading    = $state(false);
   let error      = $state('');
   let done       = $state(false);
+  let email      = $state('');
 
-  const validMode = mode === 'resetPassword' && oobCode !== '';
+  // Resolve the email upfront — also validates the code before the user types anything
+  let validMode  = $state(mode === 'resetPassword' && oobCode !== '');
+  if (validMode) {
+    getEmailFromResetCode(oobCode)
+      .then(e  => { email = e; })
+      .catch(() => { validMode = false; });
+  }
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
@@ -61,7 +68,8 @@
 
       <h1 class="ob-title ob-mb8">Mot de passe modifié</h1>
       <p class="ob-subtitle ob-mb24">Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.</p>
-      <button class="ob-btn-primary" onclick={() => goto('/parent-auth?tab=signin')}>
+      <button class="ob-btn-primary"
+              onclick={() => goto(`/parent-auth?tab=signin${email ? '&email=' + encodeURIComponent(email) : ''}`)}>
         Se connecter
       </button>
 
